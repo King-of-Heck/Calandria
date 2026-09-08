@@ -1,4 +1,4 @@
-"""document.xml → model.Document."""
+"""document.xml -> model.Document."""
 from __future__ import annotations
 
 import re
@@ -85,7 +85,7 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                 elif x.tag == wq("noBreakHyphen"):
                     buf.append("-")
                 elif x.tag == wq("sym"):
-                    buf.append("�")
+                    buf.append("\ufffd")
                 elif x.tag == wq("cr"):
                     buf.append("\n")
             text = "".join(buf)
@@ -93,7 +93,7 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                 state["text_seen"] = True
             if text:
                 out.append(Run(text, props))
-        elif tag in _TRANSPARENT or tag == wq("sdtContent"):
+        elif tag in _TRANSPARENT:
             _runs(child, ctx, para_rpr, out, state)
 
 
@@ -138,7 +138,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
 
     # A pending break travels from paragraph to paragraph. Snapshot what arrived from
     # earlier paragraphs, then let _runs discover (and reset) whatever this paragraph's
-    # OWN content contributes going forward — the two must never be conflated, or a
+    # OWN content contributes going forward -- the two must never be conflated, or a
     # break that lands after this paragraph's own text (which is destined for the NEXT
     # paragraph) gets misattributed to this one instead.
     had_pending = ctx.pending_break
@@ -160,9 +160,10 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
 
     if p.is_empty:
         # Empty: no distinction between "before" and "after" text (there is none), so any
-        # break found here (or still unresolved from before) simply keeps traveling.
-        has_break = any(x.tag == wq("br") and x.get(wq("type")) == "page" for x in el.iter())
-        ctx.pending_break = had_pending or state["break_before"] or ctx.pending_break or has_break
+        # break found here (or still unresolved from before) simply keeps traveling. A break
+        # that only reaches _runs from a skipped subtree (e.g. inside w:del) never sets
+        # break_before or pending_break in the first place, so it correctly does not travel.
+        ctx.pending_break = had_pending or state["break_before"] or ctx.pending_break
     else:
         if state["break_before"] or had_pending:
             p.props.page_break_before = True
@@ -186,8 +187,8 @@ def _table(el, ctx: _Ctx) -> Table:
             span, vm = 1, None
             if tcpr is not None:
                 gs = tcpr.find(wq("gridSpan"))
-                if gs is not None and wval(gs, "1").isdigit():
-                    span = int(wval(gs))
+                if gs is not None:
+                    span = int(wval(gs, "1"))
                 v = tcpr.find(wq("vMerge"))
                 if v is not None:
                     vm = "continue" if wval(v) == "continue" or wval(v) is None else "restart"

@@ -91,3 +91,24 @@ def test_even_and_odd_from_settings():
     settings = f'<w:settings xmlns:w="{W_NS}"><w:evenAndOddHeaders/></w:settings>'
     assert _doc(P("x"), **{"word/settings.xml": settings}).even_and_odd is True
     assert _doc(P("x")).even_and_odd is False
+
+
+def test_gridspan_without_val_defaults_to_one():
+    body = '<w:tbl><w:tr><w:tc><w:tcPr><w:gridSpan/></w:tcPr>' + P("a") + '</w:tc></w:tr></w:tbl>'
+    d = _doc(body)
+    t = d.blocks[0]
+    assert t.rows[0].cells[0].grid_span == 1
+
+
+def test_deleted_page_break_does_not_travel():
+    d = _doc(P("one") + '<w:p><w:del><w:r><w:br w:type="page"/></w:r></w:del></w:p>' + P("two"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    flags = [(p.text, p.props.page_break_before) for p in paras if not p.is_empty]
+    assert flags == [("one", False), ("two", False)]
+
+
+def test_page_break_before_text_applies_to_own_paragraph():
+    d = _doc(P("one") + '<w:p><w:r><w:br w:type="page"/><w:t>two</w:t></w:r></w:p>' + P("three"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    flags = [(p.text, p.props.page_break_before) for p in paras if not p.is_empty]
+    assert flags == [("one", False), ("two", True), ("three", False)]

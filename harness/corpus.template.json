@@ -1,0 +1,10 @@
+{"pairs": [
+  {"alias": "fixture", "a": "fixtureA.docx", "b": "fixtureB.docx"},
+  {"alias": "spacing", "a": "spacingA.docx", "b": "spacingB.docx"},
+  {"alias": "pages", "a": "pages-A.docx", "b": "pages-B.docx"},
+  {"alias": "r3", "a": "r3A.docx", "b": "r3B.docx"},
+  {"alias": "c4", "a": "c4A.docx", "b": "c4B.docx"},
+  {"alias": "c6", "a": "c6A.docx", "b": "c6B.docx"},
+  {"alias": "bench", "a": "benchA.docx", "b": "benchB.docx"},
+  {"alias": "big200", "a": "big200A.docx", "b": "big200B.docx"}
+]}

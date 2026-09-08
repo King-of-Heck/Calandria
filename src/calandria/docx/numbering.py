@@ -139,9 +139,6 @@ class NumberingCounter:
         def sub(m):
             li = int(m.group(1)) - 1
             l2 = levels.get(li, Level())
-            # Ancestor references render as plain decimal; only the placeholder
-            # for the level being rendered uses that level's own numFmt.
-            fmt = l2.fmt if li == ilvl else "decimal"
-            return fmt_num(counts.get(li, l2.start), fmt)
+            return fmt_num(counts.get(li, l2.start), l2.fmt)
 
         return NumInfo(num_id, ilvl, _PH.sub(sub, lv.text), False)

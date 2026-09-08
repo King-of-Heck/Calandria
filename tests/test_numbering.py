@@ -39,7 +39,7 @@ def test_counter_cascade_and_multilevel_text():
     assert c.next(1, 0).marker == "1."
     assert c.next(1, 1).marker == "(a)"
     assert c.next(1, 1).marker == "(b)"
-    assert c.next(1, 2).marker == "1.2.i"
+    assert c.next(1, 2).marker == "1.b.i"  # each placeholder uses its own level's numFmt (Word; matches the reference engine)
     assert c.next(1, 0).marker == "2."
     assert c.next(1, 1).marker == "(a)"      # reset by the shallower increment
 

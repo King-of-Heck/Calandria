@@ -1,7 +1,7 @@
 """Project the tree onto SorkWhare's flat paragraph records for the parity harness."""
 from __future__ import annotations
 
-from ..model import Document, Paragraph, Table
+from ..model import Document, Paragraph, Table, iter_paragraphs
 
 
 def _rec(p: Paragraph, tbl) -> dict:
@@ -28,16 +28,6 @@ def _rec(p: Paragraph, tbl) -> dict:
     }
 
 
-def _cell_paras(blocks):
-    for b in blocks:
-        if isinstance(b, Paragraph):
-            yield b
-        elif isinstance(b, Table):
-            for row in b.rows:
-                for cell in row.cells:
-                    yield from _cell_paras(cell.blocks)
-
-
 def flatten(doc: Document) -> list[dict]:
     out, ti = [], 0
     for b in doc.blocks:
@@ -48,7 +38,7 @@ def flatten(doc: Document) -> list[dict]:
             cols = len(b.grid_pt) or max((len(r.cells) for r in b.rows), default=0)
             for ri, row in enumerate(b.rows):
                 for ci, cell in enumerate(row.cells):
-                    for p in _cell_paras(cell.blocks):
+                    for p in iter_paragraphs(cell.blocks):
                         if not p.is_empty:
                             out.append(_rec(p, {"ti": ti, "ri": ri, "ci": ci, "cols": cols}))
             ti += 1

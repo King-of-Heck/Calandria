@@ -109,14 +109,14 @@ class Document:
     even_and_odd: bool = False
 
     def paragraphs(self) -> Iterator[Paragraph]:
-        yield from _walk(self.blocks)
+        yield from iter_paragraphs(self.blocks)
 
 
-def _walk(blocks) -> Iterator[Paragraph]:
+def iter_paragraphs(blocks) -> Iterator[Paragraph]:
     for b in blocks:
         if isinstance(b, Paragraph):
             yield b
         elif isinstance(b, Table):
             for row in b.rows:
                 for cell in row.cells:
-                    yield from _walk(cell.blocks)
+                    yield from iter_paragraphs(cell.blocks)

@@ -14,8 +14,8 @@ CORPUS = HERE.parent / "corpus"
 ORACLE = HERE.parent / "oracle"
 ALLOW = json.loads((HERE / "allow.json").read_text("utf8"))
 FIELDS = ["text", "marker", "isNumbered", "ilvl", "styleId", "align", "indLeftPt", "indHangingPt",
-          "indFirstLinePt", "spaceBeforePt", "spaceAfterPt", "lineSpacing", "keepNext", "keepLines",
-          "pageBreakBefore", "contextualSpacing", "heading", "tbl"]
+          "indFirstLinePt", "spaceBeforePt", "spaceAfterPt", "lineSpacing", "lineExactPt", "keepNext",
+          "keepLines", "pageBreakBefore", "contextualSpacing", "heading", "boldRuns", "tbl"]
 
 
 def _eq(a, b):

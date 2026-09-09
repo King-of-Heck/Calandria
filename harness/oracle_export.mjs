@@ -16,10 +16,14 @@ const fileOf = p => { const b = readFileSync(p); return {name: path.basename(p),
   arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)}; };
 
 const KEYS = ['text','marker','isNumbered','ilvl','styleId','align','indLeftPt','indHangingPt','indFirstLinePt',
-  'spaceBeforePt','spaceAfterPt','lineSpacing','keepNext','keepLines','pageBreakBefore','contextualSpacing','heading'];
+  'spaceBeforePt','spaceAfterPt','lineSpacing','lineExactPt','keepNext','keepLines','pageBreakBefore',
+  'contextualSpacing','heading','boldRuns'];
 function rec(p) {
   const r = {};
-  for (const k of KEYS) r[k] = p[k] === undefined ? null : p[k];
+  // Arrays (boldRuns) come out of the engine's realm; round-trip them so the written JSON is
+  // plain data rather than a live cross-realm object.
+  for (const k of KEYS) { const v = p[k];
+    r[k] = v === undefined ? null : (Array.isArray(v) ? JSON.parse(JSON.stringify(v)) : v); }
   r.tbl = p.tbl ? {ti: p.tbl.ti, ri: p.tbl.ri, ci: p.tbl.ci, cols: p.tbl.cols} : null;
   return r;
 }

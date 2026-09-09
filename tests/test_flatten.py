@@ -16,7 +16,8 @@ def test_flatten_shape_and_empty_paragraphs_dropped():
     assert recs[3]["tbl"] == {"ti": 0, "ri": 1, "ci": 0, "cols": 2}
     assert set(recs[0]) == {"text", "marker", "isNumbered", "ilvl", "styleId", "align", "indLeftPt",
                             "indHangingPt", "indFirstLinePt", "spaceBeforePt", "spaceAfterPt", "lineSpacing",
-                            "keepNext", "keepLines", "pageBreakBefore", "contextualSpacing", "heading", "tbl"}
+                            "lineExactPt", "keepNext", "keepLines", "pageBreakBefore", "contextualSpacing",
+                            "heading", "boldRuns", "tbl"}
     assert recs[0]["marker"] == "" and recs[0]["isNumbered"] is False
 
 
@@ -75,3 +76,45 @@ def test_outline_lvl_alone_is_not_a_heading():
     assert d.blocks[0].props.outline_level == 1
     recs = flatten(d)
     assert recs[0]["heading"] is None
+
+
+def _one(body, **parts):
+    return flatten(parse_docx(make_docx({"word/document.xml": DOC(body), **parts})))[0]
+
+
+def test_bold_runs_over_collapsed_text():
+    # Indices are character offsets into the COLLAPSED text: runs of whitespace become one
+    # space, and leading/trailing whitespace is dropped, before the ranges are taken. A space
+    # that swallows another space keeps bold if EITHER of them was bold -- so the space between
+    # two bold words is bold and the two words form a single range. Values verified against the
+    # reference engine on this same paragraph.
+    rec = _one('<w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">  Bold  </w:t></w:r>'
+               '<w:r><w:t xml:space="preserve"> plain </w:t></w:r>'
+               '<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve"> Two </w:t></w:r>'
+               '<w:r><w:rPr><w:b/></w:rPr><w:t>Words</w:t></w:r>'
+               '<w:r><w:t xml:space="preserve">   </w:t></w:r></w:p>')
+    assert rec["text"] == "Bold plain Two Words"
+    assert rec["boldRuns"] == [[0, 5], [10, 20]]
+    assert rec["text"][0:5] == "Bold " and rec["text"][10:20] == " Two Words"
+
+
+def test_bold_runs_empty_when_nothing_is_bold():
+    assert _one(P("plain text"))["boldRuns"] == []
+
+
+def test_bold_runs_are_run_level_only():
+    # Bold from a paragraph style is deliberately not resolved (see parser._run_props), so a
+    # paragraph whose style is bold still reports no bold ranges.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Strong">'
+              '<w:name w:val="Strong"/><w:rPr><w:b/></w:rPr></w:style></w:styles>')
+    rec = _one(P("styled", ppr='<w:pStyle w:val="Strong"/>'), **{"word/styles.xml": styles})
+    assert rec["boldRuns"] == []
+
+
+def test_line_exact_pt_emitted():
+    exact = _one('<w:p><w:pPr><w:spacing w:line="320" w:lineRule="exact"/></w:pPr>'
+                 '<w:r><w:t>exact line</w:t></w:r></w:p>')
+    assert exact["lineExactPt"] == 16.0 and exact["lineSpacing"] is None
+    auto = _one('<w:p><w:pPr><w:spacing w:line="360" w:lineRule="auto"/></w:pPr>'
+                '<w:r><w:t>auto line</w:t></w:r></w:p>')
+    assert auto["lineExactPt"] is None and auto["lineSpacing"] == 1.5

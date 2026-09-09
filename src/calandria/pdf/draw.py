@@ -19,7 +19,8 @@ class PdfOptions:
     change_bars: bool = True
     report: str = "last"            # first | last | none
     fonts: object | None = None     # a FontResolver (or the test FakeResolver); None = system fonts
-    now: datetime | None = None     # the comparison time stamped in the report; None = now
+    # the PDF creation date; the report's own time stamp is ReportInfo.when; None = now
+    now: datetime | None = None
 
 
 def cid_label(cids: list[int]) -> str:

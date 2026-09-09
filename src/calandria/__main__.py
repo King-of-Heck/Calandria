@@ -12,6 +12,7 @@
 import json
 import os
 import sys
+from datetime import datetime
 
 from .diff.compare import compare
 from .docx.parser import parse_docx
@@ -101,9 +102,10 @@ def main(argv) -> int:
             return 2
         cmp = _compare(flags, pa, pb)
         result = layout(cmp, _layout_options(flags))
+        now = datetime.now()          # one clock: the report's time stamp and the PDF creation date
         opts = PdfOptions(render_set=rs_name, change_bars="--no-change-bars" not in flags,
-                          report=values.get("--report", "last"))
-        info = report_info(cmp, os.path.basename(pa), os.path.basename(pb), rs_name)
+                          report=values.get("--report", "last"), now=now)
+        info = report_info(cmp, os.path.basename(pa), os.path.basename(pb), rs_name, now)
         data, drawn = render(result, info, opts)
         with open(out_path, "wb") as f:
             f.write(data)

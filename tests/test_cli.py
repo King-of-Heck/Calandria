@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 
 import pytest
 from pypdf import PdfReader
@@ -119,6 +120,26 @@ def test_pdf_command_options(tmp_path, capsys):
     assert main(["pdf", "--report=none", a, b, out]) == 0
     assert json.loads(capsys.readouterr().out)["pages"] == 1
     assert "Comparison summary" not in PdfReader(out).pages[0].extract_text()
+
+
+@_needs_fonts
+def test_pdf_command_stamps_the_report_and_the_metadata_from_one_clock(tmp_path, capsys, monkeypatch):
+    import calandria.__main__ as cli
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 9, 9, 14, 5)
+
+    monkeypatch.setattr(cli, "datetime", _Clock)
+    a = _write(tmp_path, "a.docx", P("Alpha"))
+    b = _write(tmp_path, "b.docx", P("Alpha") + P("Beta"))
+    out = str(tmp_path / "red.pdf")
+    assert main(["pdf", a, b, out]) == 0
+    capsys.readouterr()
+    r = PdfReader(out)
+    assert "Compared: 2026-09-09 14:05" in r.pages[0].extract_text()
+    assert str(r.metadata["/CreationDate"]).startswith("D:20260909140500")
 
 
 def test_pdf_command_usage_errors(tmp_path, capsys):

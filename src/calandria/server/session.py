@@ -126,20 +126,25 @@ class Session:
     # -- loading and layout -----------------------------------------------------------------
     def load(self, a_name: str, a_bytes: bytes, b_name: str, b_bytes: bytes,
              options: Options | None = None) -> None:
+        """Nothing is committed until the new pair has compared AND laid out, so a bad file or a
+        failure part way leaves the session showing exactly what it was showing before."""
         a, b = _parse(a_name, a_bytes), _parse(b_name, b_bytes)
-        self.a_name, self.b_name, self.a_doc, self.b_doc = a_name, b_name, a, b
-        self.relayout(options or self.options)
+        self._commit(a_name, b_name, a, b, options or self.options)
 
     def relayout(self, options: Options) -> None:
         if self.a_doc is None:
             raise LookupError("no comparison loaded")
+        self._commit(self.a_name, self.b_name, self.a_doc, self.b_doc, options)
+
+    def _commit(self, a_name: str, b_name: str, a_doc, b_doc, options: Options) -> None:
         if self.fonts is None:
             self.fonts = default_resolver()
-        self.options = options
-        self.when = self._clock()
-        self.cmp = compare(self.a_doc, self.b_doc, ignore_case=options.ignore_case,
-                           count_numbering=options.count_numbering)
-        self.layout = layout(self.cmp, options.layout_options(self.fonts))
+        when = self._clock()
+        cmp = compare(a_doc, b_doc, ignore_case=options.ignore_case,
+                      count_numbering=options.count_numbering)
+        lay = layout(cmp, options.layout_options(self.fonts))
+        self.a_name, self.b_name, self.a_doc, self.b_doc = a_name, b_name, a_doc, b_doc
+        self.options, self.when, self.cmp, self.layout = options, when, cmp, lay
 
     def _need(self) -> None:
         if not self.loaded:

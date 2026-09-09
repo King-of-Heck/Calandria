@@ -78,6 +78,30 @@ def test_bad_document_names_the_file():
     assert not s.loaded
 
 
+def test_a_failed_second_load_leaves_the_first_pair_intact():
+    s = _session()
+    with pytest.raises(BadDocument, match="d.docx: not a Word document"):
+        s.load("c.docx", _docx(P("cccc")), "d.docx", b"not a zip")
+    assert s.state()["names"] == {"original": "a.docx", "modified": "b.docx"}
+    assert s.payload()["summary"]["total"] == 1 and "bbbb" in s.payload()["pages"][0]
+
+
+def test_a_load_that_fails_after_parsing_leaves_the_first_pair_intact(monkeypatch):
+    """Both files parse before anything is committed, so the not-a-zip case above never got as far
+    as the fields; a failure in the comparison or the layout did, and left the session describing
+    the new pair while still holding the old one's drawings."""
+    import calandria.server.session as sessmod
+
+    s = _session()
+    monkeypatch.setattr(sessmod, "layout", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        s.load("c.docx", _docx(P("cccc")), "d.docx", _docx(P("cccc dddd")))
+    monkeypatch.undo()
+    assert s.state()["names"] == {"original": "a.docx", "modified": "b.docx"}
+    d = s.payload()
+    assert d["summary"]["total"] == 1 and "bbbb" in d["pages"][0] and "dddd" not in d["pages"][0]
+
+
 def test_payload_of_a_one_line_insertion():
     s = _session()
     d = s.payload()

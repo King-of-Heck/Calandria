@@ -17,15 +17,16 @@ from calandria.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
+SERIF = STYLES('<w:rFonts w:ascii="Serif"/><w:sz w:val="20"/>')     # not the fake resolver's fallback
 WHEN = datetime(2026, 9, 9, 14, 5)
 
 
-def _parse(body):
-    return parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": STY})))
+def _parse(body, sty=STY):
+    return parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": sty})))
 
 
-def _lay(a, b, **opts):
-    return layout(compare(_parse(a), _parse(b)), LayoutOptions(fonts=FR, **opts))
+def _lay(a, b, sty=STY, **opts):
+    return layout(compare(_parse(a, sty), _parse(b, sty)), LayoutOptions(fonts=FR, **opts))
 
 
 def _runs(L, rs=STANDARD, page=0, line=0):
@@ -248,6 +249,13 @@ def test_report_uses_the_document_family():
     p, _ = _layout(L, _info())
     faces = {o[4] for o in p.of("text") if o[3] != "aaaa"}
     assert faces == {"<fake:Fake|>", "<fake:Fake|B>"}
+
+
+def test_gutter_numbers_use_the_document_face_not_the_resolver_fallback():
+    L = _lay(P("aaaa"), P("aaaa") + P("bbbb"), sty=SERIF)
+    p, _ = _layout(L, None, report="none")
+    num = next(o for o in p.of("text") if o[3] == "1" and o[5] == NUMBER_SIZE)
+    assert num[4] == "<fake:Serif|>" and FR.face(None).path == "<fake:Fake|>"
 
 
 def test_every_page_is_drawn_in_order():

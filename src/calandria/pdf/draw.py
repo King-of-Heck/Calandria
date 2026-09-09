@@ -131,21 +131,19 @@ def _report_faces(layout: Layout, resolver):
 
 def draw_layout(layout: Layout, rs: RenderSet, opts: PdfOptions, painter, resolver,
                 report: ReportInfo | None) -> DrawResult:
-    number_face = resolver.face(None)
+    regular, bold = _report_faces(layout, resolver)      # the document's own face; also the gutter numbers
     where = opts.report if report is not None else "none"
     n, report_page = 0, None
     if where == "first":
         g = layout.pages[0]
-        regular, bold = _report_faces(layout, resolver)
         painter.page(g.w, g.h)
         draw_report(report, g.margin_left, g.margin_top, g.w - g.margin_left - g.margin_right, regular, bold, painter)
         n, report_page = 1, 1
     for page in layout.pages:
-        draw_page(page, layout.fonts, rs, opts, painter, number_face)
+        draw_page(page, layout.fonts, rs, opts, painter, regular)
         n += 1
     if where == "last":
         last = layout.pages[-1]
-        regular, bold = _report_faces(layout, resolver)
         w = last.w - last.margin_left - last.margin_right
         y = content_bottom(last) + GAP
         if y + report_height(report, regular, bold) > last.h - last.margin_bottom + _EPS:

@@ -8,25 +8,31 @@ from pypdf import PdfReader
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
-from calandria.layout.fonts import default_dirs
+from calandria.layout.fonts import default_dirs, default_resolver
 from calandria.pdf.draw import DrawResult, PdfOptions
 from calandria.pdf.report import TITLE, report_info
 from calandria.pdf.writer import render, write_pdf
-from calandria.testing.makedocx import DOC, P, TBL, make_docx
+from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")
 WHEN = datetime(2026, 9, 9, 14, 5)
 
 
-def _cmp(a, b):
-    docs = [parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(x)}))) for x in (a, b)]
+def _cmp(a, b, sty=None):
+    parts = {"word/styles.xml": sty} if sty else {}
+    docs = [parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(x), **parts}))) for x in (a, b)]
     return compare(*docs)
 
 
 def _pages(data):
     r = PdfReader(io.BytesIO(data))
     return [pg.extract_text() for pg in r.pages]
+
+
+def _base_fonts(data, page=0):
+    res = PdfReader(io.BytesIO(data)).pages[page].get("/Resources", {})
+    return [str(f.get_object()["/BaseFont"]) for f in res.get("/Font", {}).values()]
 
 
 def test_redline_pdf_with_report_on_the_last_page():
@@ -60,6 +66,16 @@ def test_report_none_option_wins_over_a_supplied_report():
     cmp = _cmp(P("a"), P("a"))
     data, res = render(layout(cmp), report_info(cmp, "a", "b", "Standard", WHEN), PdfOptions(report="none"))
     assert res == DrawResult(1, None) and TITLE not in _pages(data)[0]
+
+
+def test_gutter_numbers_do_not_pull_in_the_resolver_fallback():
+    if default_resolver().resolve_family("Georgia") != "Georgia":
+        pytest.skip("Georgia is not installed here")
+    sty = STYLES('<w:rFonts w:ascii="Georgia"/><w:sz w:val="22"/>')
+    cmp = _cmp(P("Alpha stays"), P("Alpha stays") + P("Beta arrives"), sty)
+    data, _ = render(layout(cmp), None, PdfOptions(report="none", now=WHEN))
+    names = _base_fonts(data)
+    assert names and not any("Calibri" in n for n in names), names
 
 
 def test_hundred_paragraph_document_pages_match_the_layout():

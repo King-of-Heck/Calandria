@@ -12,6 +12,9 @@ Status: pre-release (v2.0.0 in development).
 ```
 python -m calandria dump <file.docx>
 python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+                           [--hide-unchanged] [--hide-insertions] [--hide-deletions]
+                           [--hide-formatting] [--pages]
 ```
 
 ## Running the parity gate
@@ -32,3 +35,20 @@ cap) into `tests/corpus/` alongside `manifest.gen.json`; the third runs the refe
 both manifests and writes `tests/oracle/`. Re-run the third whenever the exporter's field list
 changes. Then `uv run pytest tests/parity -q` should be green with an empty
 `tests/parity/allow.json`; deliberate differences are listed in `tests/parity/KNOWN_DIVERGENCES.md`.
+
+## Layout, page counts and the Word smoke check
+
+`layout` prints the page model (pages, positioned lines, glyph runs, table boxes) that the PDF
+writer and the viewer draw; `--pages` prints only the page count. Metrics come from the fonts
+installed under `C:\Windows\Fonts` (override with `CALANDRIA_FONT_DIRS`).
+
+Page counts on the corpus are pinned by `tests/parity/golden-pages.json`. After a deliberate
+layout change, regenerate it and review the diff:
+
+```
+uv run python harness/golden_pages.py
+```
+
+Word's own page count is a smoke check, not a gate: export a corpus document to PDF from Word,
+drop it in `tests/fixtures/wordpdf/<name>.pdf` (or a `<name>.pages` file with the count) and run
+`uv run python harness/word_pages.py`.

@@ -120,3 +120,27 @@ closing tag and truncate the outer table.
 
 Calandria is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
 Calandria to match.
+
+# Layout (Plan 3)
+
+The layout engine has no oracle: page counts are pinned by `tests/parity/golden-pages.json`
+(our own output, regenerated deliberately with `harness/golden_pages.py`) and Word's page count
+is a manual smoke check (`harness/word_pages.py`). Two model-level readings matter here:
+
+## (k) Section break type is read from the section being closed
+
+`w:sectPr/w:type` describes how the section it belongs to STARTS relative to the previous one
+(ECMA-376 17.6.22). Both the parser and the reference read it as how the section ENDS -- the
+paragraph carrying the sectPr sets the next paragraph's page break unless its own type is
+continuous. The extraction gate pins `pageBreakBefore`, so the parser keeps the reference's
+reading, and the layout groups page geometry the same way (a section whose predecessor closed
+"continuous" flows on under the previous geometry). Only a document whose sections carry
+different types is affected; none in the corpus does. Fixing it means moving the decision to a
+post-pass over the sections and adding a scoped allow entry for the first pair that hits it.
+
+## (l) Empty paragraphs and deleted empty paragraphs
+
+Empty paragraphs of the revised document are laid out as one blank line each (their height is
+the document default font's line height -- the paragraph mark's own run properties are not
+modelled). Empty paragraphs that exist only in the original are not rendered: they are not diff
+units, so nothing marks them deleted. Word shows a struck paragraph mark there.

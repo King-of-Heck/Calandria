@@ -287,6 +287,40 @@ def test_concurrent_requests_are_serialized(srv):
     assert results == [200] * 6
 
 
+def test_a_slow_response_write_does_not_hold_the_session(srv, monkeypatch):
+    """A payload is built under the session lock but written after it, so a client that is slow to
+    take its response cannot stall the others. A genuinely slow reader will not do as the probe:
+    Windows' loopback buffers megabytes, so the server never blocks on the write however large the
+    body and however small the client's receive buffer. The write is slowed directly instead, and
+    both requests still travel over real sockets. Timing-based, with generous margins: the slow
+    write is 2 s and /api/state (three keys, no layout work) must come back inside 1 s."""
+    real_json = appmod.Handler._json
+
+    def slow_json(self, obj, status=200):
+        if self.path.startswith("/api/pages"):
+            time.sleep(2.0)
+        return real_json(self, obj, status)
+
+    assert _json(srv.url + "api/compare", "POST", _compare_body())[0] == 200
+    monkeypatch.setattr(appmod.Handler, "_json", slow_json)
+    done = threading.Event()
+
+    def slow():
+        try:
+            assert _json(srv.url + "api/pages")[0] == 200
+        finally:
+            done.set()
+
+    t = threading.Thread(target=slow, daemon=True)
+    t.start()
+    time.sleep(0.5)                          # let that request reach the slow write
+    t0 = time.perf_counter()
+    assert _json(srv.url + "api/state")[0] == 200
+    assert time.perf_counter() - t0 < 1.0
+    assert done.wait(30)
+    t.join(30)
+
+
 def test_error_before_the_body_is_read_keeps_the_connection_usable(srv):
     parts = urlsplit(srv.url)
     conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)

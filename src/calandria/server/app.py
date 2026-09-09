@@ -236,7 +236,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- the API --------------------------------------------------------------------------------
     def _api_state(self, session, query):
         with session.lock:
-            self._json(session.state())
+            payload = session.state()
+        self._json(payload)
 
     def _api_ping(self, session, query):
         self._drain()
@@ -255,7 +256,8 @@ class Handler(BaseHTTPRequestHandler):
         with session.lock:
             options = parse_options(body.get("options", {}), session.options)
             session.load(a_name, a_data, b_name, b_data, options)
-            self._json(session.payload(render_set, change_bars))
+            payload = session.payload(render_set, change_bars)
+        self._json(payload)      # written outside the lock: a slow client must not stall the rest
 
     def _api_layout(self, session, query):
         body = self._body()
@@ -265,13 +267,15 @@ class Handler(BaseHTTPRequestHandler):
         with session.lock:
             options = parse_options(body["options"], session.options)
             session.relayout(options)
-            self._json(session.payload(render_set, change_bars))
+            payload = session.payload(render_set, change_bars)
+        self._json(payload)
 
     def _api_pages(self, session, query):
         rs = query.get("render_set", ["Standard"])[0]
         bars = _flag(query, "change_bars", True)
         with session.lock:
-            self._json(session.pages(rs, bars))
+            payload = session.pages(rs, bars)
+        self._json(payload)
 
     def _api_pdf(self, session, query):
         rs = query.get("render_set", ["Standard"])[0]

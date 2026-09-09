@@ -349,6 +349,33 @@ def test_error_before_the_body_is_read_keeps_the_connection_usable(srv):
         conn.close()
 
 
+def test_a_body_that_never_arrives_times_out_instead_of_holding_a_thread(srv, monkeypatch):
+    """A half-written body must not pin a handler thread until the client goes away. The socket
+    timeout is shortened to 0.5 s; the server either answers 400 or hangs up, and either way the
+    next connection is served straight away."""
+    monkeypatch.setattr(appmod.Handler, "timeout", 0.5)
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=5)
+    try:
+        conn.putrequest("POST", "/api/ping")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Content-Length", "100")
+        conn.endheaders()
+        conn.send(b"0123456789")
+        t0 = time.perf_counter()
+        try:
+            r = conn.getresponse()
+            assert r.status == 400 and json.loads(r.read()) == {"error": "request body incomplete"}
+        except (ConnectionError, http.client.HTTPException):
+            pass
+        assert time.perf_counter() - t0 < 5
+    finally:
+        conn.close()
+    t0 = time.perf_counter()
+    assert _json(srv.url + "api/state")[0] == 200
+    assert time.perf_counter() - t0 < 5
+
+
 def test_negative_content_length_is_rejected(srv):
     parts = urlsplit(srv.url)
     conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)

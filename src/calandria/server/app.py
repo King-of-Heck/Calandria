@@ -92,6 +92,7 @@ def _style(body: dict) -> tuple[str, bool]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "Calandria/" + __version__
     protocol_version = "HTTP/1.1"
+    timeout = 60                            # StreamRequestHandler puts this on the socket
     _sent = False                           # set once this request's headers are on the wire
 
     def log_message(self, fmt, *args):
@@ -134,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
                         if not chunk:
                             break
                         remaining -= len(chunk)
-                except OSError:
+                except (TimeoutError, OSError):
                     pass
                 self._consumed = True
         elif not self._consumed:
@@ -149,10 +150,21 @@ class Handler(BaseHTTPRequestHandler):
                 if length:
                     try:
                         self.rfile.read(length)
-                    except OSError:
+                    except (TimeoutError, OSError):
                         self.close_connection = True
                 self._consumed = True
         self._json({"error": message}, status)
+
+    def _read(self, length: int) -> bytes:
+        """Read exactly `length` bytes, or give up. A client that announced a body and then stalled
+        would otherwise pin this handler thread for as long as it stayed connected; the socket
+        timeout turns that into an error, and the connection goes with it."""
+        try:
+            return self.rfile.read(length)
+        except (TimeoutError, OSError):
+            self.close_connection = True
+            self._consumed = True           # nothing more will arrive, so do not try to drain it
+            raise _Bad(400, "request body incomplete") from None
 
     def _length(self) -> int:
         raw = self.headers.get("Content-Length")
@@ -172,12 +184,12 @@ class Handler(BaseHTTPRequestHandler):
         """Read and ignore a small body (a browser POST with no payload sends Content-Length: 0)."""
         length = self._length()
         if length:
-            self.rfile.read(length)
+            self._read(length)
         self._consumed = True
 
     def _body(self) -> dict:
         length = self._length()
-        raw = self.rfile.read(length) if length else b""
+        raw = self._read(length) if length else b""
         self._consumed = True
         try:
             obj = json.loads(raw.decode("utf-8")) if raw else None

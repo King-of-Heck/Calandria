@@ -5,12 +5,17 @@ import { initChanges } from "./changes.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 15000;
+const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "hideUnchanged", "hideInsertions", "hideDeletions", "hideFormatting"];
 
 export const state = {
   data: null, files: { a: null, b: null }, zoom: 1, fit: false,
   renderSet: "Standard", changeBars: true, closed: false, timer: null,
+  // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
+  // is no longer the current one lost the race (a second option toggled while the first was in
+  // flight) and is dropped, so the page always shows the answer to the LAST request.
+  seq: 0, misses: 0,
 };
 
 export async function api(path, body) {
@@ -75,42 +80,53 @@ function setOptions(o) {
 
 async function compareNow() {
   const { a, b } = state.files;
-  if (!a || !b) return;
+  if (!a || !b || state.closed) return;
+  const seq = ++state.seq;
   busy(true, "Comparing…");
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
                    options: options(), render_set: state.renderSet, change_bars: state.changeBars };
-    show(await api("/api/compare", body));
+    const d = await api("/api/compare", body);
+    if (state.seq !== seq) return;
+    show(d);
   } catch (e) {
     msg(e.message, true);
   } finally {
-    busy(false);
+    if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
 }
 
 export async function relayout() {
-  if (!state.data) return;
+  if (!state.data || state.closed) return;
+  const seq = ++state.seq;
   busy(true, "Laying out…");
   try {
-    show(await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars }));
+    const d = await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars });
+    if (state.seq !== seq) return;
+    show(d);
   } catch (e) {
     msg(e.message, true);
   } finally {
-    busy(false);
+    if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
 }
 
 async function restyle() {
-  if (!state.data) return;
+  if (!state.data || state.closed) return;
+  const seq = ++state.seq;
+  busy(true, "Redrawing…");
   try {
     const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}`;
     const d = await api(`/api/pages?${q}`);
+    if (state.seq !== seq) return;
     Object.assign(state.data, { pages: d.pages, report_lines: d.report_lines, render_set: d.render_set, change_bars: d.change_bars });
     renderPages();
     applyStyles();
     document.dispatchEvent(new CustomEvent("calandria:restyled"));
   } catch (e) {
     msg(e.message, true);
+  } finally {
+    if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
 }
 
@@ -212,8 +228,15 @@ async function quit() {
 }
 
 function ping() {
-  fetch("/api/ping", { method: "POST" }).then((r) => { if (!r.ok) throw new Error(); }).catch(() =>
-    closed("Calandria is no longer running (it stops after a while without this page). Double-click Calandria.cmd to start it again."));
+  fetch("/api/ping", { method: "POST" })
+    .then((r) => { if (!r.ok) throw new Error(); state.misses = 0; })
+    .catch(() => {
+      // One lost ping is a hiccup (a sleeping laptop, a busy server); three in a row is a server
+      // that has gone, and only then does the page shut itself down.
+      if (++state.misses >= PING_MISSES) {
+        closed("Calandria is no longer running (it stops after a while without this page). Double-click Calandria.cmd to start it again.");
+      }
+    });
 }
 
 function wire() {
@@ -226,6 +249,7 @@ function wire() {
   main.addEventListener("drop", (e) => {
     e.preventDefault();
     main.classList.remove("over");
+    if (state.closed) return;
     const files = [...e.dataTransfer.files].filter((f) => /\.docx$/i.test(f.name));
     if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
     else if (files.length === 1) setFile(state.files.a ? "b" : "a", files[0]);

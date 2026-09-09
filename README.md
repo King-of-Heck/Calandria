@@ -6,3 +6,20 @@ and produces a paged on-screen redline and a PDF from one layout engine. Documen
 never leave the machine.
 
 Status: pre-release (v2.0.0 in development).
+
+## Running the parity gate
+
+Extraction is held to the reference engine by `tests/parity`. The corpus and the reference
+output it compares against are both generated and git-ignored, so a fresh clone is red until
+they have been built:
+
+```
+uv run python harness/build_corpus.py
+node harness/oracle_export.mjs
+```
+
+The first copies the regression pairs into `tests/corpus/` and writes its manifest; the second
+runs the reference engine over them and writes `tests/oracle/`. Re-run the second whenever the
+exporter's field list changes. Then `uv run pytest tests/parity -q` should be green with an
+empty `tests/parity/allow.json`; deliberate differences are listed in
+`tests/parity/KNOWN_DIVERGENCES.md`.

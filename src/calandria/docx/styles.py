@@ -105,7 +105,6 @@ class Styles:
         self._map: dict[str, Style] = {}
         self.defaults = {"font": None, "size_pt": 11.0, "space_before_pt": None, "space_after_pt": None,
                           "line_spacing": None, "line_rule": None, "line_exact_pt": None}
-        self.style_to_num: dict[str, tuple[int, int]] = {}
         self.default_paragraph_style_id: str | None = None
 
     @classmethod

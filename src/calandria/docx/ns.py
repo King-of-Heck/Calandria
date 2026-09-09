@@ -1,6 +1,5 @@
 """OOXML namespace constants and small attribute helpers."""
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 

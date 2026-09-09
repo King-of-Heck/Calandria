@@ -21,15 +21,25 @@ def main(argv):
     manifest = Path(argv[1]) if len(argv) > 1 else ROOT / "harness" / "corpus.template.json"
     pairs = json.loads(manifest.read_text("utf8"))["pairs"]
     CORPUS.mkdir(parents=True, exist_ok=True)
+    # A pair with a missing side is left OUT of the written manifest: half a pair would make the
+    # gate fail on a file that was never there, which reads as a parity regression. Report the
+    # missing files and exit non-zero so the omission is not mistaken for a clean build.
+    kept, missing = [], []
     for p in pairs:
+        gaps = [src / p[key] for key in ("a", "b") if not (src / p[key]).exists()]
+        if gaps:
+            missing.extend(gaps)
+            continue
         for key in ("a", "b"):
-            s = src / p[key]
-            if not s.exists():
-                print(f"MISSING {s}")
-                continue
-            shutil.copyfile(s, CORPUS / p[key])
-    (CORPUS / "manifest.json").write_text(json.dumps({"pairs": pairs}, indent=1), "utf8")
-    print(f"corpus: {len(pairs)} pairs -> {CORPUS}")
+            shutil.copyfile(src / p[key], CORPUS / p[key])
+        kept.append(p)
+    (CORPUS / "manifest.json").write_text(json.dumps({"pairs": kept}, indent=1), "utf8")
+    print(f"corpus: {len(kept)} pairs -> {CORPUS}")
+    if missing:
+        for m in missing:
+            print(f"MISSING {m}")
+        print(f"{len(pairs) - len(kept)} pair(s) excluded from the manifest")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

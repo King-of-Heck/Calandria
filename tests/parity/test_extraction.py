@@ -52,8 +52,9 @@ def _pairs():
 @pytest.mark.parametrize("side", ["a", "b"])
 def test_extraction_parity(pair, side):
     oracle_file = ORACLE / f"{pair['alias']}.json"
-    if not oracle_file.exists():
-        pytest.skip("run: node harness/oracle_export.mjs")
+    # A missing oracle FAILS rather than skips: a silently skipped gate is indistinguishable
+    # from a passing one, and this is the only thing holding extraction to the reference.
+    assert oracle_file.exists(), "run: node harness/oracle_export.mjs"
     ref = json.loads(oracle_file.read_text("utf8"))[side.upper()]["paras"]
     ours = flatten(parse_docx(CORPUS / pair[side]))
     divs = [d for d in divergences(ours, ref) if not allowed(d, pair["alias"])]
@@ -73,3 +74,9 @@ def test_divergences_unit():
 
 def test_no_pairs_means_corpus_not_built():
     assert _pairs(), "run: uv run python harness/build_corpus.py && node harness/oracle_export.mjs"
+
+
+def test_missing_oracle_fails_rather_than_skips(tmp_path, monkeypatch):
+    monkeypatch.setitem(globals(), "ORACLE", tmp_path)
+    with pytest.raises(AssertionError, match="oracle_export"):
+        test_extraction_parity({"alias": "absent", "a": "a.docx", "b": "b.docx"}, "a")

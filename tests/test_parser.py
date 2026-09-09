@@ -112,3 +112,74 @@ def test_page_break_before_text_applies_to_own_paragraph():
     paras = [b for b in d.blocks if isinstance(b, Paragraph)]
     flags = [(p.text, p.props.page_break_before) for p in paras if not p.is_empty]
     assert flags == [("one", False), ("two", True), ("three", False)]
+
+
+def test_spacing_and_line_falls_back_to_doc_defaults_per_attribute():
+    # Reference behavior (SorkWhare's extractStructured): spaceBefore/spaceAfter/line each
+    # resolve independently -- paragraph, then style chain, then docDefaults' pPrDefault.
+    # A paragraph that sets only spaceBefore still inherits the document's default
+    # spaceAfter/line rather than leaving them unset.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:pPrDefault><w:pPr>'
+              '<w:spacing w:after="200" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>'
+              '</w:styles>')
+    d = _doc(P("x", ppr='<w:spacing w:before="100"/>'), **{"word/styles.xml": styles})
+    pr = d.blocks[0].props
+    assert pr.space_before_pt == 5.0
+    assert pr.space_after_pt == 10.0        # from docDefaults, not left None
+    assert pr.line_spacing == 276 / 240     # from docDefaults, not left None
+
+
+def test_exact_line_rule_does_not_set_line_spacing():
+    # SorkWhare only computes a lineSpacing MULTIPLIER for rule "auto"; "exact"/"atLeast"
+    # is a fixed line height (a different unit/concept) and lineSpacing stays null there.
+    d = _doc(P("x", ppr='<w:spacing w:line="480" w:lineRule="exact"/>'))
+    pr = d.blocks[0].props
+    assert pr.line_spacing is None
+    assert pr.line_rule == "exact" and pr.line_exact_pt == 24.0
+
+
+def test_own_exact_line_rule_replaces_style_chain_auto_line_spacing():
+    # A style's own auto line_spacing must not survive alongside a paragraph's own
+    # override to an exact line rule -- line_spacing and line_exact_pt are mutually
+    # exclusive concepts and must never both be set at once.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Body">'
+              '<w:pPr><w:spacing w:line="276" w:lineRule="auto"/></w:pPr></w:style></w:styles>')
+    d = _doc(P("x", ppr='<w:pStyle w:val="Body"/><w:spacing w:line="480" w:lineRule="exact"/>'),
+             **{"word/styles.xml": styles})
+    pr = d.blocks[0].props
+    assert pr.line_spacing is None and pr.line_rule == "exact" and pr.line_exact_pt == 24.0
+
+
+def test_own_exact_line_rule_is_not_overridden_by_doc_defaults_auto_line():
+    # The docDefaults fallback for "line" must apply as a whole GROUP, not per computed
+    # field: a paragraph that sets its own w:line (here an exact rule) must not also pick
+    # up docDefaults' unrelated auto lineSpacing multiplier into line_spacing.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:pPrDefault><w:pPr>'
+              '<w:spacing w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults></w:styles>')
+    d = _doc(P("x", ppr='<w:spacing w:line="480" w:lineRule="exact"/>'), **{"word/styles.xml": styles})
+    pr = d.blocks[0].props
+    assert pr.line_spacing is None and pr.line_rule == "exact" and pr.line_exact_pt == 24.0
+
+
+def test_heading_from_title_style_id():
+    # SorkWhare hardcodes styleId "Title" (Word's built-in Title style) as heading 1,
+    # regardless of the style's declared name.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Title">'
+              '<w:name w:val="Title"/></w:style></w:styles>')
+    d = _doc(P("Contract Name", ppr='<w:pStyle w:val="Title"/>'), **{"word/styles.xml": styles})
+    assert d.blocks[0].props.outline_level == 0   # heading == outline_level + 1 == 1
+
+
+def test_heading_from_style_id_when_style_undefined():
+    # SorkWhare falls back to matching "HeadingN" against the styleId itself even when the
+    # style isn't found in styles.xml at all (no styles part supplied here).
+    d = _doc(P("Section", ppr='<w:pStyle w:val="Heading3"/>'))
+    assert d.blocks[0].props.outline_level == 2
+
+
+def test_outline_lvl_alone_is_not_a_heading():
+    # A raw <w:outlineLvl> with no Heading/Title style attached is NOT a heading in the
+    # reference -- it derives `heading` purely from styleId/style-name, never from
+    # outlineLvl. (outlineLvl is still read into ParaProps for other consumers.)
+    d = _doc(P("plain", ppr='<w:outlineLvl w:val="1"/>'))
+    assert d.blocks[0].props.outline_level is None

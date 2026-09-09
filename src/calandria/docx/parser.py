@@ -13,7 +13,9 @@ _TRANSPARENT = {wq("hyperlink"), wq("smartTag"), wq("sdt"), wq("sdtContent"), wq
                 wq("ins"), wq("customXml"), wq("dir"), wq("bdo")}
 _SKIP = {wq("del"), wq("moveFrom"), wq("pPr"), wq("rPr"), wq("proofErr"), wq("bookmarkStart"),
          wq("bookmarkEnd"), wq("commentRangeStart"), wq("commentRangeEnd")}
-_HEADING = re.compile(r"heading\s*(\d)", re.I)
+_TITLE_STYLE = re.compile(r"^Title$", re.I)
+_HEADING_NAME = re.compile(r"heading\s*(\d)", re.I)
+_HEADING_ID = re.compile(r"Heading(\d)", re.I)
 
 
 class _Ctx:
@@ -113,7 +115,34 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     st_ppr = ctx.styles.resolved_ppr(style_id)
     own = read_ppr(ppr)
     merged = dict(st_ppr)
+    # "line" is a GROUP (line_spacing/line_rule/line_exact_pt always arrive together from
+    # whichever <w:spacing> supplied a w:line value -- line_rule is always set whenever
+    # line_spacing/line_exact_pt is). When the paragraph's OWN pPr declares its own w:line,
+    # it replaces the whole group inherited from the style chain rather than merging into
+    # it key-by-key -- else a style's auto line_spacing and the paragraph's own exact
+    # line_exact_pt could both end up set at once (self-contradictory: line_spacing and
+    # line_exact_pt describe mutually exclusive line rules).
+    if "line_rule" in own:
+        for key in ("line_spacing", "line_rule", "line_exact_pt"):
+            merged.pop(key, None)
     merged.update(own)
+    # spaceBefore/spaceAfter/line each fall back to docDefaults' <w:pPrDefault>, independently,
+    # only when neither the paragraph nor its style chain set that attribute at all -- a
+    # paragraph or style that sets e.g. spaceAfter but not spaceBefore still inherits the
+    # document default spaceBefore. Every other property (align, indents, keep flags) has
+    # its own explicit default and does not fall through to docDefaults.
+    # "line" is a GROUP: line_spacing/line_rule/line_exact_pt always arrive together from
+    # whichever <w:spacing> element supplied the w:line value (line_rule is always set
+    # whenever line_* is), so the group falls back as a whole, gated on line_rule's
+    # presence -- never mix a paragraph's own w:line with docDefaults' lineRule/lineSpacing.
+    defaults = ctx.styles.defaults
+    for key in ("space_before_pt", "space_after_pt"):
+        if key not in merged and defaults.get(key) is not None:
+            merged[key] = defaults[key]
+    if "line_rule" not in merged:
+        for key in ("line_spacing", "line_rule", "line_exact_pt"):
+            if defaults.get(key) is not None:
+                merged[key] = defaults[key]
     para_rpr = ctx.styles.resolved_rpr(style_id)
 
     num = None
@@ -129,12 +158,22 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
             if "ind_hanging_pt" not in merged and lv.ind_hanging_pt is not None:
                 merged["ind_hanging_pt"] = lv.ind_hanging_pt
 
-    outline = merged.get("outline_level")
+    # Heading is derived ONLY from an explicit Title/Heading-N style -- never from a raw
+    # <w:outlineLvl> (the reference engine ignores it entirely for this purpose; matching
+    # its heuristic is the point of this field). "Title" is a hardcoded special case
+    # (Word's built-in Title style is not named "heading N"); otherwise the style's NAME
+    # is tried first ("heading 2"), then the styleId itself as a fallback ("Heading2") --
+    # the id fallback works even when the style isn't found in styles.xml at all.
     st = ctx.styles.get(style_id)
-    if outline is None and st is not None:
-        m = _HEADING.search(st.name or "") or _HEADING.search(st.id)
-        if m:
-            outline = min(6, int(m.group(1))) - 1
+    heading = None
+    if style_id:
+        if _TITLE_STYLE.match(style_id):
+            heading = 1
+        else:
+            m = (_HEADING_NAME.search(st.name) if st is not None and st.name else None) or _HEADING_ID.search(style_id)
+            if m:
+                heading = min(6, int(m.group(1)))
+    outline = None if heading is None else heading - 1
 
     # A pending break travels from paragraph to paragraph. Snapshot what arrived from
     # earlier paragraphs, then let _runs discover (and reset) whatever this paragraph's
@@ -153,6 +192,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       ind_first_line_pt=merged.get("ind_first_line_pt", 0.0),
                       space_before_pt=merged.get("space_before_pt"), space_after_pt=merged.get("space_after_pt"),
                       line_spacing=merged.get("line_spacing"), line_rule=merged.get("line_rule"),
+                      line_exact_pt=merged.get("line_exact_pt"),
                       keep_next=merged.get("keep_next", False), keep_lines=merged.get("keep_lines", False),
                       page_break_before=merged.get("page_break_before", False),
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline)

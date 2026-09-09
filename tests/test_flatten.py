@@ -4,7 +4,9 @@ from calandria.testing.makedocx import make_docx, DOC, P
 
 
 def test_flatten_shape_and_empty_paragraphs_dropped():
-    body = (P("Intro", ppr='<w:outlineLvl w:val="1"/>') + "<w:p/>" +
+    # Heading comes from an explicit style ("Heading2" here, via the styleId fallback --
+    # see test_parser.py's heading tests), never from a raw <w:outlineLvl>.
+    body = (P("Intro", ppr='<w:pStyle w:val="Heading2"/>') + "<w:p/>" +
             '<w:tbl><w:tr><w:tc>' + P("a") + '</w:tc><w:tc>' + P("b") + '</w:tc></w:tr>'
             '<w:tr><w:tc>' + P("c") + '</w:tc></w:tr></w:tbl>' + P("End"))
     recs = flatten(parse_docx(make_docx({"word/document.xml": DOC(body)})))

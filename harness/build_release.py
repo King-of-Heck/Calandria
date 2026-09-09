@@ -3,6 +3,7 @@ extracted next to it, the app and the launcher, in one folder.
 
     uv run python harness/build_release.py [--skip-tests] [--skip-smoke] [--keep-stage]
     uv run python harness/build_release.py --notes        # print the release notes and stop
+    uv run python harness/build_release.py --notes-out PATH  # write the release notes and stop
 
 Layout of the zip (one top folder):
 
@@ -292,10 +293,15 @@ def main(argv) -> int:
     ap.add_argument("--skip-smoke", action="store_true", help="do not run the staged interpreter")
     ap.add_argument("--keep-stage", action="store_true", help="leave build/stage/ in place")
     ap.add_argument("--notes", action="store_true", help="print the release notes and stop")
+    ap.add_argument("--notes-out", metavar="PATH",
+                     help="write the release notes to PATH (UTF-8) and stop")
     a = ap.parse_args(argv)
-    if a.notes:
-        sys.stdout.buffer.write(release_notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"),
-                                              _version()).encode("utf-8"))
+    if a.notes or a.notes_out:
+        notes = release_notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), _version())
+        if a.notes_out:
+            Path(a.notes_out).write_bytes(notes.encode("utf-8"))
+        else:
+            sys.stdout.buffer.write(notes.encode("utf-8"))
         return 0
     build(a.skip_tests, a.skip_smoke, a.keep_stage)
     return 0

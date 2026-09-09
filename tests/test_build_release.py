@@ -180,6 +180,14 @@ def test_release_notes_has_description_entry_and_download_line():
     assert "later" not in notes
 
 
+def test_notes_out_writes_the_release_notes_as_utf8(tmp_path):
+    out = tmp_path / "n.md"
+    assert br.main(["--notes-out", str(out)]) == 0
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("**Calandria**")
+    assert "## v2.0.0 —" in text
+
+
 def test_sha256_of(tmp_path):
     p = tmp_path / "f"
     p.write_bytes(b"abc")

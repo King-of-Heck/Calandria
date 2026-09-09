@@ -42,7 +42,7 @@ PTH_TEXT = "python314.zip\n.\nLib\\site-packages\n..\\app\n"
 CACHE = ROOT / "build" / "cache"
 STAGE = ROOT / "build" / "stage"
 DIST = ROOT / "dist"
-SMOKE_IMPORTS = "import lxml, PIL, fontTools, fpdf, calandria"
+SMOKE_IMPORTS = "from lxml import etree; from PIL import Image; from fontTools.ttLib import TTFont; import fpdf, calandria"
 
 DESCRIPTION = (
     "**Calandria** is an offline Word (`.docx`) redline / compare tool from HeckSoft (a King of Heck "

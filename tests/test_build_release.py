@@ -1,5 +1,6 @@
 import importlib.util
 import tomllib
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -182,3 +183,49 @@ def test_sha256_of(tmp_path):
     p = tmp_path / "f"
     p.write_bytes(b"abc")
     assert br.sha256_of(p) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+
+
+def test_download_uses_the_cache_and_verifies(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_fetch(url, dest):
+        calls.append(url)
+        dest.write_bytes(b"abc")
+
+    monkeypatch.setattr(br, "_fetch", fake_fetch)
+    good = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    p = br.download("https://x/abc.whl", tmp_path, good)
+    assert p == tmp_path / "abc.whl" and p.read_bytes() == b"abc" and calls == ["https://x/abc.whl"]
+    br.download("https://x/abc.whl", tmp_path, good)
+    assert calls == ["https://x/abc.whl"]           # cached: no second fetch
+    with pytest.raises(RuntimeError):
+        br.download("https://x/abc.whl", tmp_path, "00" * 32)
+    assert not p.exists()                            # a mismatch is deleted, never reused
+
+
+def test_unpack_wheel_skips_data_and_record(tmp_path):
+    whl = tmp_path / "x-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(whl, "w") as z:
+        z.writestr("x/__init__.py", "y = 2")
+        z.writestr("x-1.0.dist-info/METADATA", "Name: x")
+        z.writestr("x-1.0.dist-info/RECORD", "x/__init__.py,,")
+        z.writestr("x-1.0.data/scripts/x", "#!")
+    site = tmp_path / "site"
+    br.unpack_wheel(whl, site)
+    assert (site / "x" / "__init__.py").read_text() == "y = 2"
+    assert (site / "x-1.0.dist-info" / "METADATA").exists()
+    assert not (site / "x-1.0.dist-info" / "RECORD").exists()
+    assert not (site / "x-1.0.data").exists()
+
+
+def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
+    stage = tmp_path / "Calandria-9.9.9"
+    (stage / "python").mkdir(parents=True)
+    (stage / "Calandria.cmd").write_bytes(b"@echo off\r\n")
+    (stage / "python" / "python314._pth").write_text(br.PTH_TEXT)
+    out = tmp_path / "out.zip"
+    names = br.zip_stage(stage, out)
+    assert names == ["Calandria-9.9.9/Calandria.cmd", "Calandria-9.9.9/python/python314._pth"]
+    with zipfile.ZipFile(out) as z:
+        assert sorted(z.namelist()) == names
+        assert z.read("Calandria-9.9.9/Calandria.cmd") == b"@echo off\r\n"

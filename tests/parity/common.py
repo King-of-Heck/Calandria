@@ -11,8 +11,15 @@ CORPUS = HERE.parent / "corpus"
 ORACLE = HERE.parent / "oracle"
 
 
-def load_allow(name: str) -> list:
-    return json.loads((HERE / name).read_text("utf8"))
+def load_allow(name: str, directory: Path | None = None) -> list:
+    entries = json.loads(((directory or HERE) / name).read_text("utf8"))
+    for entry in entries:
+        assert {"alias", "field", "reason"} <= entry.keys(), (
+            f"allow entry missing a required key (alias/field/reason): {entry!r}")
+        assert entry["alias"] != "*", f"allow entry uses a wildcard alias, silencing every pair: {entry!r}"
+        assert entry["field"] != "count", (
+            f"allow entry targets the count field, silencing a whole pair: {entry!r}")
+    return entries
 
 
 def pairs() -> list[dict]:

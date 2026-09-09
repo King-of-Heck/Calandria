@@ -11,14 +11,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from ..model import WS_CHARS
 from .lcs import lcs_ops
 from .text import tokenize
 
 INLINE_TOKEN_CAP = 4000
 CONN = frozenset("a an the and or nor of to in on at by for as if is".split())
-_LONE_WORD = re.compile(r"^\s*[A-Za-z0-9_]+\s*$")
-_WS_ONLY = re.compile(r"^\s+$")
-_WS_CHAR = re.compile(r"\s")
+_LONE_WORD = re.compile(f"^[{WS_CHARS}]*[A-Za-z0-9_]+[{WS_CHARS}]*$")
+_WS_ONLY = re.compile(f"^[{WS_CHARS}]+$")
+_WS_CHAR = re.compile(f"[{WS_CHARS}]")
 
 
 @dataclass

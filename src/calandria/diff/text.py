@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import re
 
+from ..model import WS_CHARS
 from .lcs import lcs_ops
 
-_TOKEN = re.compile(r"[0-9][0-9,.\-/:]*[0-9]|[A-Za-z0-9_]+|[^A-Za-z0-9_\s]|\s+")
+_TOKEN = re.compile(rf"[0-9][0-9,.\-/:]*[0-9]|[A-Za-z0-9_]+|[^A-Za-z0-9_{WS_CHARS}]|[{WS_CHARS}]+")
 _WORD = re.compile(r"[A-Za-z0-9_]+")
-_WS = re.compile(r"\s+")
+_WS = re.compile(f"[{WS_CHARS}]+")
 
 
 def tokenize(t: str) -> list[str]:
@@ -24,7 +25,7 @@ def words_only(t: str) -> list[str]:
 
 
 def content_tokens(t: str) -> list[str]:
-    return [x for x in tokenize(t) if x.strip()]
+    return [x for x in tokenize(t) if not _WS.fullmatch(x)]
 
 
 def norm(t: str, ignore_case: bool = False) -> str:

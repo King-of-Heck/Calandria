@@ -11,9 +11,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from ..model import Paragraph
+from ..model import Paragraph, WS_CHARS
 
-_WS_CHAR = re.compile(r"\s")
+_WS_CHAR = re.compile(f"[{WS_CHARS}]")
 
 
 @dataclass

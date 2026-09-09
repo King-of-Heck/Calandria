@@ -49,3 +49,11 @@ def test_categorize():
     assert categorize("Hello, world.", "Hello world") == "punctuation"
     assert categorize("The Provider", "The provider") == "punctuation"   # case-only counts as punctuation
     assert categorize("a b", "a c") == "content"
+
+
+def test_tokenize_and_content_tokens_use_the_reference_whitespace_class():
+    # U+FEFF is whitespace in the reference engine (JS \s) even though it is not in Python's.
+    assert tokenize("a" + chr(0xfeff) + "b") == ["a", chr(0xfeff), "b"]
+    assert content_tokens("a" + chr(0xfeff) + "b") == ["a", "b"]
+    # U+0085 (NEL) is NOT whitespace in the reference engine, so norm() must not collapse it.
+    assert norm("a" + chr(0x85) + "b") == "a" + chr(0x85) + "b"

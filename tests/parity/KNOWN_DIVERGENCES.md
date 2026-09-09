@@ -137,6 +137,8 @@ reading, and the layout groups page geometry the same way (a section whose prede
 "continuous" flows on under the previous geometry). Only a document whose sections carry
 different types is affected; none in the corpus does. Fixing it means moving the decision to a
 post-pass over the sections and adding a scoped allow entry for the first pair that hits it.
+`evenPage` and `oddPage` start the following paragraph on a new page like `nextPage`, but no
+blank page is inserted to reach the requested parity -- page parity is not modelled.
 
 ## (l) Empty paragraphs and deleted empty paragraphs
 
@@ -144,3 +146,10 @@ Empty paragraphs of the revised document are laid out as one blank line each (th
 the document default font's line height -- the paragraph mark's own run properties are not
 modelled). Empty paragraphs that exist only in the original are not rendered: they are not diff
 units, so nothing marks them deleted. Word shows a struck paragraph mark there.
+
+## (m) Table borders, shading and vertical alignment
+
+The page model carries cell boxes only. In v2.0.0 every sink draws the same uniform 0.5 pt grid
+around every cell box (a `v_merge_continue` cell draws no top rule), no shading, and cells are
+top-aligned. `w:tblBorders` / `w:tcBorders`, `w:shd` and `w:vAlign` are not modelled; when they
+are, they will be added to `Cell` and `CellBox` so that both sinks keep reading one answer.

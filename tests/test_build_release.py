@@ -1,0 +1,184 @@
+import importlib.util
+import tomllib
+from pathlib import Path
+
+import pytest
+
+_spec = importlib.util.spec_from_file_location(
+    "build_release", Path(__file__).resolve().parent.parent / "harness" / "build_release.py")
+br = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(br)
+
+LOCK = tomllib.loads('''
+version = 1
+
+[[package]]
+name = "calandria"
+version = "2.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "fpdf2" },
+    { name = "lxml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[[package]]
+name = "fpdf2"
+version = "2.8.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "defusedxml" },
+]
+wheels = [
+    { url = "https://files/fpdf2-2.8.8-py3-none-any.whl", hash = "sha256:aa" },
+]
+
+[[package]]
+name = "defusedxml"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:bb" },
+]
+
+[[package]]
+name = "lxml"
+version = "6.1.3"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files/lxml-6.1.3-cp314-cp314t-win_amd64.whl", hash = "sha256:cc" },
+    { url = "https://files/lxml-6.1.3-cp314-cp314-win_amd64.whl", hash = "sha256:dd" },
+    { url = "https://files/lxml-6.1.3-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:ee" },
+]
+
+[[package]]
+name = "pytest"
+version = "9.1.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files/pytest-9.1.1-py3-none-any.whl", hash = "sha256:ff" },
+]
+
+[[package]]
+name = "fonttools"
+version = "4.64.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files/fonttools-4.64.0-cp314-cp314-win_amd64.whl", hash = "sha256:11" },
+    { url = "https://files/fonttools-4.64.0-py3-none-any.whl", hash = "sha256:22" },
+]
+
+[[package]]
+name = "sdist-only"
+version = "1.0"
+source = { registry = "https://pypi.org/simple" }
+''')
+
+
+def _pkg(name):
+    return next(p for p in LOCK["package"] if p["name"] == name)
+
+
+def test_runtime_packages_is_the_closure_without_dev_groups():
+    names = [p["name"] for p in br.runtime_packages(LOCK)]
+    assert names == ["defusedxml", "fpdf2", "lxml"]
+
+
+def test_runtime_packages_on_the_real_lock():
+    lock = tomllib.loads((Path(__file__).resolve().parent.parent / "uv.lock").read_text(encoding="utf-8"))
+    names = [p["name"] for p in br.runtime_packages(lock)]
+    assert names == ["defusedxml", "fonttools", "fpdf2", "lxml", "pillow"]
+    for p in br.runtime_packages(lock):
+        url, digest = br.pick_wheel(p)
+        assert url.endswith(".whl") and len(digest) == 64
+
+
+def test_pick_wheel_native_takes_the_cp314_non_t_windows_wheel():
+    url, digest = br.pick_wheel(_pkg("lxml"))
+    assert url.endswith("lxml-6.1.3-cp314-cp314-win_amd64.whl")
+    assert digest == "dd"
+
+
+def test_pick_wheel_pure_takes_the_universal_wheel_even_when_a_native_one_exists():
+    url, digest = br.pick_wheel(_pkg("fonttools"))
+    assert url.endswith("fonttools-4.64.0-py3-none-any.whl") and digest == "22"
+    url, digest = br.pick_wheel(_pkg("defusedxml"))
+    assert url.endswith("py2.py3-none-any.whl") and digest == "bb"
+
+
+def test_pick_wheel_without_a_wheel_raises():
+    with pytest.raises(LookupError):
+        br.pick_wheel(_pkg("sdist-only"))
+
+
+def test_pth_lines():
+    assert br.pth_lines() == ["python314.zip", ".", "Lib\\site-packages", "..\\app"]
+    assert br.PTH_TEXT == "python314.zip\n.\nLib\\site-packages\n..\\app\n"
+    assert "import site" not in br.PTH_TEXT
+
+
+def test_wheel_members_drops_data_dirs_and_record():
+    names = ["lxml/__init__.py", "lxml/etree.cp314-win_amd64.pyd",
+             "lxml-6.1.3.dist-info/METADATA", "lxml-6.1.3.dist-info/RECORD",
+             "fonttools-4.64.0.data/scripts/fonttools", "x-1.0.data/purelib/x.py"]
+    assert br.wheel_members(names) == ["lxml/__init__.py", "lxml/etree.cp314-win_amd64.pyd",
+                                       "lxml-6.1.3.dist-info/METADATA"]
+
+
+def test_stage_app_copies_without_bytecode(tmp_path):
+    src = tmp_path / "src" / "calandria"
+    (src / "viewer").mkdir(parents=True)
+    (src / "__pycache__").mkdir()
+    (src / "__init__.py").write_text("x = 1")
+    (src / "viewer" / "index.html").write_text("<p>")
+    (src / "__pycache__" / "__init__.cpython-314.pyc").write_bytes(b"\x00")
+    (src / "stale.pyc").write_bytes(b"\x00")
+    dst = tmp_path / "app" / "calandria"
+    copied = br.stage_app(src, dst)
+    assert copied == [dst / "__init__.py", dst / "viewer" / "index.html"]
+    assert not (dst / "__pycache__").exists() and not (dst / "stale.pyc").exists()
+    assert (dst / "viewer" / "index.html").read_text() == "<p>"
+
+
+CHANGELOG = """# Calandria changelog
+
+## v2.1.0 — Later (2026-10-01)
+
+- later bullet
+
+## v2.0.0 — First release (2026-09-09)
+
+- first bullet
+- second bullet
+"""
+
+
+def test_changelog_entry_returns_one_section():
+    entry = br.changelog_entry(CHANGELOG, "2.0.0")
+    assert entry.startswith("## v2.0.0 — First release (2026-09-09)")
+    assert "second bullet" in entry and "later" not in entry
+    entry = br.changelog_entry(CHANGELOG, "2.1.0")
+    assert "later bullet" in entry and "first bullet" not in entry
+
+
+def test_changelog_entry_missing_raises():
+    with pytest.raises(LookupError):
+        br.changelog_entry(CHANGELOG, "3.0.0")
+
+
+def test_release_notes_has_description_entry_and_download_line():
+    notes = br.release_notes(CHANGELOG, "2.0.0")
+    assert notes.startswith("**Calandria**")
+    assert "## v2.0.0 — First release (2026-09-09)" in notes
+    assert "`Calandria-2.0.0.zip`" in notes
+    assert "later" not in notes
+
+
+def test_sha256_of(tmp_path):
+    p = tmp_path / "f"
+    p.write_bytes(b"abc")
+    assert br.sha256_of(p) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"

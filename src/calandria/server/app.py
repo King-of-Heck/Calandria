@@ -21,6 +21,7 @@ from .session import BadDocument, Session, check_render, parse_options
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
+DRAIN_CAP = 256 * 1024 * 1024
 DEFAULT_IDLE = 300.0
 HOST = "127.0.0.1"
 
@@ -100,6 +101,24 @@ class Handler(BaseHTTPRequestHandler):
     def _error(self, status: int, message: str) -> None:
         if status == 413:
             self.close_connection = True        # the unread body would poison a kept-alive socket
+            # A client still writing an oversized body can have the OS abort the connection
+            # before it gets to read our 413, if we close the socket without reading anything;
+            # draining the declared body first lets the write finish so the client sees the 413.
+            raw = self.headers.get("Content-Length")
+            try:
+                remaining = int(raw) if raw is not None else 0
+            except ValueError:
+                remaining = -1
+            if 0 <= remaining <= DRAIN_CAP:
+                try:
+                    while remaining > 0:
+                        chunk = self.rfile.read(min(remaining, 1 << 20))
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                except OSError:
+                    pass
+                self._consumed = True
         elif not self._consumed:
             # an early error (404/405/400 before _body()/_drain() ran) left a declared body
             # unread; either drain it or close the connection so the next request on this

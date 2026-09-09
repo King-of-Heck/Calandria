@@ -161,6 +161,42 @@ def test_body_cap(srv, monkeypatch):
     assert status == 413 and "10" in d["error"]
 
 
+def test_body_cap_drains_so_the_client_sees_the_413(srv, monkeypatch):
+    monkeypatch.setattr(appmod, "MAX_BODY", 10)
+    host, port = srv.server.server_address[:2]
+    body = b"x" * (200 * 1024)
+    for _ in range(20):
+        conn = http.client.HTTPConnection(host, port, timeout=5)
+        try:
+            conn.request("POST", "/api/compare", body=body, headers={"Content-Type": "application/json"})
+            resp = conn.getresponse()
+            status = resp.status
+            data = json.loads(resp.read())
+        finally:
+            conn.close()
+        assert status == 413 and "10" in data["error"]
+
+
+def test_body_over_the_drain_cap_is_closed_without_reading(srv, monkeypatch):
+    monkeypatch.setattr(appmod, "MAX_BODY", 10)
+    monkeypatch.setattr(appmod, "DRAIN_CAP", 100)
+    host, port = srv.server.server_address[:2]
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.putrequest("POST", "/api/compare")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Content-Length", "1000")
+        conn.endheaders()
+        conn.send(b"x" * 50)
+        try:
+            resp = conn.getresponse()
+            assert resp.status == 413
+        except (ConnectionError, http.client.HTTPException):
+            pass
+    finally:
+        conn.close()
+
+
 def test_file_names_are_reduced_to_their_base_name(srv):
     body = _compare_body()
     body["a"]["name"] = "C:\\docs\\one.docx"

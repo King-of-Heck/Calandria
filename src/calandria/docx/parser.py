@@ -46,7 +46,7 @@ def parse_package(pkg: Package) -> Document:
     tab = twips_to_pt(wval(settings.find(wq("defaultTabStop")))) if settings is not None else None
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
-                    default_tab_pt=tab if tab else 36.0)
+                    default_tab_pt=tab if tab is not None else 36.0)
 
 
 def _blocks(parent, ctx: _Ctx) -> list:

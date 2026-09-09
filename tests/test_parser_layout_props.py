@@ -37,6 +37,11 @@ def test_default_tab_stop_from_settings():
     assert _doc(P("x")).default_tab_pt == 36.0
 
 
+def test_zero_default_tab_stop_is_kept():
+    settings = f'<w:settings xmlns:w="{W_NS}"><w:defaultTabStop w:val="0"/></w:settings>'
+    assert _doc(P("x"), **{"word/settings.xml": settings}).default_tab_pt == 0.0
+
+
 def test_table_indent_grid_and_row_heights():
     tblpr = '<w:tblPr><w:tblInd w:w="288" w:type="dxa"/></w:tblPr>'
     body = ("<w:tbl>" + tblpr + '<w:tblGrid><w:gridCol w:w="2880"/><w:gridCol w:w="1440"/></w:tblGrid>'

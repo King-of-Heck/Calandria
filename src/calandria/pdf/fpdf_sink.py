@@ -1,0 +1,79 @@
+"""The Painter that writes a PDF with fpdf2. Fonts are registered once per (file, TTC index)
+and embedded as subsets at output; fake bold is fill + stroke, fake italic a 12 degree skew about
+the run's baseline origin. Units are points, origin top-left (fpdf2's own frame with unit="pt")."""
+from __future__ import annotations
+
+from datetime import datetime
+
+from fpdf import FPDF
+from fpdf.enums import TextMode
+
+from .painter import rgb
+
+STROKE_FRACTION = 0.03      # fake-bold stroke width as a fraction of the size
+ITALIC_DEGREES = 12
+DASH, DASH_GAP = 1.0, 1.5   # the dotted underline
+
+
+class FpdfPainter:
+    def __init__(self, creation: datetime | None = None, title: str = "Redline comparison"):
+        self.pdf = FPDF(unit="pt", format=(612, 792))
+        self.pdf.set_auto_page_break(False)
+        self.pdf.set_margins(0, 0, 0)
+        self.pdf.set_title(title)
+        self.pdf.set_creator("Calandria")
+        if creation is not None:
+            self.pdf.set_creation_date(creation)
+        self._fonts: dict[tuple[str, int], str] = {}
+
+    # -- Painter ---------------------------------------------------------------------------
+    def page(self, w: float, h: float) -> None:
+        self.pdf.add_page(format=(w, h))
+
+    def text(self, x: float, baseline: float, text: str, face, size: float, color: str,
+             fake_bold: bool = False, fake_italic: bool = False) -> None:
+        if not text:
+            return
+        p = self.pdf
+        p.set_font(self._family(face), "", size)
+        p.set_text_color(*rgb(color))
+        if fake_bold:
+            p.set_draw_color(*rgb(color))
+            p.set_line_width(size * STROKE_FRACTION)
+            p.text_mode = TextMode.FILL_STROKE
+        if fake_italic:
+            with p.skew(ax=ITALIC_DEGREES, x=x, y=baseline):
+                p.text(x, baseline, text)
+        else:
+            p.text(x, baseline, text)
+        if fake_bold:
+            p.text_mode = TextMode.FILL
+
+    def rule(self, x1: float, x2: float, y: float, thickness: float, color: str, dotted: bool = False) -> None:
+        p = self.pdf
+        p.set_draw_color(*rgb(color))
+        p.set_line_width(thickness)
+        if dotted:
+            p.set_dash_pattern(dash=DASH, gap=DASH_GAP)
+        p.line(x1, y, x2, y)
+        if dotted:
+            p.set_dash_pattern()
+
+    def line(self, x1: float, y1: float, x2: float, y2: float, width: float, color: str) -> None:
+        p = self.pdf
+        p.set_draw_color(*rgb(color))
+        p.set_line_width(width)
+        p.line(x1, y1, x2, y2)
+
+    # -- output -----------------------------------------------------------------------------
+    def output(self) -> bytes:
+        return bytes(self.pdf.output())
+
+    def _family(self, face) -> str:
+        key = (face.path, face.font_number)
+        name = self._fonts.get(key)
+        if name is None:
+            name = f"cf{len(self._fonts)}"
+            self.pdf.add_font(name, "", face.path, collection_font_number=face.font_number)
+            self._fonts[key] = name
+        return name

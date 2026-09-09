@@ -94,3 +94,10 @@ def test_a_line_taller_than_the_page_is_forced_through():
 def test_avail_varies_per_page():
     plan = plan_breaks([B(10, 10, 10), B(10, 10, 10)], lambda p: 30 if p == 0 else 100)
     assert plan.breaks == [Break(1, 0)]
+
+
+def test_space_before_is_dropped_when_widow_control_pushes_the_block_whole():
+    # block 1 seems to fit (3 + 20 <= 25 free) but its third line does not; orphan control
+    # moves it whole to page 2, an automatic page, so its space-before is dropped there.
+    plan = plan_breaks([B(10), B(10, 10, 10, space_before=3)], const(35))
+    assert plan.breaks == [Break(1, 0)] and plan.before == [True, False]

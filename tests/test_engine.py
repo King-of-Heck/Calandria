@@ -137,3 +137,11 @@ def test_requires_documents_on_the_comparison():
     d = _parse(P("x"))
     with pytest.raises(ValueError):
         layout(compare_units(units(d), units(d)), LayoutOptions(fonts=FR))
+
+
+def test_space_before_does_not_survive_onto_an_automatic_page():
+    filler = "".join(P("p") for _ in range(51))
+    spaced = P(" ".join(["aaaa"] * 40), ppr='<w:spacing w:before="120"/>')   # 3 lines of 18 words
+    L = _lay(filler + spaced, filler + spaced)
+    assert L.page_count == 2 and len(L.pages[0].lines) == 51
+    assert L.pages[1].lines[0].top == 72

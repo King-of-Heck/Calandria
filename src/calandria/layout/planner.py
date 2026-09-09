@@ -95,6 +95,8 @@ def plan_breaks(blocks: list[BlockSpec], avail_of: Callable[[int], float]) -> Pl
                     start = cut
                 else:
                     # pushed back by widow/orphan; a fresh page may hold more: retry there
+                    if start == 0:
+                        before[b] = False    # the block moves whole to an automatic page: no space before
                     new_page(b, start)
             else:
                 new_page(b, cut)

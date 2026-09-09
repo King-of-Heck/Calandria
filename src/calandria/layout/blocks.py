@@ -33,6 +33,7 @@ class Ctx:
     default_size: float
     default_tab: float
     faces: dict = field(default_factory=dict)   # face key -> face object, filled by the placer
+    maps: tuple | None = None  # table correspondence maps, built once per layout (see tables.table_maps)
 
 
 @dataclass

@@ -87,10 +87,16 @@ def _row_key(it: Item, rmap) -> tuple:
     return ("b", *rmap[k]) if k in rmap else ("a", it.loc.ti, it.loc.ri)
 
 
-def table_runs(items: list[Item], cmp) -> list[tuple[int, int]]:
+def ctx_maps(ctx: Ctx) -> tuple:
+    """The correspondence maps the engine built once for this layout, or fresh ones for a caller
+    that did not build them."""
+    return ctx.maps if ctx.maps is not None else table_maps(ctx.cmp)
+
+
+def table_runs(items: list[Item], maps: tuple) -> list[tuple[int, int]]:
     """[start, end) index ranges of consecutive items forming one table (its revised-side table,
-    or an original-only one)."""
-    tmap, _ = table_maps(cmp)
+    or an original-only one). `maps` comes from table_maps(comparison)."""
+    tmap, _ = maps
     out: list[tuple[int, int]] = []
     i, n = 0, len(items)
     while i < n:
@@ -108,7 +114,7 @@ def table_runs(items: list[Item], cmp) -> list[tuple[int, int]]:
 
 def table_blocks(group: list[Item], ctx: Ctx) -> list:
     docs = {"a": ctx.cmp.a_doc, "b": ctx.cmp.b_doc}
-    tmap, rmap = table_maps(ctx.cmp)
+    tmap, rmap = ctx_maps(ctx)
     side, ti = _table_key(group[0], tmap)
     table = table_by_ti(docs[side], ti)
     cols = max(1, len(table.grid_pt) or max((len(r.cells) for r in table.rows), default=0))

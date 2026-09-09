@@ -5,7 +5,7 @@ from calandria.docx.parser import parse_docx
 from calandria.layout.blocks import Ctx, ParaBlock
 from calandria.layout.merged import merged_items
 from calandria.layout.pieces import LayoutOptions
-from calandria.layout.tables import TableRowBlock, table_blocks, table_runs
+from calandria.layout.tables import TableRowBlock, table_blocks, table_maps, table_runs
 from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
 from calandria.testing.fakefonts import FakeResolver
 
@@ -29,7 +29,7 @@ def _ctx(c, content_w=200.0, avail_h=600.0, **opts):
 
 
 def _blocks(c, items, **kw):
-    (s, e), = table_runs(items, c)
+    (s, e), = table_runs(items, table_maps(c))
     return table_blocks(items[s:e], _ctx(c, **kw))
 
 
@@ -40,7 +40,7 @@ def _tbl(rows, grid=None, tblpr=""):
 def test_table_runs_split_adjacent_tables_and_stop_at_body_text():
     body = P("i") + TBL([["a"]]) + TBL([["b"]]) + P("o") + TBL([["c", "d"]])
     c, items = _items(body, body)
-    assert table_runs(items, c) == [(1, 2), (2, 3), (4, 6)]
+    assert table_runs(items, table_maps(c)) == [(1, 2), (2, 3), (4, 6)]
 
 
 def test_two_column_row_geometry():
@@ -169,7 +169,7 @@ def test_deleted_table_before_a_kept_table_keeps_its_own_geometry():
     a = P("i") + TBL([["gone"]]) + TBL([["k1", "k2"]]) + P("o")
     b = P("i") + TBL([["k1", "k2"]]) + P("o")
     c, items = _items(a, b)
-    runs = table_runs(items, c)
+    runs = table_runs(items, table_maps(c))
     assert len(runs) == 2
     (d,) = table_blocks(items[runs[0][0]:runs[0][1]], _ctx(c))
     assert [(cell.x, cell.w) for cell in d.cells] == [(0, 200)] and d.changed
@@ -181,7 +181,7 @@ def test_whole_deleted_row_stays_in_the_surviving_table():
     a = _tbl([["h", "x"], ["gone", "y"]])
     b = _tbl([["h", "x"]])
     c, items = _items(a, b)
-    assert len(table_runs(items, c)) == 1
+    assert len(table_runs(items, table_maps(c))) == 1
     r1, r2 = _blocks(c, items)
     assert [(cell.x, cell.w) for cell in r2.cells] == [(0, 100), (100, 100)] and r2.changed
 

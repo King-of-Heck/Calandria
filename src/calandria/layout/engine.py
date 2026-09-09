@@ -13,12 +13,13 @@ from .merged import Item, merged_items
 from .pages import CellBox, FontRef, GlyphRun, Layout, Page, PlacedLine, TableRowBox
 from .pieces import LayoutOptions, visible
 from .planner import BlockSpec, Plan, plan_breaks
-from .tables import MIN_CELL_W, PAD_X, PAD_Y, TableRowBlock, table_blocks, table_runs
+from .tables import (MIN_CELL_W, PAD_X, PAD_Y, TableRowBlock, ctx_maps, table_blocks, table_maps,
+                     table_runs)
 
 
 def build_blocks(items: list[Item], ctx: Ctx) -> list:
     out: list = []
-    ranges = table_runs(items, ctx.cmp)
+    ranges = table_runs(items, ctx_maps(ctx))
     ri, i, n = 0, 0, len(items)
     while i < n:
         if ri < len(ranges) and ranges[ri][0] == i:
@@ -166,11 +167,12 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
     items = merged_items(cmp)
     pages: list[Page] = []
     faces: dict = {}
+    maps = table_maps(cmp)      # one correspondence build for the whole layout
     for leader, group in _section_groups(items, sections):
         sec = sections[min(leader, len(sections) - 1)]
         ctx = Ctx(cmp, opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
                   sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
-                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces)
+                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps)
         blocks = build_blocks(group, ctx)
         if not blocks:
             continue

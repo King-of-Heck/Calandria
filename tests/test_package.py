@@ -18,6 +18,25 @@ def test_part_and_xml():
     assert root.find(f".//{wq('t')}").text == "hi"
 
 
+def test_xml_tolerates_missing_xmlns_w_binding():
+    # Some producers (incl. SorkWhare's own synthetic regression fixtures) write WordprocessingML
+    # parts that use the w:-prefixed element names but never bind that prefix via xmlns:w on the
+    # root. A real Word install always binds it; without tolerating the omission, every namespace-
+    # aware lookup in this part silently finds nothing.
+    unbound = '<?xml version="1.0"?><w:document><w:body><w:p><w:r><w:t>hi</w:t></w:r></w:p></w:body></w:document>'
+    pkg = Package.open(make_docx({"word/document.xml": unbound}))
+    root = pkg.xml("word/document.xml")
+    assert root.tag == wq("document")
+    assert root.find(f".//{wq('t')}").text == "hi"
+
+
+def test_xml_leaves_already_bound_parts_untouched():
+    pkg = Package.open(make_docx({"word/document.xml": DOC(P("hi"))}))
+    root = pkg.xml("word/document.xml")
+    assert root.tag == wq("document")
+    assert root.find(f".//{wq('t')}").text == "hi"
+
+
 def test_rels_targets_normalized():
     pkg = Package.open(make_docx({"word/document.xml": DOC(""), "word/_rels/document.xml.rels": RELS}))
     assert pkg.rels("word/document.xml") == {"rId3": "header1.xml", "rId9": "footer2.xml"}

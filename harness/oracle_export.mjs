@@ -1,6 +1,6 @@
 // Runs the SorkWhare 1.16.0 engine on every corpus pair and writes tests/oracle/<alias>.json.
 // Usage: node harness/oracle_export.mjs        (env SORKWHARE_DIR overrides the checkout path)
-import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdirSync, existsSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 
@@ -30,16 +30,32 @@ function rec(p) {
 function side(A) { return {paras: Array.from(A, rec), geometry: JSON.parse(JSON.stringify(A.geometry || null))}; }
 function rows(res) {
   return res.rows.map(r => ({type: r.type, cid: r.cid ?? null, cat: r.cat ?? null, oi: r.oi ?? null, ni: r.ni ?? null,
-    html: r.html ?? '', numChanged: !!r.numChanged, oldMarker: r.oldMarker ?? null}));
+    html: r.html ?? '', numChanged: !!r.numChanged, oldMarker: r.oldMarker ?? null,
+    fmtChanged: !!r.fmtChanged, fmtDescs: r.fmtDescs ? JSON.parse(JSON.stringify(r.fmtDescs)) : null,
+    tbl: r.meta && r.meta.tbl ? {ti: r.meta.tbl.ti, ri: r.meta.tbl.ri, ci: r.meta.tbl.ci, cols: r.meta.tbl.cols} : null}));
+}
+function result(res) { return {rows: rows(res), summary: JSON.parse(JSON.stringify(res.summary))}; }
+// v2.0.0 scope: no moves (moveMin:Infinity) and no split/merge (SM_SIM is a `var` in the engine, so
+// it is a property of the vm context and can be raised past any similarity).
+function compareV2(A, B, opts) {
+  const keep = ctx.SM_SIM; ctx.SM_SIM = Infinity;
+  try { const res = ctx.compare(A, B, Object.assign({moveMin: Infinity}, opts));
+    if (res.summary.moves || res.summary.splits || res.summary.merges) throw new Error('v2 variant produced moves/splits/merges');
+    return result(res); }
+  finally { ctx.SM_SIM = keep; }
 }
 
 mkdirSync(OUT, {recursive: true});
-const manifest = JSON.parse(readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
-for (const pair of manifest.pairs) {
+const pairs = [];
+for (const name of ['manifest.json', 'manifest.gen.json']) {
+  const p = path.join(CORPUS, name);
+  if (existsSync(p)) pairs.push(...JSON.parse(readFileSync(p, 'utf8')).pairs);
+}
+for (const pair of pairs) {
   const A = await ctx.docxToParagraphs(fileOf(path.join(CORPUS, pair.a)));
   const B = await ctx.docxToParagraphs(fileOf(path.join(CORPUS, pair.b)));
-  const res = ctx.compare(A, B, {});
-  const out = {A: side(A), B: side(B), compare: {rows: rows(res), summary: JSON.parse(JSON.stringify(res.summary))}};
+  const out = {A: side(A), B: side(B), compare: result(ctx.compare(A, B, {})),
+    compare_v2: compareV2(A, B, {}), compare_v2_ic: compareV2(A, B, {ignoreCase: true})};
   writeFileSync(path.join(OUT, pair.alias + '.json'), JSON.stringify(out));
-  console.log(pair.alias, out.A.paras.length, out.B.paras.length, 'changes', res.summary.total);
+  console.log(pair.alias, out.A.paras.length, out.B.paras.length, 'changes', out.compare_v2.summary.total);
 }

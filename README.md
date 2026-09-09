@@ -15,11 +15,13 @@ they have been built:
 
 ```
 uv run python harness/build_corpus.py
+uv run python harness/gen_pairs.py
 node harness/oracle_export.mjs
 ```
 
 The first copies the regression pairs into `tests/corpus/` and writes its manifest; the second
-runs the reference engine over them and writes `tests/oracle/`. Re-run the second whenever the
-exporter's field list changes. Then `uv run pytest tests/parity -q` should be green with an
-empty `tests/parity/allow.json`; deliberate differences are listed in
-`tests/parity/KNOWN_DIVERGENCES.md`.
+writes five synthetic pairs (formatting, tables, punctuation, dense rewrites, the inline token
+cap) into `tests/corpus/` alongside `manifest.gen.json`; the third runs the reference engine over
+both manifests and writes `tests/oracle/`. Re-run the third whenever the exporter's field list
+changes. Then `uv run pytest tests/parity -q` should be green with an empty
+`tests/parity/allow.json`; deliberate differences are listed in `tests/parity/KNOWN_DIVERGENCES.md`.

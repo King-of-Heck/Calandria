@@ -69,7 +69,7 @@ def _glyph(r: Run, x: float, ctx: Ctx) -> GlyphRun:
 def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, container_w: float, ctx: Ctx) -> PlacedLine:
     first = li == 0
     x0 = base_x + blk.x + (blk.first_dx if first else 0.0)
-    avail = container_w - blk.x - (blk.first_dx if first else 0.0)
+    avail = container_w - blk.x - blk.right - (blk.first_dx if first else 0.0)
     last = li == len(blk.lines) - 1
     x, extra = x0, 0.0
     if blk.align == "center":

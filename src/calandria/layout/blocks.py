@@ -5,7 +5,8 @@ the first line starts at `x + first_dx` (a hanging indent makes it negative, a f
 positive). A list marker sits at the first-line position (its own alignment, w:lvlJc, may hang it
 left of that point) and the text of the first line begins at the next tab stop after the marker:
 the left indent when the marker ends before it, else the next default stop (Word), or one space
-/ nothing for the other suffixes. A renumbered item carries both markers (old struck, new
+/ nothing for the other suffixes. The right indent narrows both the wrap width and
+the alignment box. A renumbered item carries both markers (old struck, new
 inserted); an item that lost its numbering leads with the struck old marker inline.
 """
 from __future__ import annotations
@@ -39,6 +40,7 @@ class ParaBlock:
     lines: list[Line]
     x: float
     first_dx: float
+    right: float               # right indent: the wrap and alignment box end this far short of the container
     align: str                 # left | center | right | justify
     marker: list[Run]
     marker_x: float
@@ -115,7 +117,9 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
 
     runs = measure(pieces, fonts, ctx.default_font, ctx.default_size)
     spacing = Spacing(props.line_rule, props.line_spacing, props.line_exact_pt)
-    lines = break_lines(runs, max(MIN_LINE_PT, content_w - x - first_dx), max(MIN_LINE_PT, content_w - x),
+    right = props.ind_right_pt
+    lines = break_lines(runs, max(MIN_LINE_PT, content_w - x - first_dx - right),
+                        max(MIN_LINE_PT, content_w - x - right),
                         spacing, fonts.face(font, bold, italic), size)
 
     sb = props.space_before_pt or 0.0
@@ -128,5 +132,5 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     changed = row is not None and (row.type != "equal" or (row.fmt_changed and ctx.opts.show_formatting)
                                    or row.num_changed)
     align = "justify" if props.align in ("justify", "distribute") else props.align
-    return ParaBlock(lines, x, first_dx, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
+    return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
                      props.page_break_before, item.section, changed, cid, item.row_index)

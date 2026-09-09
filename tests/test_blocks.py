@@ -106,6 +106,15 @@ def test_numbered_to_plain_leads_with_the_struck_old_marker():
     assert b.changed
 
 
+def test_right_indent_narrows_the_wrap_width():
+    text = "aaaa bbbb cccc dddd eeee ffff gggg"                  # 170 pt: one line in 200 pt
+    c, items = _items(P("x"), P(text))
+    assert _texts(_block(items, 1, _ctx(c))) == [text]
+    c, items = _items(P("x"), P(text, ppr='<w:ind w:right="800"/>'))
+    b = _block(items, 1, _ctx(c))
+    assert b.right == 40 and _texts(b) == ["aaaa bbbb cccc dddd eeee ffff", "gggg"]
+
+
 def test_contextual_spacing_zeroes_the_gap_between_same_style_neighbours():
     sty = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>',
                  '<w:style w:type="paragraph" w:styleId="Body"><w:pPr><w:spacing w:before="200" w:after="200"/>'

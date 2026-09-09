@@ -42,6 +42,13 @@ def test_zero_default_tab_stop_is_kept():
     assert _doc(P("x"), **{"word/settings.xml": settings}).default_tab_pt == 0.0
 
 
+def test_right_indent_is_read_from_both_spellings():
+    props = _doc(P("x", ppr='<w:ind w:right="720"/>')).blocks[0].props
+    assert props.ind_right_pt == 36.0
+    assert _doc(P("x", ppr='<w:ind w:end="1440"/>')).blocks[0].props.ind_right_pt == 72.0
+    assert _doc(P("x")).blocks[0].props.ind_right_pt == 0.0
+
+
 def test_table_indent_grid_and_row_heights():
     tblpr = '<w:tblPr><w:tblInd w:w="288" w:type="dxa"/></w:tblPr>'
     body = ("<w:tbl>" + tblpr + '<w:tblGrid><w:gridCol w:w="2880"/><w:gridCol w:w="1440"/></w:tblGrid>'

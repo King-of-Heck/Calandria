@@ -198,6 +198,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     props = ParaProps(style_id=style_id, align=merged.get("align", "left"),
                       ind_left_pt=merged.get("ind_left_pt", 0.0), ind_hanging_pt=merged.get("ind_hanging_pt", 0.0),
                       ind_first_line_pt=merged.get("ind_first_line_pt", 0.0),
+                      ind_right_pt=merged.get("ind_right_pt", 0.0),
                       space_before_pt=merged.get("space_before_pt"), space_after_pt=merged.get("space_after_pt"),
                       line_spacing=merged.get("line_spacing"), line_rule=merged.get("line_rule"),
                       line_exact_pt=merged.get("line_exact_pt"),

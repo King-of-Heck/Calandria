@@ -62,6 +62,12 @@ def test_center_and_right_alignment():
     assert [ln.x for ln in L.pages[0].lines] == [296, 520]
 
 
+def test_right_indent_moves_the_alignment_box_in():
+    body = P("aaaa", ppr='<w:jc w:val="right"/><w:ind w:right="800"/>')
+    (ln,) = _lay(body, body).pages[0].lines
+    assert ln.runs[-1].x + ln.runs[-1].w == pytest.approx(72 + 468 - 40)
+
+
 def test_list_marker_is_placed_in_the_gutter():
     from calandria.testing.makedocx import NUMBERING
     num = NUMBERING([("decimal", "%1.", 720, 360, None)])

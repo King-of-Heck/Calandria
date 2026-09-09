@@ -47,6 +47,7 @@ class ParaProps:
     ind_left_pt: float = 0.0
     ind_hanging_pt: float = 0.0
     ind_first_line_pt: float = 0.0
+    ind_right_pt: float = 0.0
     space_before_pt: float | None = None
     space_after_pt: float | None = None
     line_spacing: float | None = None

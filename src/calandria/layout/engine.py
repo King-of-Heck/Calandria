@@ -119,6 +119,12 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
     st = {"page": None, "y": mt, "top": True}
 
     def page() -> Page:
+        # Lazy materialisation (see above) means a planned break that lands before any content is
+        # placed never creates a page here, so the placer's running page index can end up one
+        # behind the planner's own count for this section. Harmless while avail_of is a constant
+        # (every page the planner assumed is the same height as every page this creates), but it
+        # will need reconciling before a per-page avail_of lands (footnote reserve, header/footer
+        # chrome) and the two indices must agree on which page a given break actually falls on.
         if st["page"] is None:
             st["page"] = _new_page(pages, sec, section_idx)
         return st["page"]

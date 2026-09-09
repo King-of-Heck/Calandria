@@ -147,6 +147,13 @@ the document default font's line height -- the paragraph mark's own run properti
 modelled). Empty paragraphs that exist only in the original are not rendered: they are not diff
 units, so nothing marks them deleted. Word shows a struck paragraph mark there.
 
+A deleted (non-empty) paragraph that is the only thing left after a section-break paragraph is
+flushed into the closing section rather than the one that follows, because `merged_items` only
+knows the boundary as "before the next revised paragraph" and has no revised paragraph left to
+flush against once the tail of the document is all deletions. The deleted paragraph's own
+position among the original document's section breaks is the information a fix would need to
+place it in the section it actually stood in.
+
 ## (m) Table borders, shading and vertical alignment
 
 The page model carries cell boxes only. In v2.0.0 every sink draws the same uniform 0.5 pt grid

@@ -63,6 +63,8 @@ def parse_cached(path: Path):
 def page_digest(lay) -> str:
     """A stable fingerprint of a whole page model: page counts alone cannot see a line that moved.
     Written into golden-pages.json by harness/golden_pages.py and checked by test_pages.py, so both
-    sides must compute it the same way -- hence one definition here."""
-    blob = json.dumps(lay.to_dict(), sort_keys=True, separators=(",", ":")).encode()
+    sides must compute it the same way -- hence one definition here. Hashes only the "pages" part
+    of to_dict(), excluding "fonts" (whose entries carry absolute font file paths, so the digest
+    would otherwise change on a machine that resolves the same faces from a different directory)."""
+    blob = json.dumps(lay.to_dict()["pages"], sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(blob).hexdigest()[:16]

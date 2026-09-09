@@ -15,6 +15,10 @@ python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-number
 python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
                            [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                            [--hide-formatting] [--pages]
+python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
+                        [--hide-unchanged] [--hide-insertions] [--hide-deletions]
+                        [--hide-formatting] [--no-change-bars] [--render-set=NAME]
+                        [--report=first|last|none]
 ```
 
 ## Running the parity gate
@@ -53,3 +57,17 @@ uv run python harness/golden_pages.py
 Word's own page count is a smoke check, not a gate: export a corpus document to PDF from Word,
 drop it in `tests/fixtures/wordpdf/<name>.pdf` (or a `<name>.pages` file with the count) and run
 `uv run python harness/word_pages.py`.
+
+## PDF
+
+`pdf` draws the same page model into a PDF: the fonts the layout resolved are embedded as
+TrueType subsets, insertions and deletions are styled by a rendering set (`--render-set=Standard`,
+the default: blue double underline / red strikethrough; `--render-set="Black and White"`: black
+text, same effects), changed lines get a change bar in the left margin (`--no-change-bars` to
+omit) and a change number in the gutter, tables draw a uniform 0.5 pt grid, and a summary block
+(names, date, rendering set, options, counts) goes on the last page (`--report=first` for its own
+page before the document, `--report=none` to omit). Change bars, change numbers and the summary
+exist only in the PDF and the viewer; nothing is written back to Word.
+
+The corpus gate `tests/parity/test_pdf.py` checks that every pair's PDF has exactly the layout's
+page count and that its text reads back.

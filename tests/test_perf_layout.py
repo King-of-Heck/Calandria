@@ -10,24 +10,15 @@ from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
 from calandria.layout.fonts import default_dirs
-from calandria.testing.makedocx import DOC, P, make_docx
+from calandria.testing.makedocx import DOC, make_docx
+from calandria.testing.perfdoc import hundred_page_pair
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")
-_WORDS = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor".split()
-
-
-def _para(i, swap=None):
-    words = [_WORDS[(i + k) % len(_WORDS)] for k in range(40)]
-    if swap:
-        words = [swap if w == "dolor" else w for w in words]
-    return P(f"Clause {i}. " + " ".join(words))
 
 
 def test_hundred_page_pair_lays_out_under_budget():
-    edits = {5, 400, 900, 1400}
-    a = "".join(_para(i) for i in range(1500))
-    b = "".join(_para(i, "colour" if i in edits else None) for i in range(1500))
+    a, b = hundred_page_pair()
     docs = [parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(x)}))) for x in (a, b)]
     t0 = time.perf_counter()
     L = layout(compare(*docs))

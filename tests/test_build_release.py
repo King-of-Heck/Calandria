@@ -240,6 +240,33 @@ def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
         assert z.read("Calandria-9.9.9/Calandria.cmd") == b"@echo off\r\n"
 
 
+def test_zip_stage_is_byte_identical_across_builds(tmp_path):
+    import os
+    import time
+
+    def make_stage(d):
+        d.mkdir(parents=True)
+        (d / "python").mkdir()
+        (d / "Calandria.cmd").write_bytes(b"@echo off\r\n")
+        (d / "python" / "python314._pth").write_text(br.PTH_TEXT)
+
+    stage1 = tmp_path / "one" / "Calandria-9.9.9"
+    make_stage(stage1)
+    out1 = tmp_path / "out1.zip"
+    br.zip_stage(stage1, out1)
+
+    stage2 = tmp_path / "two" / "Calandria-9.9.9"
+    make_stage(stage2)
+    later = time.time() + 5000
+    for p in stage2.rglob("*"):
+        if p.is_file():
+            os.utime(p, (later, later))
+    out2 = tmp_path / "out2.zip"
+    br.zip_stage(stage2, out2)
+
+    assert out1.read_bytes() == out2.read_bytes()
+
+
 def test_child_env_drops_python_variables_and_disables_bytecode():
     env = br.child_env({"PATH": "x", "PYTHONPATH": "y", "pythonhome": "z", "SystemRoot": "C:\\Windows"})
     assert env == {"PATH": "x", "SystemRoot": "C:\\Windows", "PYTHONDONTWRITEBYTECODE": "1"}

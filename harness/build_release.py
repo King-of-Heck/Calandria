@@ -252,12 +252,15 @@ def zip_stage(stage_dir: Path, out: Path) -> list[str]:
     """Zip stage_dir under its own name as the top folder; return the arcnames, sorted."""
     out.parent.mkdir(parents=True, exist_ok=True)
     names = []
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(out, "w") as z:
         for path in sorted(stage_dir.rglob("*")):
             if path.is_dir():
                 continue
             arc = f"{stage_dir.name}/{path.relative_to(stage_dir).as_posix()}"
-            z.write(path, arc)
+            info = zipfile.ZipInfo(arc, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            z.writestr(info, path.read_bytes())
             names.append(arc)
     return names
 

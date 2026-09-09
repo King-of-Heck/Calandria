@@ -117,6 +117,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if self.close_connection:
+            # Tell an HTTP/1.1 client not to reuse this socket for whatever reason we're already
+            # closing it (oversized body, cross-origin refusal, a stalled read, an unhandled
+            # error) — otherwise it would try the next request on a socket we're about to drop.
+            self.send_header("Connection", "close")
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()

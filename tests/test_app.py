@@ -200,6 +200,34 @@ def test_body_cap(srv, monkeypatch):
     assert status == 413 and "10" in d["error"]
 
 
+def test_a_response_that_closes_the_socket_says_so(srv, monkeypatch):
+    # The 413 path always sets close_connection before writing its response; an HTTP/1.1 client
+    # (which defaults to keeping the socket, unlike urllib) must be told not to reuse it, or it
+    # will send its next request into a socket we are about to drop.
+    monkeypatch.setattr(appmod, "MAX_BODY", 10)
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        conn.request("POST", "/api/compare", body=b"x" * 20, headers={"Content-Type": "application/json"})
+        r = conn.getresponse()
+        assert r.status == 413 and r.getheader("Connection") == "close"
+        r.read()
+    finally:
+        conn.close()
+
+
+def test_a_normal_response_has_no_connection_close(srv):
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        conn.request("GET", "/api/state")
+        r = conn.getresponse()
+        assert r.status == 200 and r.getheader("Connection") is None
+        r.read()
+    finally:
+        conn.close()
+
+
 def test_body_cap_drains_so_the_client_sees_the_413(srv, monkeypatch):
     monkeypatch.setattr(appmod, "MAX_BODY", 10)
     host, port = srv.server.server_address[:2]

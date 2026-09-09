@@ -1,6 +1,6 @@
-from calandria.diff.compare import compare
+from calandria.diff.compare import compare, compare_units
 from calandria.diff.inline import Seg
-from calandria.diff.units import Loc
+from calandria.diff.units import Loc, units
 from calandria.docx.parser import parse_docx
 from calandria.testing.makedocx import DOC, P, W_NS, make_docx
 
@@ -117,3 +117,12 @@ def test_table_cells_diff_as_units_with_locations():
     assert types[4] == ("changed", Loc(0, 1, 1, 2))
     assert [t for t, _ in types].count("inserted") == 2
     assert c.summary["total"] == 3
+
+
+def test_compare_carries_both_documents_but_compare_units_does_not():
+    a = _doc(P("Alpha"))
+    b = _doc(P("Alpha two"))
+    c = compare(a, b)
+    assert c.a_doc is a and c.b_doc is b
+    cu = compare_units(units(a), units(b))
+    assert cu.a_doc is None and cu.b_doc is None

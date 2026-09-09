@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..model import Document
 from .fmt import FmtRange
 from .inline import Seg
 from .units import Unit
@@ -53,6 +54,8 @@ class Comparison:
     b_units: list[Unit]
     ignore_case: bool
     count_numbering: bool
+    a_doc: Document | None = None
+    b_doc: Document | None = None
 
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]

@@ -14,7 +14,9 @@ PAIR_THRESHOLD = 0.5
 
 def compare(a: Document, b: Document, *, ignore_case: bool = False,
             count_numbering: bool = True) -> Comparison:
-    return compare_units(units(a), units(b), ignore_case=ignore_case, count_numbering=count_numbering)
+    cmp = compare_units(units(a), units(b), ignore_case=ignore_case, count_numbering=count_numbering)
+    cmp.a_doc, cmp.b_doc = a, b
+    return cmp
 
 
 def _mark_num(row: Row, ou: Unit, ru: Unit) -> None:

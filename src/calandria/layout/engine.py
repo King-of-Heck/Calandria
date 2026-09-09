@@ -107,7 +107,7 @@ def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):
                 page.lines.append(place_line(pb, li, line, x + c.x + PAD_X, cy, max(MIN_CELL_W, c.w - 2 * PAD_X), ctx))
                 cy += line.height
             cy += pb.space_after
-    page.table_rows.append(TableRowBox(x, y, blk.w, blk.height, boxes, blk.changed))
+    page.table_rows.append(TableRowBox(x, y, blk.w, blk.height, boxes, blk.changed, list(blk.cids)))
 
 
 def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list[Page], ctx: Ctx):

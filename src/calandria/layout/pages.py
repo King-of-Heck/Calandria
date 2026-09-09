@@ -55,6 +55,7 @@ class TableRowBox:
     h: float
     cells: list[CellBox]
     changed: bool
+    cids: list[int]           # change numbers of the row's changed cells (gutter numbers)
 
 
 @dataclass
@@ -105,6 +106,7 @@ class Layout:
 
         def trow(t: TableRowBox) -> dict:
             return {"x": r(t.x), "y": r(t.y), "w": r(t.w), "h": r(t.h), "changed": t.changed,
+                    "cids": list(t.cids),
                     "cells": [{"x": r(c.x), "y": r(c.y), "w": r(c.w), "h": r(c.h), "vm": c.v_merge_continue}
                               for c in t.cells]}
 

@@ -159,3 +159,10 @@ def test_a_page_tall_space_before_does_not_leave_a_blank_leading_page():
     body = P(" ".join(["aaaa"] * 40), ppr='<w:spacing w:before="12400"/>')
     L = _lay(body, body)
     assert L.page_count == 1 and L.pages[0].lines[0].top == 72
+
+
+def test_table_rows_carry_their_change_numbers():
+    L = _lay(P("i") + TBL([["old value"]]), P("i") + TBL([["new value"]]))
+    d = json.loads(json.dumps(L.to_dict()))
+    assert L.pages[0].table_rows[0].cids == [1]
+    assert d["pages"][0]["table_rows"][0]["cids"] == [1]

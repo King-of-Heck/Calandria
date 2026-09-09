@@ -180,7 +180,9 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
         plan = plan_breaks([_spec(b) for b in blocks], lambda p, a=avail: a)
         _place(blocks, plan, sec, leader, pages, ctx)
     if not pages:
-        _new_page(pages, sections[0], 0)
+        # Nothing was placed: the one empty page takes the body (last) section's geometry, which is
+        # the page a reader of an empty document sees in Word.
+        _new_page(pages, sections[-1], len(sections) - 1)
     refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic) for k, f in faces.items()}
     return Layout(pages, refs, opts)
 

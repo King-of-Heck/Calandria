@@ -166,3 +166,26 @@ def test_table_rows_carry_their_change_numbers():
     d = json.loads(json.dumps(L.to_dict()))
     assert L.pages[0].table_rows[0].cids == [1]
     assert d["pages"][0]["table_rows"][0]["cids"] == [1]
+
+
+def test_hidden_deletions_leave_no_deleted_runs():
+    L = _lay(P("keep") + P("gone") + P("tail"), P("keep") + P("tail"), show_deletions=False)
+    assert L.page_count == 1
+    assert [ln.runs[0].text for ln in L.pages[0].lines] == ["keep", "tail"]
+    assert not any(r.mode == "del" for ln in L.pages[0].lines for r in ln.runs)
+
+
+def test_a_page_tall_table_row_degrades_to_stacked_paragraphs_across_pages():
+    body = P("i") + TBL([[" ".join(["aaaa"] * 1200)]]) + P("o")     # ~67 lines: taller than a page
+    L = _lay(body, body)
+    assert L.page_count == 2
+    assert all(pg.table_rows == [] for pg in L.pages)
+    assert L.pages[0].lines and L.pages[1].lines
+
+
+def test_empty_layout_falls_back_to_the_body_section():
+    # Nothing is placed (every paragraph is empty and hidden), so the fallback page must take the
+    # body (last) section's geometry, not the cover section's.
+    body = P("", ppr='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>') + P("") + LETTER
+    L = _lay(body, body, show_equal=False)
+    assert L.page_count == 1 and L.pages[0].lines == [] and round(L.pages[0].w) == 612

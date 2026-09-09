@@ -1,6 +1,14 @@
 import json
+import os
+
+import pytest
+
 from calandria.__main__ import main
+from calandria.layout.fonts import default_dirs
 from calandria.testing.makedocx import make_docx, DOC, P
+
+_needs_fonts = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
+                                  reason="no system font directory on this machine")
 
 
 def test_dump(tmp_path, capsys):
@@ -54,13 +62,6 @@ def test_compare_flags_accepted_in_any_position(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["options"]["ignore_case"] is True
 
-
-import os
-import pytest
-from calandria.layout.fonts import default_dirs
-
-_needs_fonts = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
-                                  reason="no system font directory on this machine")
 
 
 @_needs_fonts

@@ -27,3 +27,8 @@ def test_units_second_table_increments_ti():
     d = _doc(_tbl([["a"]]) + _tbl([["b", "c"], ["d"]]))
     us = units(d)
     assert [u.loc for u in us] == [Loc(0, 0, 0, 1), Loc(1, 0, 0, 2), Loc(1, 0, 1, 2), Loc(1, 1, 0, 2)]
+
+
+def test_loc_as_dict():
+    from calandria.diff.units import Loc
+    assert Loc(1, 2, 3, 4).as_dict() == {"ti": 1, "ri": 2, "ci": 3, "cols": 4}

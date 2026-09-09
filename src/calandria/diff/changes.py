@@ -62,7 +62,7 @@ class Comparison:
 
     def _row_dict(self, r: Row) -> dict:
         u = self.unit_for(r)
-        loc = {"ti": u.loc.ti, "ri": u.loc.ri, "ci": u.loc.ci, "cols": u.loc.cols} if u.loc else None
+        loc = u.loc.as_dict() if u.loc else None
         return {
             "type": r.type, "category": r.category, "cid": r.cid, "cat": r.cat,
             "oi": r.oi, "ni": r.ni, "loc": loc, "marker": u.marker, "old_marker": r.old_marker,

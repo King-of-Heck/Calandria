@@ -19,6 +19,9 @@ class Loc:
     ci: int
     cols: int
 
+    def as_dict(self) -> dict:
+        return {"ti": self.ti, "ri": self.ri, "ci": self.ci, "cols": self.cols}
+
 
 @dataclass
 class Unit:

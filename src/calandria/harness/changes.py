@@ -76,7 +76,7 @@ def row_record(cmp: Comparison, row: Row) -> dict:
         "type": row.type, "cid": row.cid, "cat": row.cat, "oi": row.oi, "ni": row.ni, "html": html,
         "numChanged": row.num_changed, "oldMarker": row.old_marker,
         "fmtChanged": row.fmt_changed, "fmtDescs": [r.desc for r in row.fmt_ranges] or None,
-        "tbl": {"ti": u.loc.ti, "ri": u.loc.ri, "ci": u.loc.ci, "cols": u.loc.cols} if u.loc else None,
+        "tbl": u.loc.as_dict() if u.loc else None,
     }
 
 

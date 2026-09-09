@@ -1,8 +1,9 @@
 """Table rows as atomic layout blocks.
 
 A table is a run of consecutive merged items carrying a table location, grouped into visual rows
-by (side, table index, row index) in item order -- so a deleted row from the original sits where
-it stood among the revised rows. Column geometry comes from the revised-side table (the original
+by the revised-side table and row each item belongs to -- an original-side table or row joins the
+revised one holding any paragraph the two still share, and is its own only when nothing survives,
+so a deleted paragraph or row from the original sits inside the revised row it was part of. Column geometry comes from the revised-side table (the original
 side only when the whole table was deleted): grid widths, scaled down when wider than the content
 width, equal columns when there is no grid; a cell's x/width follow the model row's grid spans.
 Row height is the tallest cell (Word's default cell margins: 5.4 pt left/right, none top/bottom),
@@ -56,19 +57,49 @@ class TableRowBlock:
         return [self.height]
 
 
-def table_runs(items: list[Item]) -> list[tuple[int, int]]:
+def table_maps(cmp) -> tuple[dict[int, int], dict[tuple[int, int], tuple[int, int]]]:
+    """Original-side -> revised-side table and row correspondence, from the paired rows: an
+    original table (row) maps to the revised table (row) holding any paragraph the two still
+    share. Unmapped ones exist only in the original (a deleted table or a deleted row)."""
+    tmap: dict[int, int] = {}
+    rmap: dict[tuple[int, int], tuple[int, int]] = {}
+    for r in cmp.rows:
+        if r.oi is None or r.ni is None:
+            continue
+        la, lb = cmp.a_units[r.oi].loc, cmp.b_units[r.ni].loc
+        if la is None or lb is None:
+            continue
+        tmap.setdefault(la.ti, lb.ti)
+        rmap.setdefault((la.ti, la.ri), (lb.ti, lb.ri))
+    return tmap, rmap
+
+
+def _table_key(it: Item, tmap) -> tuple:
+    if it.side == "b":
+        return ("b", it.loc.ti)
+    return ("b", tmap[it.loc.ti]) if it.loc.ti in tmap else ("a", it.loc.ti)
+
+
+def _row_key(it: Item, rmap) -> tuple:
+    if it.side == "b":
+        return ("b", it.loc.ti, it.loc.ri)
+    k = (it.loc.ti, it.loc.ri)
+    return ("b", *rmap[k]) if k in rmap else ("a", it.loc.ti, it.loc.ri)
+
+
+def table_runs(items: list[Item], cmp) -> list[tuple[int, int]]:
+    """[start, end) index ranges of consecutive items forming one table (its revised-side table,
+    or an original-only one)."""
+    tmap, _ = table_maps(cmp)
     out: list[tuple[int, int]] = []
     i, n = 0, len(items)
     while i < n:
         if items[i].loc is None:
             i += 1
             continue
-        j, seen = i, {}
-        while j < n and items[j].loc is not None:
-            side, ti = items[j].side, items[j].loc.ti
-            if seen.get(side, ti) != ti:
-                break
-            seen[side] = ti
+        key = _table_key(items[i], tmap)
+        j = i
+        while j < n and items[j].loc is not None and _table_key(items[j], tmap) == key:
             j += 1
         out.append((i, j))
         i = j
@@ -77,9 +108,10 @@ def table_runs(items: list[Item]) -> list[tuple[int, int]]:
 
 def table_blocks(group: list[Item], ctx: Ctx) -> list:
     docs = {"a": ctx.cmp.a_doc, "b": ctx.cmp.b_doc}
-    lead = next((it for it in group if it.side == "b"), group[0])
-    table = table_by_ti(docs[lead.side], lead.loc.ti)
-    cols = max(1, lead.loc.cols)
+    tmap, rmap = table_maps(ctx.cmp)
+    side, ti = _table_key(group[0], tmap)
+    table = table_by_ti(docs[side], ti)
+    cols = max(1, len(table.grid_pt) or max((len(r.cells) for r in table.rows), default=0))
     tx = table.ind_pt
     avail_w = max(MIN_CELL_W, ctx.content_w - tx)
     if len(table.grid_pt) == cols and sum(table.grid_pt) > 0:
@@ -97,23 +129,22 @@ def table_blocks(group: list[Item], ctx: Ctx) -> list:
     for it in group:
         if it.row is not None and not (visible(it.row, ctx.opts) or it.row.type == "equal"):
             continue
-        k = (it.side, it.loc.ti, it.loc.ri)
+        k = _row_key(it, rmap)
         if not row_groups or row_groups[-1][0] != k:
             row_groups.append((k, []))
         row_groups[-1][1].append(it)
 
     out: list = []
     for gi, (k, its) in enumerate(row_groups):
-        side, ti, ri = k
-        mrow = table_by_ti(docs[side], ti).rows[ri]
+        mrow = table_by_ti(docs[k[0]], k[1]).rows[k[2]]
         by_ci: dict[int, list[Item]] = {}
         for it in its:
-            by_ci.setdefault(it.loc.ci, []).append(it)
+            by_ci.setdefault(min(it.loc.ci, len(mrow.cells) - 1), []).append(it)
         cells: list[CellLayout] = []
         gc = 0
         for ci, cell in enumerate(mrow.cells):
             span = max(1, cell.grid_span)
-            c0, c1 = min(gc, cols - 1), min(gc + span, cols)
+            c0, c1 = min(gc, cols), min(gc + span, cols)
             cx, cw = col_x[c0], max(0.0, col_x[c1] - col_x[c0])
             gc += span
             cell_items = by_ci.get(ci, [])
@@ -129,7 +160,7 @@ def table_blocks(group: list[Item], ctx: Ctx) -> list:
             h = max(h, mrow.height_pt)
         paras_all = [p for c in cells for p in c.paras]
         changed = any(p.changed for p in paras_all)
-        cids = [p.cid for p in paras_all if p.cid is not None]
+        cids = list(dict.fromkeys(p.cid for p in paras_all if p.cid is not None))
         pbb = gi == 0 and bool(its[0].para.props.page_break_before)
         if h > ctx.avail_h - 12:
             # Page-tall: an unsplittable row cannot render; degrade to stacked paragraphs.

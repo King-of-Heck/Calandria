@@ -29,7 +29,7 @@ def _ctx(c, content_w=200.0, avail_h=600.0, **opts):
 
 
 def _blocks(c, items, **kw):
-    (s, e), = table_runs(items)
+    (s, e), = table_runs(items, c)
     return table_blocks(items[s:e], _ctx(c, **kw))
 
 
@@ -40,7 +40,7 @@ def _tbl(rows, grid=None, tblpr=""):
 def test_table_runs_split_adjacent_tables_and_stop_at_body_text():
     body = P("i") + TBL([["a"]]) + TBL([["b"]]) + P("o") + TBL([["c", "d"]])
     c, items = _items(body, body)
-    assert table_runs(items) == [(1, 2), (2, 3), (4, 6)]
+    assert table_runs(items, c) == [(1, 2), (2, 3), (4, 6)]
 
 
 def test_two_column_row_geometry():
@@ -144,3 +144,51 @@ def test_first_row_inherits_a_page_break_before():
     c, items = _items(body, body)
     (blk,) = _blocks(c, items)
     assert blk.page_break_before
+
+
+def test_deleted_paragraph_inside_a_cell_stays_in_its_row():
+    a = (P("i") + "<w:tbl><w:tr><w:tc>" + P("keep me") + P("drop me") + "</w:tc><w:tc>" + P("second")
+         + "</w:tc></w:tr></w:tbl>" + P("o"))
+    b = _tbl([["keep me", "second"]])
+    c, items = _items(a, b)
+    (blk,) = _blocks(c, items)
+    assert [len(cell.paras) for cell in blk.cells] == [2, 1] and blk.changed
+    assert blk.cells[0].paras[1].lines[0].runs[0].piece.mode == "del"
+
+
+def test_deleted_paragraph_in_the_last_cell_stays_in_its_row():
+    a = (P("i") + "<w:tbl><w:tr><w:tc>" + P("first") + "</w:tc><w:tc>" + P("keep me") + P("drop me")
+         + "</w:tc></w:tr></w:tbl>" + P("o"))
+    b = _tbl([["first", "keep me"]])
+    c, items = _items(a, b)
+    (blk,) = _blocks(c, items)
+    assert [len(cell.paras) for cell in blk.cells] == [1, 2] and blk.changed
+
+
+def test_deleted_table_before_a_kept_table_keeps_its_own_geometry():
+    a = P("i") + TBL([["gone"]]) + TBL([["k1", "k2"]]) + P("o")
+    b = P("i") + TBL([["k1", "k2"]]) + P("o")
+    c, items = _items(a, b)
+    runs = table_runs(items, c)
+    assert len(runs) == 2
+    (d,) = table_blocks(items[runs[0][0]:runs[0][1]], _ctx(c))
+    assert [(cell.x, cell.w) for cell in d.cells] == [(0, 200)] and d.changed
+    (k,) = table_blocks(items[runs[1][0]:runs[1][1]], _ctx(c))
+    assert [(cell.x, cell.w) for cell in k.cells] == [(0, 100), (100, 100)] and not k.changed
+
+
+def test_whole_deleted_row_stays_in_the_surviving_table():
+    a = _tbl([["h", "x"], ["gone", "y"]])
+    b = _tbl([["h", "x"]])
+    c, items = _items(a, b)
+    assert len(table_runs(items, c)) == 1
+    r1, r2 = _blocks(c, items)
+    assert [(cell.x, cell.w) for cell in r2.cells] == [(0, 100), (100, 100)] and r2.changed
+
+
+def test_overflow_cell_beyond_the_grid_gets_no_width():
+    body = (P("i") + '<w:tbl><w:tblGrid><w:gridCol w:w="1440"/><w:gridCol w:w="1440"/></w:tblGrid><w:tr><w:tc>'
+            + P("a") + "</w:tc><w:tc>" + P("b") + "</w:tc><w:tc>" + P("c") + "</w:tc></w:tr></w:tbl>" + P("o"))
+    c, items = _items(body, body)
+    (blk,) = _blocks(c, items)
+    assert [(cell.x, cell.w) for cell in blk.cells] == [(0, 72), (72, 72), (144, 0)]

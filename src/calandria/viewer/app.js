@@ -1,6 +1,7 @@
 // Calandria viewer: loads two .docx files, shows the server's page drawings, restyles them by
 // rendering set, zooms, downloads the PDF, and keeps the session alive. The change list lives
 // in changes.js and listens for the events dispatched here.
+import { initChanges } from "./changes.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 15000;
@@ -243,6 +244,7 @@ function wire() {
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
   state.timer = setInterval(ping, PING_MS);
+  initChanges();
 }
 
 wire();

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import re
 
-from ..diff.chars import bold_runs
-from ..model import Document, Paragraph, Table, iter_paragraphs
+from ..diff.units import Unit, units
+from ..model import Document
 
 # SorkWhare 1.16.0.html, extractStructured (~line 503-506): "Heading ONLY from an explicit
 # Heading N / Title style." styleId "Title" (any case) is a hardcoded special case; otherwise
@@ -28,11 +28,12 @@ def _heading(pr) -> int | None:
     return min(6, int(m.group(1))) if m else None
 
 
-def _rec(p: Paragraph, tbl) -> dict:
-    pr = p.props
+def _rec(u: Unit) -> dict:
+    pr = u.para.props
+    p = u.para
     return {
-        "text": p.text,
-        "marker": p.num.marker if p.num else "",
+        "text": u.text,
+        "marker": u.marker,
         "isNumbered": p.num is not None,
         "ilvl": p.num.ilvl if p.num else 0,
         "styleId": pr.style_id,
@@ -49,23 +50,10 @@ def _rec(p: Paragraph, tbl) -> dict:
         "pageBreakBefore": pr.page_break_before,
         "contextualSpacing": pr.contextual_spacing,
         "heading": _heading(pr),
-        "boldRuns": bold_runs(p),
-        "tbl": tbl,
+        "boldRuns": u.bold_runs,
+        "tbl": {"ti": u.loc.ti, "ri": u.loc.ri, "ci": u.loc.ci, "cols": u.loc.cols} if u.loc else None,
     }
 
 
 def flatten(doc: Document) -> list[dict]:
-    out, ti = [], 0
-    for b in doc.blocks:
-        if isinstance(b, Paragraph):
-            if not b.is_empty:
-                out.append(_rec(b, None))
-        elif isinstance(b, Table):
-            cols = len(b.grid_pt) or max((len(r.cells) for r in b.rows), default=0)
-            for ri, row in enumerate(b.rows):
-                for ci, cell in enumerate(row.cells):
-                    for p in iter_paragraphs(cell.blocks):
-                        if not p.is_empty:
-                            out.append(_rec(p, {"ti": ti, "ri": ri, "ci": ci, "cols": cols}))
-            ti += 1
-    return out
+    return [_rec(u) for u in units(doc)]

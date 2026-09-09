@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime
 
 import pytest
@@ -154,3 +155,31 @@ def test_pdf_command_usage_errors(tmp_path, capsys):
     err = capsys.readouterr().out
     assert "Sepia" in err and "Standard" in err and "Black and White" in err
     assert not os.path.exists(out)
+
+
+def test_serve_usage_errors(capsys):
+    assert main(["serve", "--bogus"]) == 2
+    assert main(["serve", "extra"]) == 2
+    assert main(["serve", "--port=abc"]) == 2
+    assert main(["serve", "--port=70000"]) == 2
+    assert main(["serve", "--idle=-1"]) == 2
+    assert main(["serve", "--idle=soon"]) == 2
+    assert "serve" in capsys.readouterr().out
+
+
+def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
+    opened = []
+    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
+    t0 = time.perf_counter()
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4"]) == 0
+    assert time.perf_counter() - t0 < 30
+    line = capsys.readouterr().out.splitlines()[0]
+    url = json.loads(line)["url"]
+    assert url.startswith("http://127.0.0.1:") and url.endswith("/") and opened == []
+
+
+def test_serve_opens_the_browser_by_default(monkeypatch):
+    opened = []
+    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
+    assert main(["serve", "--idle=0.4"]) == 0
+    assert len(opened) == 1 and opened[0].startswith("http://127.0.0.1:")

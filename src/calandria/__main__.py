@@ -8,6 +8,7 @@
                             [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                             [--report=first|last|none]
+    python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
 """
 import json
 import os
@@ -23,6 +24,7 @@ from .pdf.draw import PdfOptions
 from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
 from .pdf.writer import REPORTS, render
+from .server.app import DEFAULT_IDLE, serve
 
 USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
@@ -32,12 +34,15 @@ USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]\n"
          "                               [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
-         "                               [--report=first|last|none]")
+         "                               [--report=first|last|none]\n"
+         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
 _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
 _PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars"}
 _PDF_VALUED = {"--render-set", "--report"}
+_SERVE_FLAGS = {"--no-browser", "--verbose"}
+_SERVE_VALUED = {"--port", "--idle"}
 
 
 def _parse(rest, allowed, valued=frozenset(), n=2):
@@ -109,6 +114,24 @@ def main(argv) -> int:
         with open(out_path, "wb") as f:
             f.write(data)
         print(json.dumps({"pages": drawn.pages, "out": out_path}, ensure_ascii=True))
+        return 0
+    if argv and argv[0] == "serve":
+        parsed = _parse(argv[1:], _SERVE_FLAGS, _SERVE_VALUED, n=0)
+        if parsed is None:
+            print(USAGE)
+            return 2
+        flags, values, _ = parsed
+        try:
+            port = int(values.get("--port", "0"))
+            idle = float(values.get("--idle", str(DEFAULT_IDLE)))
+        except ValueError:
+            print(USAGE)
+            return 2
+        if not 0 <= port <= 65535 or idle < 0:
+            print(USAGE)
+            return 2
+        serve(port=port, open_browser="--no-browser" not in flags, idle=idle, verbose="--verbose" in flags,
+              ready=lambda url: print(json.dumps({"url": url}), flush=True))
         return 0
     print(USAGE)
     return 2

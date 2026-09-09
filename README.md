@@ -19,6 +19,7 @@ python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-
                         [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                         [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                         [--report=first|last|none]
+python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
 ```
 
 ## Running the parity gate
@@ -71,3 +72,22 @@ exist only in the PDF and the viewer; nothing is written back to Word.
 
 The corpus gate `tests/parity/test_pdf.py` checks that every pair's PDF has exactly the layout's
 page count and that its text reads back.
+
+## Viewer
+
+`python -m calandria serve` (or a double-click on `Calandria.cmd`) starts a local server on
+127.0.0.1 and opens the browser on the viewer. Drop the original and the modified `.docx` on
+the page (or pick them with the two file buttons) and press Compare: the pages shown are the
+same drawing the PDF gets — the server draws every page as SVG from the page model, so the
+screen and the PDF never disagree. The header switches the rendering set and the change bars
+(a redraw), the compare options and the hide filters (a re-compare and re-layout), the zoom
+(a scale of the fixed layout, 50–200 % or fit width) and the report placement; "Save PDF"
+downloads the PDF with the current settings. The left panel has the count tiles, category and
+location filters, the numbered change list (click a row to jump to it; First / Previous /
+Next / Last, a go-to box, and the keys `n`, `p`, `Home`, `End` outside inputs) and "Change X
+of Y". Documents never leave the machine.
+
+The server keeps one comparison in memory, stops on Quit, and stops by itself after five
+minutes without the page (`--idle=SECONDS`, 0 = never); `--port=N` fixes the port,
+`--no-browser` only prints the URL, `--verbose` logs requests. Change bars, change numbers
+and the summary exist only in the viewer and the PDF; nothing is written to Word.

@@ -85,16 +85,26 @@ def pick_wheel(pkg: dict) -> tuple[str, str]:
     for tag in tags:
         for w in pkg.get("wheels", []):
             if w["url"].endswith(f"-{tag}.whl"):
+                if not w["hash"].startswith("sha256:"):
+                    raise RuntimeError(f"{pkg['name']} {pkg['version']}: hash {w['hash']!r} is not sha256")
                 return w["url"], w["hash"].removeprefix("sha256:")
     raise LookupError(f"{pkg['name']} {pkg['version']}: no wheel tagged {' / '.join(tags)} in uv.lock")
 
 
 def wheel_members(names: list[str]) -> list[str]:
-    """The wheel members to extract: no `<dist>.data/` trees (scripts, headers) and no RECORD."""
+    """The wheel members to extract: no `<dist>.data/` trees (scripts, headers) and no RECORD.
+
+    A `.data/purelib/` or `.data/platlib/` member would land its files on `sys.path` if it were
+    installed properly (unlike `scripts` or `headers`, which are silently dropped) -- vendoring a
+    wheel that has one and dropping it would silently omit code, so that is refused instead.
+    """
     out = []
     for n in names:
         top = n.split("/", 1)[0]
         if top.endswith(".data"):
+            rest = n[len(top) + 1:]
+            if rest.startswith("purelib/") or rest.startswith("platlib/"):
+                raise RuntimeError(f"{n}: a {top}/ purelib or platlib member would be dropped")
             continue
         if top.endswith(".dist-info") and n.endswith("/RECORD"):
             continue
@@ -200,6 +210,7 @@ def stage(version: str) -> Path:
         unpack_wheel(download(url, CACHE, digest), site)
         print(f"  {pkg['name']} {pkg['version']}  {url.rsplit('/', 1)[1]}")
     bad = [p for p in site.rglob("*.pyd") if "cp314t" in p.name or not p.name.endswith("win_amd64.pyd")]
+    bad += list(site.rglob("*.dll"))
     if bad:
         raise RuntimeError(f"unexpected native extension(s): {', '.join(p.name for p in bad)}")
     print("app")
@@ -223,8 +234,8 @@ def child_env(base: dict[str, str]) -> dict[str, str]:
 
 def _run(cmd: list[str], cwd: Path, timeout: float = 300) -> str:
     print("  " + " ".join(cmd[1:] if cmd[0].endswith("python.exe") else cmd))
-    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
-                        env=child_env(os.environ))
+    p = subprocess.run(cmd, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace",
+                        timeout=timeout, env=child_env(os.environ))
     if p.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd)} failed ({p.returncode}):\n{p.stdout}\n{p.stderr}")
     return p.stdout
@@ -301,6 +312,9 @@ def build(skip_tests: bool = False, skip_smoke: bool = False, keep_stage: bool =
     print(f"{out}  {out.stat().st_size / 1e6:.1f} MB, {len(names)} files, sha256 {sha256_of(out)}")
     if not keep_stage:
         shutil.rmtree(stage_dir)
+        smoke_dir = stage_dir.parent / "smoke"
+        if smoke_dir.exists():
+            shutil.rmtree(smoke_dir)
     return out
 
 

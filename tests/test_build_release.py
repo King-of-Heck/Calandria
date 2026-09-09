@@ -117,6 +117,16 @@ def test_pick_wheel_without_a_wheel_raises():
         br.pick_wheel(_pkg("sdist-only"))
 
 
+def test_pick_wheel_non_sha256_hash_raises():
+    pkg = {
+        "name": "md5-pkg",
+        "version": "1.0",
+        "wheels": [{"url": "https://files/md5_pkg-1.0-py3-none-any.whl", "hash": "md5:deadbeef"}],
+    }
+    with pytest.raises(RuntimeError):
+        br.pick_wheel(pkg)
+
+
 def test_pth_lines():
     assert br.pth_lines() == ["python314.zip", ".", "Lib\\site-packages", "..\\app"]
     assert br.PTH_TEXT == "python314.zip\n.\nLib\\site-packages\n..\\app\n"
@@ -126,9 +136,16 @@ def test_pth_lines():
 def test_wheel_members_drops_data_dirs_and_record():
     names = ["lxml/__init__.py", "lxml/etree.cp314-win_amd64.pyd",
              "lxml-6.1.3.dist-info/METADATA", "lxml-6.1.3.dist-info/RECORD",
-             "fonttools-4.64.0.data/scripts/fonttools", "x-1.0.data/purelib/x.py"]
+             "fonttools-4.64.0.data/scripts/fonttools", "x-1.0.data/headers/x.h"]
     assert br.wheel_members(names) == ["lxml/__init__.py", "lxml/etree.cp314-win_amd64.pyd",
                                        "lxml-6.1.3.dist-info/METADATA"]
+
+
+def test_wheel_members_refuses_a_purelib_or_platlib_data_tree():
+    with pytest.raises(RuntimeError):
+        br.wheel_members(["x-1.0.data/purelib/x.py"])
+    with pytest.raises(RuntimeError):
+        br.wheel_members(["x-1.0.data/platlib/x.py"])
 
 
 def test_stage_app_copies_without_bytecode(tmp_path):

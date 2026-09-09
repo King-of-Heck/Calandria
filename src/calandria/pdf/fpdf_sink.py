@@ -31,7 +31,7 @@ class FpdfPainter:
         self.pdf.add_page(format=(w, h))
 
     def text(self, x: float, baseline: float, text: str, face, size: float, color: str,
-             fake_bold: bool = False, fake_italic: bool = False) -> None:
+             fake_bold: bool = False, fake_italic: bool = False, width: float | None = None) -> None:
         if not text:
             return
         p = self.pdf

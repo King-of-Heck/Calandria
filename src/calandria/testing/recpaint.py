@@ -16,7 +16,7 @@ class RecordingPainter:
         self.pages += 1
         self.ops.append(("page", _r(w), _r(h)))
 
-    def text(self, x, baseline, text, face, size, color, fake_bold=False, fake_italic=False):
+    def text(self, x, baseline, text, face, size, color, fake_bold=False, fake_italic=False, width=None):
         self.ops.append(("text", _r(x), _r(baseline), text, face.path, _r(size), color, fake_bold, fake_italic))
 
     def rule(self, x1, x2, y, thickness, color, dotted=False):

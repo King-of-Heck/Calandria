@@ -5,10 +5,11 @@ from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
 from calandria.layout.pages import FontRef
 from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import BLACK, PdfOptions, cid_label, draw_runs
+from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE, PdfOptions,
+                                bar_intervals, cid_label, content_bottom, draw_grid, draw_page, draw_runs)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
 from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import DOC, P, PR, R, STYLES, make_docx
+from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
 from calandria.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
@@ -117,3 +118,84 @@ def test_bold_italic_effects_are_faked():
 def test_cid_label():
     assert cid_label([1]) == "1" and cid_label([2, 3]) == "2-3" and cid_label([3, 2]) == "2-3"
     assert cid_label([1, 2, 3, 5, 7, 8]) == "1-3, 5, 7-8" and cid_label([4, 4]) == "4"
+
+
+def _page(L, page=0, **kw):
+    p = RecordingPainter()
+    draw_page(L.pages[page], L.fonts, STANDARD, PdfOptions(**kw), p, FR.face(None))
+    return p
+
+
+def test_page_op_comes_first_with_the_page_size():
+    p = _page(_lay(P("aaaa"), P("aaaa")))
+    assert p.ops[0] == ("page", 612, 792)
+
+
+def test_gutter_number_is_right_aligned_on_the_baseline():
+    p = _page(_lay(P("aaaa"), P("aaaa") + P("bbbb")))
+    # "bbbb" is change 1 on line 2 (top 84, baseline 92); "1" is 3.5 pt wide at 7 pt in the fake font
+    assert ("text", 72 - NUMBER_GAP - 3.5, 92, "1", "<fake:Fake|>", NUMBER_SIZE, BLACK, False, False) in p.ops
+    assert NUMBER_GAP == 10.0 and NUMBER_SIZE == 7.0
+
+
+def test_change_bar_spans_contiguous_changed_lines_only():
+    L = _lay(P("aaaa") + P("cccc"), P("aaaa") + P("bbbb") + P("dddd") + P("cccc") + P("eeee"))
+    # lines: aaaa eq (72), bbbb ins (84), dddd ins (96), cccc eq (108), eeee ins (120)
+    p = _page(L)
+    bars = [o for o in p.of("line") if o[5] == BAR_WIDTH]
+    x = 72 - BAR_GAP
+    assert bars == [("line", x, 84, x, 108, BAR_WIDTH, BLACK), ("line", x, 120, x, 132, BAR_WIDTH, BLACK)]
+    assert bar_intervals(L.pages[0]) == [(84, 108), (120, 132)]
+
+
+def test_change_bars_can_be_switched_off():
+    p = _page(_lay(P("aaaa"), P("aaaa") + P("bbbb")), change_bars=False)
+    assert [o for o in p.of("line") if o[5] == BAR_WIDTH] == []
+    assert any(o[0] == "text" and o[3] == "1" for o in p.ops)      # the number stays
+
+
+def test_grid_draws_four_rules_per_cell_and_skips_a_merged_top():
+    body = TBL([["a", "b"]], [4680, 4680])
+    L = _lay(body, body)
+    p = RecordingPainter()
+    draw_grid(L.pages[0], p)
+    (row,) = L.pages[0].table_rows
+    c0, c1 = row.cells
+    assert len(p.of("line")) == 8 and {o[5] for o in p.of("line")} == {GRID_WIDTH}
+    assert ("line", c0.x, c0.y, c0.x + c0.w, c0.y, GRID_WIDTH, BLACK) in p.ops       # top
+    assert ("line", c1.x + c1.w, c1.y, c1.x + c1.w, c1.y + c1.h, GRID_WIDTH, BLACK) in p.ops   # right
+    c1.v_merge_continue = True
+    p2 = RecordingPainter()
+    draw_grid(L.pages[0], p2)
+    assert len(p2.of("line")) == 7 and ("line", c1.x, c1.y, c1.x + c1.w, c1.y, GRID_WIDTH, BLACK) not in p2.ops
+
+
+def test_changed_table_row_gets_one_bar_for_the_whole_row():
+    a = TBL([["a", "b"]], [4680, 4680])
+    b = TBL([["a", "bbbb bbbb"]], [4680, 4680])
+    L = _lay(a, b)
+    (row,) = L.pages[0].table_rows
+    assert row.changed
+    assert bar_intervals(L.pages[0]) == [(row.y, row.y + row.h)]
+    p = _page(L)
+    x = 72 - BAR_GAP
+    assert [o for o in p.of("line") if o[5] == BAR_WIDTH] == [("line", x, row.y, x, row.y + row.h, BAR_WIDTH, BLACK)]
+    assert any(o[0] == "text" and o[3] == "1" and o[5] == NUMBER_SIZE for o in p.ops)
+
+
+def test_page_draws_grid_then_text_then_gutter():
+    body = TBL([["a"]], [9360])
+    p = _page(_lay(body, body))
+    kinds = [o[0] for o in p.ops]
+    assert kinds[0] == "page" and kinds[1:5] == ["line"] * 4 and "text" in kinds[5:]
+
+
+def test_content_bottom():
+    L = _lay(P("aaaa"), P("aaaa") + P("bbbb"))
+    assert content_bottom(L.pages[0]) == 96
+    body = TBL([["a"]], [9360])
+    L2 = _lay(body, body)
+    (row,) = L2.pages[0].table_rows
+    assert content_bottom(L2.pages[0]) == row.y + row.h
+    empty = _lay("", "")
+    assert content_bottom(empty.pages[0]) == 72

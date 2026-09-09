@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..layout.pages import FontRef, GlyphRun, PlacedLine
+from ..layout.pages import FontRef, GlyphRun, Page, PlacedLine, TableRowBox
 from .decor import decorations, run_effects
 from .rendersets import RenderSet
 
@@ -48,3 +48,70 @@ def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef],
             painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic)
         for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, line.baseline, g.size):
             painter.rule(x1, x2, y, t, color, dotted)
+
+
+BAR_WIDTH = 1.5
+BAR_GAP = 6.0          # bar x = margin_left - BAR_GAP
+NUMBER_SIZE = 7.0
+NUMBER_GAP = 10.0      # number right edge = margin_left - NUMBER_GAP
+GRID_WIDTH = 0.5
+_EPS = 1e-6
+
+
+def _in_row(line: PlacedLine, rows: list[TableRowBox]) -> bool:
+    return any(r.y - _EPS <= line.top and line.top + line.height <= r.y + r.h + _EPS
+               and r.x - _EPS <= line.x <= r.x + r.w + _EPS for r in rows)
+
+
+def bar_intervals(page: Page) -> list[tuple[float, float]]:
+    """Vertical (top, bottom) spans of the change bars: changed rows as a whole, changed lines
+    outside rows, merged when they touch or overlap."""
+    spans = [(r.y, r.y + r.h) for r in page.table_rows if r.changed]
+    spans += [(ln.top, ln.top + ln.height) for ln in page.lines
+              if ln.changed and not _in_row(ln, page.table_rows)]
+    spans.sort()
+    merged: list[tuple[float, float]] = []
+    for a, b in spans:
+        if merged and a <= merged[-1][1] + 0.5:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    return merged
+
+
+def draw_grid(page: Page, painter) -> None:
+    """The uniform table grid (KNOWN_DIVERGENCES (m)): four rules per cell, no top rule on a
+    vertically merged continuation."""
+    for row in page.table_rows:
+        for c in row.cells:
+            x2, y2 = c.x + c.w, c.y + c.h
+            if not c.v_merge_continue:
+                painter.line(c.x, c.y, x2, c.y, GRID_WIDTH, BLACK)
+            painter.line(x2, c.y, x2, y2, GRID_WIDTH, BLACK)
+            painter.line(c.x, y2, x2, y2, GRID_WIDTH, BLACK)
+            painter.line(c.x, c.y, c.x, y2, GRID_WIDTH, BLACK)
+
+
+def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOptions, painter, number_face) -> None:
+    painter.page(page.w, page.h)
+    draw_grid(page, painter)
+    for ln in page.lines:
+        draw_runs(ln, ln.marker, fonts, rs, painter)
+        draw_runs(ln, ln.runs, fonts, rs, painter)
+    for ln in page.lines:
+        if ln.cid_starts:
+            label = cid_label(ln.cid_starts)
+            w = number_face.width(label, NUMBER_SIZE)
+            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK)
+    if opts.change_bars:
+        x = page.margin_left - BAR_GAP
+        for y1, y2 in bar_intervals(page):
+            painter.line(x, y1, x, y2, BAR_WIDTH, BLACK)
+
+
+def content_bottom(page: Page) -> float:
+    """The lowest edge of anything on the page (the top margin on an empty page)."""
+    ys = [page.margin_top]
+    ys += [ln.top + ln.height for ln in page.lines]
+    ys += [r.y + r.h for r in page.table_rows]
+    return max(ys)

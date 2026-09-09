@@ -151,3 +151,11 @@ def test_space_before_does_not_survive_onto_an_automatic_page():
     L = _lay(filler + spaced, filler + spaced)
     assert L.page_count == 2 and len(L.pages[0].lines) == 51
     assert L.pages[1].lines[0].top == 72
+
+
+def test_a_page_tall_space_before_does_not_leave_a_blank_leading_page():
+    # 620 pt of space before leaves too little room for the paragraph, so the planner retries it
+    # on a fresh page and drops the space there: one page, starting at the top margin.
+    body = P(" ".join(["aaaa"] * 40), ppr='<w:spacing w:before="12400"/>')
+    L = _lay(body, body)
+    assert L.page_count == 1 and L.pages[0].lines[0].top == 72

@@ -111,10 +111,17 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
     brk = {(b.block, b.line) for b in plan.breaks}
     ml, mt = sec.margin_left_pt, sec.margin_top_pt
     bottom = sec.page_h_pt - sec.margin_bottom_pt
-    st = {"page": _new_page(pages, sec, section_idx), "y": mt, "top": True}
+    # Pages are created lazily: a planned break before the very first block (a page-tall space
+    # before, say) must not leave a blank leading page behind.
+    st = {"page": None, "y": mt, "top": True}
+
+    def page() -> Page:
+        if st["page"] is None:
+            st["page"] = _new_page(pages, sec, section_idx)
+        return st["page"]
 
     def new_page():
-        st["page"], st["y"], st["top"] = _new_page(pages, sec, section_idx), mt, True
+        st["page"], st["y"], st["top"] = None, mt, True
 
     for bi, blk in enumerate(blocks):
         if (bi, 0) in brk:
@@ -124,7 +131,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
         if isinstance(blk, TableRowBlock):
             if st["y"] + blk.height > bottom + 1e-6 and not st["top"]:
                 new_page()
-            _place_row(blk, st["page"], ml + blk.x, st["y"], ctx)
+            _place_row(blk, page(), ml + blk.x, st["y"], ctx)
             st["y"] += blk.height
             st["top"] = False
         else:
@@ -133,7 +140,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
                     new_page()
                 if st["y"] + line.height > bottom + 1e-6 and not st["top"]:
                     new_page()          # safety net; the planner should have broken earlier
-                st["page"].lines.append(place_line(blk, li, line, ml, st["y"], ctx.content_w, ctx))
+                page().lines.append(place_line(blk, li, line, ml, st["y"], ctx.content_w, ctx))
                 st["y"] += line.height
                 st["top"] = False
         st["y"] += blk.space_after

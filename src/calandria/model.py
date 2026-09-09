@@ -36,6 +36,8 @@ class NumInfo:
     ilvl: int
     marker: str
     is_bullet: bool
+    suff: str = "tab"        # what follows the marker: tab | space | nothing (w:suff)
+    jc: str = "left"         # marker alignment at the first-line position (w:lvlJc)
 
 
 @dataclass
@@ -56,6 +58,7 @@ class ParaProps:
     contextual_spacing: bool = False
     outline_level: int | None = None
     style_name: str | None = None
+    section_break: bool = False   # this paragraph carries a <w:sectPr>; it is the last of its section
 
 
 @dataclass
@@ -83,12 +86,15 @@ class Cell:
 @dataclass
 class Row:
     cells: list[Cell]
+    height_pt: float | None = None     # w:trHeight (twips -> pt)
+    height_rule: str | None = None     # auto | atLeast | exact (Word's default for a set height is atLeast)
 
 
 @dataclass
 class Table:
     rows: list[Row]
     grid_pt: list[float] = field(default_factory=list)
+    ind_pt: float = 0.0                # w:tblInd (dxa) -- the table's left edge relative to the margin
 
 
 @dataclass
@@ -115,6 +121,7 @@ class Document:
     default_font: str | None = None
     default_size_pt: float = 11.0
     even_and_odd: bool = False
+    default_tab_pt: float = 36.0       # w:settings/w:defaultTabStop (720 twips when absent)
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

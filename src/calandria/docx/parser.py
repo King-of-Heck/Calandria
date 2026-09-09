@@ -38,14 +38,15 @@ def parse_package(pkg: Package) -> Document:
     blocks = _blocks(body, ctx) if body is not None else []
     if body is not None:
         sp = body.find(wq("sectPr"))
-        if sp is not None:
-            ctx.sections.append(_section(sp))
+        ctx.sections.append(_section(sp) if sp is not None else Section())
     if not ctx.sections:
         ctx.sections.append(Section())
     settings = pkg.xml("word/settings.xml")
     eao = settings is not None and wbool(settings.find(wq("evenAndOddHeaders")))
+    tab = twips_to_pt(wval(settings.find(wq("defaultTabStop")))) if settings is not None else None
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
-                    default_size_pt=styles.defaults["size_pt"], even_and_odd=eao)
+                    default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
+                    default_tab_pt=tab if tab else 36.0)
 
 
 def _blocks(parent, ctx: _Ctx) -> list:
@@ -221,6 +222,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     if ppr is not None:
         sp = ppr.find(wq("sectPr"))
         if sp is not None:
+            p.props.section_break = True
             section = _section(sp)
             ctx.sections.append(section)
             # A section break stored on a paragraph takes effect AFTER that paragraph: the
@@ -233,6 +235,10 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
 
 def _table(el, ctx: _Ctx) -> Table:
     grid = [twips_to_pt(g.get(wq("w"))) or 0.0 for g in el.findall(f"{wq('tblGrid')}/{wq('gridCol')}")]
+    ind = 0.0
+    ti = el.find(f"{wq('tblPr')}/{wq('tblInd')}")
+    if ti is not None and (ti.get(wq("type")) or "dxa") == "dxa":
+        ind = twips_to_pt(ti.get(wq("w"))) or 0.0
     rows = []
     for tr in el.findall(wq("tr")):
         cells = []
@@ -247,9 +253,14 @@ def _table(el, ctx: _Ctx) -> Table:
                 if v is not None:
                     vm = "continue" if wval(v) == "continue" or wval(v) is None else "restart"
             cells.append(Cell(_blocks(tc, ctx), grid_span=span, v_merge=vm))
-        rows.append(Row(cells))
+        h_pt = h_rule = None
+        th = tr.find(f"{wq('trPr')}/{wq('trHeight')}")
+        if th is not None and twips_to_pt(th.get(wq("val"))) is not None:
+            h_pt = twips_to_pt(th.get(wq("val")))
+            h_rule = th.get(wq("hRule")) or "atLeast"
+        rows.append(Row(cells, h_pt, h_rule))
     ctx.pending_break = False   # a break inside a cell never escapes the table (SorkWhare 1.3.1)
-    return Table(rows, grid_pt=grid)
+    return Table(rows, grid_pt=grid, ind_pt=ind)
 
 
 def _section(sp) -> Section:

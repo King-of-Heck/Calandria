@@ -44,19 +44,38 @@ def fmt_desc(a: FmtSpan, b: FmtSpan) -> str:
     return "; ".join(d)
 
 
-def _at(spans: list[FmtSpan], pos: int) -> FmtSpan | None:
-    for sp in spans:
-        if sp.s <= pos < sp.e:
-            return sp
-    return None
+class RangeCursor:
+    """Walks a list of sorted, non-overlapping (s, e) ranges as queried positions ascend.
+
+    `.at(pos)` never restarts the scan: it only advances past ranges whose end is at or before
+    `pos`, so a caller that probes strictly ascending positions gets O(ranges) total work instead
+    of O(positions * ranges).
+    """
+
+    __slots__ = ("_items", "_idx")
+
+    def __init__(self, items):
+        self._items = items
+        self._idx = 0
+
+    def at(self, pos: int):
+        items, idx = self._items, self._idx
+        n = len(items)
+        while idx < n and items[idx].e <= pos:
+            idx += 1
+        self._idx = idx
+        if idx < n and items[idx].s <= pos:
+            return items[idx]
+        return None
 
 
 def fmt_diff(a: list[FmtSpan], b: list[FmtSpan]) -> list[FmtRange]:
     end = max(a[-1].e if a else 0, b[-1].e if b else 0)
     out: list[FmtRange] = []
     run: FmtRange | None = None
+    a_cur, b_cur = RangeCursor(a), RangeCursor(b)
     for pos in range(end):
-        av, bv = _at(a, pos), _at(b, pos)
+        av, bv = a_cur.at(pos), b_cur.at(pos)
         if av is None or bv is None or av.same_fmt(bv):
             if run:
                 out.append(run)

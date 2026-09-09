@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from ..diff.changes import Comparison, Row
 from ..diff.chars import FmtSpan
-from ..diff.fmt import FmtRange
+from ..diff.fmt import FmtRange, RangeCursor
 from ..diff.inline import Seg
 
 _DEFAULT_SPAN = FmtSpan(0, 0, False, False, False, None, None, None)
@@ -38,27 +38,18 @@ def render_html(segs: list[Seg]) -> str:
 
 
 def fmt_wrap(text: str, spans: list[FmtSpan], ranges: list[FmtRange]) -> str:
-    def in_diff(pos):
-        for d in ranges:
-            if d.s <= pos < d.e:
-                return d
-        return None
-
-    def span_at(pos):
-        for sp in spans:
-            if sp.s <= pos < sp.e:
-                return sp
-        return None
+    span_cur = RangeCursor(spans)
+    diff_cur = RangeCursor(ranges)
 
     out = ""
     i = 0
     while i < len(text):
-        sp = span_at(i) or _DEFAULT_SPAN
-        d = in_diff(i)
+        sp = span_cur.at(i) or _DEFAULT_SPAN
+        d = diff_cur.at(i)
         j = i + 1
         while j < len(text):
-            s2 = span_at(j) or sp
-            d2 = in_diff(j)
+            s2 = span_cur.at(j) or sp
+            d2 = diff_cur.at(j)
             if not s2.same_fmt(sp):
                 break
             if (d.desc if d else None) != (d2.desc if d2 else None):

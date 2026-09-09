@@ -4,9 +4,9 @@ from datetime import datetime
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
-from calandria.layout.pages import FontRef
+from calandria.layout.pages import FontRef, Page, PlacedLine
 from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import (BAR_GAP, BAR_MERGE_TOL, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
+from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
                                 DrawResult, PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid,
                                 draw_layout, draw_page, draw_runs, run_style)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
@@ -189,7 +189,22 @@ def test_a_changed_row_and_the_changed_line_under_it_make_one_bar():
     below = L.pages[0].lines[1]
     assert row.changed and below.changed and below.top == row.y + row.h
     assert bar_intervals(L.pages[0]) == [(row.y, below.top + below.height)]
-    assert BAR_MERGE_TOL == 0.5
+
+
+def _line(top, height=12.0, changed=True):
+    return PlacedLine(72, top, height, top + 8, [], [], changed, [], None)
+
+
+def test_change_bar_spans_merge_within_the_tolerance_gap():
+    page = Page(0, 612, 792, 72, 72, 72, 72, 0,
+                lines=[_line(72, 12), _line(84.3, 11.7)])
+    assert bar_intervals(page) == [(72, 96)]
+
+
+def test_change_bar_spans_do_not_merge_past_the_tolerance_gap():
+    page = Page(0, 612, 792, 72, 72, 72, 72, 0,
+                lines=[_line(72, 12), _line(85, 12)])
+    assert bar_intervals(page) == [(72, 84), (85, 97)]
 
 
 def test_change_bars_can_be_switched_off():

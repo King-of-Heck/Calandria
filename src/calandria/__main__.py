@@ -22,7 +22,7 @@ from .layout.pieces import LayoutOptions
 from .pdf.draw import PdfOptions
 from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
-from .pdf.writer import render
+from .pdf.writer import REPORTS, render
 
 USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
@@ -38,7 +38,6 @@ _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--h
 _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
 _PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars"}
 _PDF_VALUED = {"--render-set", "--report"}
-_REPORT_VALUES = {"first", "last", "none"}
 
 
 def _parse(rest, allowed, valued=frozenset(), n=2):
@@ -92,7 +91,7 @@ def main(argv) -> int:
         return 0
     if argv and argv[0] == "pdf":
         parsed = _parse(argv[1:], _PDF_FLAGS, _PDF_VALUED, n=3)
-        if parsed is None or parsed[1].get("--report", "last") not in _REPORT_VALUES:
+        if parsed is None or parsed[1].get("--report", "last") not in REPORTS:
             print(USAGE)
             return 2
         flags, values, (pa, pb, out_path) = parsed

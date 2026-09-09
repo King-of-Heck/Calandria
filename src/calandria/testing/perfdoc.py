@@ -1,5 +1,5 @@
 """The hundred-page document pair the performance tests share: 1500 paragraphs of 40 words each,
-with one word swapped in four of them (near the start, twice in the middle, near the end)."""
+with the word "dolor" swapped in four of them (near the start, twice in the middle, near the end)."""
 from __future__ import annotations
 
 from .makedocx import P

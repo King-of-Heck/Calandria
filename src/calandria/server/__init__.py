@@ -1,0 +1,22 @@
+"""The local server behind the viewer: stdlib http.server on 127.0.0.1, one comparison in memory.
+
+API (JSON unless stated; errors are {"error": message} with 400 for bad input, 409 when no
+comparison is loaded, 404 / 405 / 413 as usual):
+  GET  /                      the viewer page; GET /static/<name> its script and style
+  GET  /api/state             {"version", "loaded", "names"}
+  POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...}}
+                              -> the full payload (names, options, summary, changes, page_count,
+                              anchors, marks, render_sets, render_set_styles, render_set,
+                              change_bars, pages (SVG strings), report_lines)
+  POST /api/layout            {"options": {...}} -> the full payload after re-compare + re-layout
+                              (options: ignore_case, count_numbering, show_equal, show_insertions,
+                              show_deletions, show_formatting; every key optional, merged over the
+                              current options)
+  GET  /api/pages?render_set=NAME&change_bars=0|1
+                              -> {"render_set", "change_bars", "pages", "report_lines"}
+  GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none
+                              -> application/pdf as an attachment
+  POST /api/ping              {"ok": true}; the page sends one every 15 s
+  POST /api/quit              {"ok": true}, then the server stops
+The server also stops after --idle seconds without any request (default 300; 0 = never).
+"""

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import re
 
-from ..model import Document, Paragraph, Table, iter_paragraphs
+from ..diff.units import Unit, units
+from ..model import Document
 
 # SorkWhare 1.16.0.html, extractStructured (~line 503-506): "Heading ONLY from an explicit
 # Heading N / Title style." styleId "Title" (any case) is a hardcoded special case; otherwise
@@ -27,53 +28,12 @@ def _heading(pr) -> int | None:
     return min(6, int(m.group(1))) if m else None
 
 
-_WS_CHAR = re.compile(r"\s")
-
-
-def _bold_runs(p: Paragraph) -> list[list[int]]:
-    """Bold character ranges [start, end) over the paragraph's collapsed text.
-
-    Mirrors the reference engine's construction (extractStructured, ~lines 460-472): every
-    character carries its run's bold flag; whitespace becomes a single space; a space that
-    collapses into the preceding one contributes its bold flag to the survivor (bold is OR-ed,
-    so a space between two bold words stays bold); leading and trailing spaces are dropped.
-    The resulting indices are aligned with `Paragraph.text`.
-    """
-    coll: list[list] = []
-    for run in p.runs:
-        bold = run.props.bold
-        for ch in run.text:
-            c = " " if _WS_CHAR.match(ch) else ch
-            if c == " " and coll and coll[-1][0] == " ":
-                coll[-1][1] = coll[-1][1] or bold
-                continue
-            coll.append([c, bold])
-    start = 0
-    end = len(coll)
-    while start < end and coll[start][0] == " ":
-        start += 1
-    while end > start and coll[end - 1][0] == " ":
-        end -= 1
-    coll = coll[start:end]
-    out: list[list[int]] = []
-    run_start = -1
-    for k, (_c, bold) in enumerate(coll):
-        if bold:
-            if run_start < 0:
-                run_start = k
-        elif run_start >= 0:
-            out.append([run_start, k])
-            run_start = -1
-    if run_start >= 0:
-        out.append([run_start, len(coll)])
-    return out
-
-
-def _rec(p: Paragraph, tbl) -> dict:
-    pr = p.props
+def _rec(u: Unit) -> dict:
+    pr = u.para.props
+    p = u.para
     return {
-        "text": p.text,
-        "marker": p.num.marker if p.num else "",
+        "text": u.text,
+        "marker": u.marker,
         "isNumbered": p.num is not None,
         "ilvl": p.num.ilvl if p.num else 0,
         "styleId": pr.style_id,
@@ -90,23 +50,10 @@ def _rec(p: Paragraph, tbl) -> dict:
         "pageBreakBefore": pr.page_break_before,
         "contextualSpacing": pr.contextual_spacing,
         "heading": _heading(pr),
-        "boldRuns": _bold_runs(p),
-        "tbl": tbl,
+        "boldRuns": u.bold_runs,
+        "tbl": {"ti": u.loc.ti, "ri": u.loc.ri, "ci": u.loc.ci, "cols": u.loc.cols} if u.loc else None,
     }
 
 
 def flatten(doc: Document) -> list[dict]:
-    out, ti = [], 0
-    for b in doc.blocks:
-        if isinstance(b, Paragraph):
-            if not b.is_empty:
-                out.append(_rec(b, None))
-        elif isinstance(b, Table):
-            cols = len(b.grid_pt) or max((len(r.cells) for r in b.rows), default=0)
-            for ri, row in enumerate(b.rows):
-                for ci, cell in enumerate(row.cells):
-                    for p in iter_paragraphs(cell.blocks):
-                        if not p.is_empty:
-                            out.append(_rec(p, {"ti": ti, "ri": ri, "ci": ci, "cols": cols}))
-            ti += 1
-    return out
+    return [_rec(u) for u in units(doc)]

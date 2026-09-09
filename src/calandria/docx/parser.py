@@ -102,7 +102,7 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
     own = read_rpr(rpr)
     d.update(own)
     # Deferred: bold resolves from the run only (paragraph-style and w:rStyle bold are not yet
-    # applied); see docs spec later-minors.
+    # applied); see tests/parity/KNOWN_DIVERGENCES.md.
     return RunProps(bold=bool(own.get("bold", False)),
                     italic=bool(d.get("italic", False)), underline=bool(d.get("underline", False)),
                     font=d.get("font") or ctx.styles.defaults["font"],

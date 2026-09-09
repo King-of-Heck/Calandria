@@ -22,3 +22,23 @@ def P(text: str, ppr: str = "", rpr: str = "") -> str:
     p = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
     r = f"<w:rPr>{rpr}</w:rPr>" if rpr else ""
     return (f"<w:p>{p}<w:r>{r}<w:t xml:space=\"preserve\">{escape(text)}</w:t></w:r></w:p>")
+
+
+def R(text: str, rpr: str = "") -> str:
+    r = f"<w:rPr>{rpr}</w:rPr>" if rpr else ""
+    return f'<w:r>{r}<w:t xml:space="preserve">{escape(text)}</w:t></w:r>'
+
+
+def PR(runs: str, ppr: str = "") -> str:
+    p = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
+    return f"<w:p>{p}{runs}</w:p>"
+
+
+def TBL(rows: list[list[str]]) -> str:
+    return "<w:tbl>" + "".join(
+        "<w:tr>" + "".join(f"<w:tc>{P(c)}</w:tc>" for c in r) + "</w:tr>" for r in rows) + "</w:tbl>"
+
+
+def STYLES(defaults_rpr: str = "", styles: str = "") -> str:
+    return (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:rPrDefault><w:rPr>{defaults_rpr}</w:rPr>'
+            f"</w:rPrDefault></w:docDefaults>{styles}</w:styles>")

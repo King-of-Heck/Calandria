@@ -5,7 +5,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
-_WS = re.compile(r"\s+")
+# JavaScript's \s (the reference engine's whitespace): Python's \s differs at U+0085 / U+FEFF.
+WS_CHARS = "\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+_WS = re.compile(f"[{WS_CHARS}]+")
 
 
 def collapse_ws(s: str) -> str:

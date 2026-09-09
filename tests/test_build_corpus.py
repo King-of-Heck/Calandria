@@ -30,7 +30,7 @@ def _manifest(path, pairs):
     return path
 
 
-def test_complete_pairs_are_copied_and_listed(tmp_path, monkeypatch, capsys):
+def test_complete_pairs_are_copied_and_listed(tmp_path, monkeypatch):
     mod, fixtures, corpus = _setup(tmp_path, monkeypatch)
     for name in ("okA.docx", "okB.docx"):
         (fixtures / name).write_bytes(b"x")

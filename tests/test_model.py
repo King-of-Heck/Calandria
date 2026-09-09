@@ -19,3 +19,7 @@ def test_document_paragraphs_walks_tables():
 
 def test_collapse_ws():
     assert collapse_ws(" a \r\n b ") == "a b"
+
+
+def test_collapse_ws_uses_the_reference_whitespace_class():
+    assert collapse_ws("x" + chr(0xfeff) + chr(0xfeff) + "y") == "x y"

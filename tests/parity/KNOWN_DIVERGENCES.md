@@ -82,3 +82,41 @@ reason. For example:
 Do not use `"alias": "*"`, and do not widen an entry to cover fields the pair does not actually
 diverge on -- a scoped entry keeps the gate discriminating everywhere else. Anything not on this
 list is a bug in Calandria until it is investigated and either fixed or added here.
+
+# Diff-engine divergences (Plan 2)
+
+The change-list gate (`tests/parity/test_changes.py`) compares rows (type, cid, category, indices,
+rendered html, numbering and formatting flags, table location) and the summary against the
+reference's `compare()` with moves and split/merge disabled (`compare_v2` / `compare_v2_ic` in the
+oracle files). Its allow list is `allow-changes.json`, same policy as above.
+
+## (g) ASCII word class (not yet diverged — a recorded intention)
+
+The tokenizer uses the reference's ASCII word/digit classes so that tokens, and therefore rendered
+rows, match. Word treats a non-ASCII letter as part of a word; a future release may widen the
+class, at which point every changed paragraph containing such letters will diverge on `html` and
+the oracle comparison needs a token-level normalization. Until then both sides agree.
+
+## (h) Whitespace class (not a divergence -- a recorded intention)
+
+Calandria deliberately uses the reference's JavaScript `\s` set (single source `model.WS_CHARS`),
+so U+FEFF collapses to a space and U+0085 does not -- matching the reference, not Python's `\s`.
+
+Not a divergence today; recorded so nobody "fixes" it back to `\s`.
+
+## (i) Non-BMP characters
+
+Calandria indexes text by code point; the reference by UTF-16 code unit, so an emoji or astral CJK
+character occupies one position here and two there.
+
+Calandria is correct. Surfaces as `boldRuns`/`html` divergences on a pair containing such
+characters; a scoped allow entry citing (i) is the remedy.
+
+## (j) Nested tables
+
+Calandria (lxml) keeps a nested table's paragraphs inside the outer cell with the outer location;
+the reference's non-greedy `<w:tbl>...</w:tbl>` / `<w:tc>...</w:tc>` regexes terminate on the INNER
+closing tag and truncate the outer table.
+
+Calandria is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
+Calandria to match.

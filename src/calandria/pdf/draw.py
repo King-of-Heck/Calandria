@@ -1,9 +1,10 @@
 """Walks a Layout and emits Painter calls: runs and markers with their decorations, the table
 grid, change bars, gutter change numbers, and the pages themselves.
 
-The HTML viewer mirrors this module (and report.py's report_lines) rather than reimplementing
-them: run_style, cid_label, bar_intervals, content_bottom and report_lines are the shared
-decisions, so a change to any of them shows in both sinks."""
+Three painters take these calls: fpdf_sink.FpdfPainter (the PDF), viewer.svg.SvgPainter (the
+on-screen pages) and testing.recpaint.RecordingPainter (tests). run_style, cid_label,
+bar_intervals, content_bottom and report.report_lines are the shared decisions, so a change to
+any of them shows in every surface."""
 from __future__ import annotations
 
 from dataclasses import dataclass

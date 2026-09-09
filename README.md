@@ -91,3 +91,6 @@ The server keeps one comparison in memory, stops on Quit, and stops by itself af
 minutes without the page (`--idle=SECONDS`, 0 = never); `--port=N` fixes the port,
 `--no-browser` only prints the URL, `--verbose` logs requests. Change bars, change numbers
 and the summary exist only in the viewer and the PDF; nothing is written to Word.
+
+The corpus gate `tests/parity/test_viewer.py` checks that every pair's viewer payload has one
+well-formed page drawing per layout page and that every numbered change has a place to jump to.

@@ -1,4 +1,5 @@
 """Gate: Calandria's extraction matches SorkWhare 1.16.0 on the corpus, modulo explained divergences."""
+# Deliberate model-vs-reference differences (and the allow.json policy): KNOWN_DIVERGENCES.md.
 import json
 import math
 from pathlib import Path

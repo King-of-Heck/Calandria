@@ -1,6 +1,8 @@
 """The layout pipeline: merged items -> blocks per section -> planned breaks -> placed pages."""
 from __future__ import annotations
 
+from collections import Counter
+
 from ..diff.changes import Comparison
 from ..diff.compare import compare
 from ..model import Document, Section
@@ -108,7 +110,7 @@ def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):
 
 
 def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list[Page], ctx: Ctx):
-    brk = {(b.block, b.line) for b in plan.breaks}
+    brk = Counter((b.block, b.line) for b in plan.breaks)
     ml, mt = sec.margin_left_pt, sec.margin_top_pt
     bottom = sec.page_h_pt - sec.margin_bottom_pt
     # Pages are created lazily: a planned break before the very first block (a page-tall space
@@ -123,9 +125,17 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
     def new_page():
         st["page"], st["y"], st["top"] = None, mt, True
 
-    for bi, blk in enumerate(blocks):
-        if (bi, 0) in brk:
+    def new_pages(n: int):
+        # The planner can break more than once at the same point; each break starts its own page,
+        # so every break after the first leaves a blank page behind (materialised here, since a
+        # page nothing is placed on is otherwise never created).
+        for k in range(n):
+            if k:
+                page()
             new_page()
+
+    for bi, blk in enumerate(blocks):
+        new_pages(brk[(bi, 0)])
         if plan.before[bi]:
             st["y"] += blk.space_before
         if isinstance(blk, TableRowBlock):
@@ -136,8 +146,8 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
             st["top"] = False
         else:
             for li, line in enumerate(blk.lines):
-                if li > 0 and (bi, li) in brk:
-                    new_page()
+                if li > 0:
+                    new_pages(brk[(bi, li)])
                 if st["y"] + line.height > bottom + 1e-6 and not st["top"]:
                     new_page()          # safety net; the planner should have broken earlier
                 page().lines.append(place_line(blk, li, line, ml, st["y"], ctx.content_w, ctx))

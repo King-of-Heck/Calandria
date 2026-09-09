@@ -44,6 +44,20 @@ function msg(text, isError) {
 function busy(on, text) {
   document.body.classList.toggle("busy", on);
   msg(on ? text : "");
+  enableControls(!on);
+}
+
+// The controls whose requests could overlap (relayout, restyle, compare) are disabled while any
+// one of those requests is in flight, so a second toggle can't fire a request whose reply races
+// the first and wins with stale data. `on` is true only when nothing is in flight; `closed` still
+// wins even then, and `pdf` / `compare` re-enable only when their own preconditions hold.
+function enableControls(on) {
+  if (state.closed) return;
+  for (const id of OPTION_IDS) $(id).disabled = !on;
+  $("renderSet").disabled = !on;
+  $("changeBars").disabled = !on;
+  $("pdf").disabled = !(on && state.data);
+  $("compare").disabled = !(on && state.files.a && state.files.b);
 }
 
 function readBase64(file) {

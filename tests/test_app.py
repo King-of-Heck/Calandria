@@ -299,3 +299,13 @@ def test_pdf_download_with_real_fonts():
         assert int(headers["Content-Length"]) == len(data)
     finally:
         s.stop()
+
+
+def test_index_and_static_files_are_served_with_their_types(srv):
+    status, headers, data = _req(srv.url)
+    assert status == 200 and headers["Content-Type"] == "text/html; charset=utf-8" and b"<title>Calandria</title>" in data
+    status, headers, data = _req(srv.url + "static/app.js")
+    assert status == 200 and headers["Content-Type"] == "text/javascript; charset=utf-8" and b"api" in data
+    status, headers, data = _req(srv.url + "static/style.css")
+    assert status == 200 and headers["Content-Type"] == "text/css; charset=utf-8"
+    assert headers["Cache-Control"] == "no-store"

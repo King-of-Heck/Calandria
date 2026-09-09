@@ -1,0 +1,77 @@
+:root {
+  --ins: #0000ff;
+  --del: #ff0000;
+  --fmt: #7c3aed;
+  --bar: #f3f4f6;
+  --edge: #d1d5db;
+  --ink: #111827;
+  --muted: #6b7280;
+  --desk: #9ca3af;
+  --hl: #ffd54f;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: var(--ink); background: var(--desk);
+}
+body.busy { cursor: progress; }
+body.closed #bar, body.closed #panel { opacity: .5; }
+
+#bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px;
+  background: var(--bar); border-bottom: 1px solid var(--edge);
+}
+#bar .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
+#bar .sep { width: 1px; height: 20px; background: var(--edge); }
+#bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+#bar label.file { padding: 2px 6px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; }
+#bar label.file input { display: none; }
+#bar .name { color: var(--muted); max-width: 16em; overflow: hidden; text-overflow: ellipsis; }
+#bar button, #panel button { padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; }
+#bar button:disabled, #panel button:disabled { opacity: .5; cursor: default; }
+#bar button.quit { margin-left: auto; }
+
+#body { display: flex; flex: 1; min-height: 0; }
+#panel {
+  width: 340px; flex: none; display: flex; flex-direction: column; min-height: 0;
+  background: #fff; border-right: 1px solid var(--edge);
+}
+#panel .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; }
+#panel .tile { border: 1px solid var(--edge); border-radius: 4px; padding: 4px 6px; text-align: center; }
+#panel .tile b { display: block; font-size: 18px; }
+#panel .tile span { color: var(--muted); font-size: 11px; }
+#panel .tile.insertion b { color: var(--ins); }
+#panel .tile.deletion b { color: var(--del); }
+#panel .tile.formatting b { color: var(--fmt); }
+#panel .filters, #panel .nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 8px; border-top: 1px solid var(--edge); }
+#panel .nav input { width: 4.5em; }
+#panel .count { color: var(--muted); margin-left: auto; }
+#panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
+#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3.5em 1fr; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
+#panel .changes li:hover { background: var(--bar); }
+#panel .changes li.current { background: #fff4c2; }
+#panel .badge { font-size: 11px; text-align: center; border-radius: 3px; padding: 1px 4px; color: #fff; background: var(--muted); align-self: start; }
+#panel li.insertion .badge { background: var(--ins); }
+#panel li.deletion .badge { background: var(--del); }
+#panel li.amendment .badge { background: #7c3aed; }
+#panel li.numbering .badge { background: #0f766e; }
+#panel .no { font-weight: 600; }
+#panel .loc { color: var(--muted); }
+#panel .text { overflow-wrap: anywhere; }
+#panel .text s.del { color: var(--del); }
+#panel .text u.ins { color: var(--ins); text-decoration: underline double; }
+#panel .note { margin: 0; padding: 6px 8px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--edge); }
+
+#pages { flex: 1; overflow: auto; position: relative; padding: 16px; }
+#pages.over { outline: 3px dashed #2563eb; outline-offset: -6px; }
+#pages .drop { margin: 15vh auto; max-width: 30em; padding: 24px; text-align: center; color: #fff; }
+#pages .page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.4); }
+#pages .page svg { display: block; }
+#pages .page svg text { user-select: text; }
+#pages .page rect.hl { fill: var(--hl); fill-opacity: .35; }
+#pages .pagenum { position: absolute; right: 0; bottom: -15px; font-size: 11px; color: #fff; }
+
+#status { display: flex; gap: 16px; padding: 4px 10px; background: var(--bar); border-top: 1px solid var(--edge); }
+#status .msg { margin-left: auto; color: var(--muted); }
+#status .msg.error { color: var(--del); }

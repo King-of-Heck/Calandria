@@ -252,6 +252,20 @@ def test_download_bad_hash_leaves_no_dest_and_no_part(tmp_path, monkeypatch):
     assert not (tmp_path / "abc.whl.part").exists()
 
 
+def test_download_discards_a_stale_part_file(tmp_path, monkeypatch):
+    part = tmp_path / "abc.whl.part"
+    part.write_bytes(b"junk from an interrupted fetch")
+
+    def fake_fetch(url, dest):
+        assert dest == part
+        dest.write_bytes(b"abc")
+
+    monkeypatch.setattr(br, "_fetch", fake_fetch)
+    good = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    p = br.download("https://x/abc.whl", tmp_path, good)
+    assert p.read_bytes() == b"abc" and not part.exists()
+
+
 def test_unpack_wheel_skips_data_and_record(tmp_path):
     whl = tmp_path / "x-1.0-py3-none-any.whl"
     with zipfile.ZipFile(whl, "w") as z:
@@ -297,6 +311,7 @@ def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
     with zipfile.ZipFile(out) as z:
         assert sorted(z.namelist()) == names
         assert z.read("Calandria-9.9.9/Calandria.cmd") == b"@echo off\r\n"
+        assert z.getinfo(names[0]).compress_type == zipfile.ZIP_DEFLATED
 
 
 def test_zip_stage_is_byte_identical_across_builds(tmp_path):

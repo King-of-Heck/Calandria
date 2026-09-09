@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from ..diff.chars import bold_runs
 from ..model import Document, Paragraph, Table, iter_paragraphs
 
 # SorkWhare 1.16.0.html, extractStructured (~line 503-506): "Heading ONLY from an explicit
@@ -27,48 +28,6 @@ def _heading(pr) -> int | None:
     return min(6, int(m.group(1))) if m else None
 
 
-_WS_CHAR = re.compile(r"\s")
-
-
-def _bold_runs(p: Paragraph) -> list[list[int]]:
-    """Bold character ranges [start, end) over the paragraph's collapsed text.
-
-    Mirrors the reference engine's construction (extractStructured, ~lines 460-472): every
-    character carries its run's bold flag; whitespace becomes a single space; a space that
-    collapses into the preceding one contributes its bold flag to the survivor (bold is OR-ed,
-    so a space between two bold words stays bold); leading and trailing spaces are dropped.
-    The resulting indices are aligned with `Paragraph.text`.
-    """
-    coll: list[list] = []
-    for run in p.runs:
-        bold = run.props.bold
-        for ch in run.text:
-            c = " " if _WS_CHAR.match(ch) else ch
-            if c == " " and coll and coll[-1][0] == " ":
-                coll[-1][1] = coll[-1][1] or bold
-                continue
-            coll.append([c, bold])
-    start = 0
-    end = len(coll)
-    while start < end and coll[start][0] == " ":
-        start += 1
-    while end > start and coll[end - 1][0] == " ":
-        end -= 1
-    coll = coll[start:end]
-    out: list[list[int]] = []
-    run_start = -1
-    for k, (_c, bold) in enumerate(coll):
-        if bold:
-            if run_start < 0:
-                run_start = k
-        elif run_start >= 0:
-            out.append([run_start, k])
-            run_start = -1
-    if run_start >= 0:
-        out.append([run_start, len(coll)])
-    return out
-
-
 def _rec(p: Paragraph, tbl) -> dict:
     pr = p.props
     return {
@@ -90,7 +49,7 @@ def _rec(p: Paragraph, tbl) -> dict:
         "pageBreakBefore": pr.page_break_before,
         "contextualSpacing": pr.contextual_spacing,
         "heading": _heading(pr),
-        "boldRuns": _bold_runs(p),
+        "boldRuns": bold_runs(p),
         "tbl": tbl,
     }
 

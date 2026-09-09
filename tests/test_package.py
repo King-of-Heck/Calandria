@@ -49,3 +49,25 @@ def test_ns_helpers():
     assert wbool(b) is True and wbool(off) is False and wbool(None) is False
     assert twips_to_pt("1440") == 72.0 and twips_to_pt(None) is None
     assert half_pt("22") == 11.0 and half_pt("x") is None
+
+
+def test_package_context_manager_closes_the_zip(tmp_path):
+    # Opening from a path leaves a file handle open until the zip is closed; on Windows that
+    # keeps the .docx locked against deletion for the rest of the process.
+    path = tmp_path / "doc.docx"
+    path.write_bytes(make_docx({"word/document.xml": DOC(P("hi"))}))
+    with Package.open(path) as pkg:
+        assert pkg.xml("word/document.xml").find(f".//{wq('t')}").text == "hi"
+    assert pkg._zf.fp is None
+    path.unlink()
+    assert not path.exists()
+
+
+def test_parse_docx_from_a_path_releases_the_file(tmp_path):
+    from calandria.docx.parser import parse_docx
+    path = tmp_path / "doc.docx"
+    path.write_bytes(make_docx({"word/document.xml": DOC(P("hi"))}))
+    doc = parse_docx(path)
+    assert [p.text for p in doc.paragraphs()] == ["hi"]
+    path.unlink()
+    assert not path.exists()

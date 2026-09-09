@@ -42,6 +42,16 @@ class Package:
             src = io.BytesIO(src)
         return cls(zipfile.ZipFile(src))
 
+    def close(self) -> None:
+        """Release the zip (and, for a path or file input, the underlying file handle)."""
+        self._zf.close()
+
+    def __enter__(self) -> "Package":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def has(self, name: str) -> bool:
         return name in self._names
 

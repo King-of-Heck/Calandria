@@ -23,7 +23,10 @@ class _Ctx:
 
 
 def parse_docx(src) -> Document:
-    return parse_package(Package.open(src))
+    # The whole tree is built before the context manager exits, so nothing reads the zip
+    # afterwards -- and a path input does not leave a file handle open behind the caller.
+    with Package.open(src) as pkg:
+        return parse_package(pkg)
 
 
 def parse_package(pkg: Package) -> Document:

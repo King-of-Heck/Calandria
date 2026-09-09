@@ -3,7 +3,7 @@
 Usage: uv run python harness/build_corpus.py [manifest]
   manifest defaults to harness/corpus.template.json; pass tests/corpus/manifest.local.json
   to include local-only pairs (real documents). Source dir: $SORKWHARE_DIR/tests/fixtures.
-Set SORKWHARE_DIR or edit DEFAULT_SORKWHARE below.
+Set SORKWHARE_DIR or defaults to the sibling folder ../SorkWhare.
 """
 import json
 import os
@@ -11,8 +11,8 @@ import shutil
 import sys
 from pathlib import Path
 
-DEFAULT_SORKWHARE = r"C:\Users\Sandy\Documents\Claude Projects\SorkWhare"
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SORKWHARE = ROOT.parent / "SorkWhare"
 CORPUS = ROOT / "tests" / "corpus"
 
 

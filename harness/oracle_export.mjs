@@ -4,7 +4,7 @@ import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 
-const SW = process.env.SORKWHARE_DIR || 'C:/Users/Sandy/Documents/Claude Projects/SorkWhare';
+const SW = process.env.SORKWHARE_DIR || path.resolve(process.cwd(), '..', 'SorkWhare');
 const ROOT = path.resolve(process.cwd());
 const CORPUS = path.join(ROOT, 'tests', 'corpus');
 const OUT = path.join(ROOT, 'tests', 'oracle');

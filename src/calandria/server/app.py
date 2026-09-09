@@ -343,4 +343,7 @@ def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, 
         ready(url)
     if open_browser:
         webbrowser.open(url)
-    run(server, idle)
+    try:
+        run(server, idle)
+    except KeyboardInterrupt:
+        pass                # Ctrl+C in the launcher window is a quit, not a crash; run() still closes

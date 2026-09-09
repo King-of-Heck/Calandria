@@ -164,6 +164,8 @@ def test_serve_usage_errors(capsys):
     assert main(["serve", "--port=70000"]) == 2
     assert main(["serve", "--idle=-1"]) == 2
     assert main(["serve", "--idle=soon"]) == 2
+    assert main(["serve", "--idle=nan"]) == 2                # float() takes these; a watchdog cannot
+    assert main(["serve", "--idle=inf"]) == 2
     assert "serve" in capsys.readouterr().out
 
 

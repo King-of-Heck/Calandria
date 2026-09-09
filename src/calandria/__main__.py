@@ -11,6 +11,7 @@
     python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
 """
 import json
+import math
 import os
 import sys
 from datetime import datetime
@@ -127,8 +128,8 @@ def main(argv) -> int:
         except ValueError:
             print(USAGE)
             return 2
-        if not 0 <= port <= 65535 or idle < 0:
-            print(USAGE)
+        if not 0 <= port <= 65535 or not math.isfinite(idle) or idle < 0:
+            print(USAGE)            # float() takes "nan" and "inf"; neither is a timeout
             return 2
         serve(port=port, open_browser="--no-browser" not in flags, idle=idle, verbose="--verbose" in flags,
               ready=lambda url: print(json.dumps({"url": url}), flush=True))

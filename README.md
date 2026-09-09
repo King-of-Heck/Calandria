@@ -5,7 +5,20 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder — no inst
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: pre-release (v2.0.0 in development).
+Status: v2.0.0 (see `CHANGELOG.md`).
+
+## Running from the release zip
+
+Download `Calandria-<version>.zip` from the GitHub release, extract it anywhere (Explorer's
+"Extract All" is fine) and double-click `Calandria.cmd` inside the extracted folder. A console
+window opens, the default browser shows the viewer, and the console closes when you press Quit
+(or five minutes after the page is closed). Nothing is installed: the folder holds its own
+64-bit Python and libraries, and removing the folder removes everything. To update, extract the
+new zip and delete the old folder.
+
+Inside the folder: `python\` (the official embeddable Python with the libraries extracted into
+`Lib\site-packages`), `app\calandria\` (the program), `Calandria.cmd`, this file and the
+changelog. `python\python.exe -m calandria <command>` runs the command line from the folder.
 
 ## Command line
 
@@ -94,3 +107,17 @@ and the summary exist only in the viewer and the PDF; nothing is written to Word
 
 The corpus gate `tests/parity/test_viewer.py` checks that every pair's viewer payload has one
 well-formed page drawing per layout page and that every numbered change has a place to jump to.
+
+## Building a release
+
+```
+uv run python harness/build_release.py
+```
+
+runs the whole test suite (the parity gates included), downloads the embeddable Python and the
+runtime wheels named in `uv.lock` into `build/cache/` (each checked against its recorded sha256),
+extracts them into `build/stage/Calandria-<version>/`, smoke-tests the staged interpreter
+(`version`, the imports, a `pdf`, a `serve`) and writes `dist/Calandria-<version>.zip`. The
+version is `calandria.__version__` and must have an entry in `CHANGELOG.md`.
+`--skip-tests`, `--skip-smoke` and `--keep-stage` are for iterating on the script; `--notes`
+prints the release notes for the GitHub release.

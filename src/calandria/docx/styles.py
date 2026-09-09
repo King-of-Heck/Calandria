@@ -106,6 +106,7 @@ class Styles:
         self.defaults = {"font": None, "size_pt": 11.0, "space_before_pt": None, "space_after_pt": None,
                           "line_spacing": None, "line_rule": None, "line_exact_pt": None}
         self.style_to_num: dict[str, tuple[int, int]] = {}
+        self.default_paragraph_style_id: str | None = None
 
     @classmethod
     def parse(cls, root) -> "Styles":
@@ -124,17 +125,24 @@ class Styles:
             sid = el.get(wq("styleId"))
             if not sid:
                 continue
-            st = Style(id=sid, name=wval(el.find(wq("name")), ""), type=el.get(wq("type")) or "paragraph",
+            styp = el.get(wq("type")) or "paragraph"
+            st = Style(id=sid, name=wval(el.find(wq("name")), ""), type=styp,
                        based_on=wval(el.find(wq("basedOn"))),
                        rpr=read_rpr(el.find(wq("rPr"))),      # direct child only: pPr/rPr is the paragraph mark
                        ppr=read_ppr(el.find(wq("pPr"))))
             s._map[sid] = st
+            if styp == "paragraph" and (el.get(wq("default")) or "").strip().lower() in ("1", "true", "on"):
+                s.default_paragraph_style_id = sid
         return s
 
     def get(self, sid):
         return self._map.get(sid) if sid else None
 
     def _chain(self, sid):
+        # A paragraph that names no pStyle uses Word's default paragraph style (the
+        # w:type="paragraph" style with w:default="1"), not an empty chain.
+        if sid is None:
+            sid = self.default_paragraph_style_id
         seen, out = set(), []
         st = self.get(sid)
         while st is not None and st.id not in seen:

@@ -1,5 +1,5 @@
 from lxml import etree
-from calandria.docx.package import Package
+from calandria.docx.package import Package, _ensure_w_namespace
 from calandria.docx.ns import W, wq, wval, wbool, twips_to_pt, half_pt
 from calandria.testing.makedocx import make_docx, DOC, P
 
@@ -31,10 +31,8 @@ def test_xml_tolerates_missing_xmlns_w_binding():
 
 
 def test_xml_leaves_already_bound_parts_untouched():
-    pkg = Package.open(make_docx({"word/document.xml": DOC(P("hi"))}))
-    root = pkg.xml("word/document.xml")
-    assert root.tag == wq("document")
-    assert root.find(f".//{wq('t')}").text == "hi"
+    data = DOC(P("hi")).encode("utf8")
+    assert _ensure_w_namespace(data) == data
 
 
 def test_rels_targets_normalized():

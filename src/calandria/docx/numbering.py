@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..model import NumInfo
 from .ns import wq, wval, twips_to_pt
+from .styles import read_ppr
 
 BULLETS = ["\u2022", "\u25e6", "\u25aa", "\u2023", "\u00b7"]  # SorkWhare's BULLETS glyphs, verbatim
 _ROMAN = [(1000, "m"), (900, "cm"), (500, "d"), (400, "cd"), (100, "c"), (90, "xc"), (50, "l"),
@@ -54,6 +55,10 @@ class Level:
     ind_left_pt: float | None = None
     ind_hanging_pt: float | None = None
     align: str | None = None
+    # The level's own <w:pPr> (spacing group etc.) -- the rung the reference inserts between
+    # a paragraph's own properties and the style chain in its spacing fallback. Indents are
+    # already captured above as their own fields; kept for the existing callers of those.
+    ppr: dict = field(default_factory=dict)
 
 
 class Numbering:
@@ -87,6 +92,7 @@ class Numbering:
                     ind_left_pt=twips_to_pt(ind.get(wq("left"))) if ind is not None else None,
                     ind_hanging_pt=twips_to_pt(ind.get(wq("hanging"))) if ind is not None else None,
                     align=wval(lv.find(f"{wq('pPr')}/{wq('jc')}")) or wval(lv.find(wq("lvlJc"))),
+                    ppr=read_ppr(lv.find(wq("pPr"))),
                 )
             n.abstract[int(aid)] = levels
         for num in root.iter(wq("num")):

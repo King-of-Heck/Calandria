@@ -66,7 +66,8 @@ def test_divergences_unit():
     assert divergences([{"text": "a"}], [{"text": "b"}]) == [{"i": 0, "field": "text", "ours": "a", "ref": "b"}]
     assert divergences([], [{"text": "a"}])[0]["field"] == "count"
     assert divergences([{"indLeftPt": 36.0}], [{"indLeftPt": 36.04}]) == []
-    assert allowed({"field": "marker"}, "anything") and not allowed({"field": "text"}, "anything")
+    assert allowed({"field": "marker"}, "x", [{"alias": "*", "field": "marker", "reason": "t"}])
+    assert not allowed({"field": "text"}, "x", [])
 
 
 def test_no_pairs_means_corpus_not_built():

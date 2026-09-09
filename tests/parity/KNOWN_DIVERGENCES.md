@@ -82,3 +82,17 @@ reason. For example:
 Do not use `"alias": "*"`, and do not widen an entry to cover fields the pair does not actually
 diverge on -- a scoped entry keeps the gate discriminating everywhere else. Anything not on this
 list is a bug in Calandria until it is investigated and either fixed or added here.
+
+# Diff-engine divergences (Plan 2)
+
+The change-list gate (`tests/parity/test_changes.py`) compares rows (type, cid, category, indices,
+rendered html, numbering and formatting flags, table location) and the summary against the
+reference's `compare()` with moves and split/merge disabled (`compare_v2` / `compare_v2_ic` in the
+oracle files). Its allow list is `allow-changes.json`, same policy as above.
+
+## (g) ASCII word class (not yet diverged — a recorded intention)
+
+The tokenizer uses the reference's ASCII word/digit classes so that tokens, and therefore rendered
+rows, match. Word treats a non-ASCII letter as part of a word; a future release may widen the
+class, at which point every changed paragraph containing such letters will diverge on `html` and
+the oracle comparison needs a token-level normalization. Until then both sides agree.

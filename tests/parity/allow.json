@@ -1,0 +1,4 @@
+[
+  {"alias": "*", "field": "marker",
+   "reason": "SorkWhare keys list counters by level only (one global cascade); Calandria keeps a counter per abstract list (Word). Markers differ whenever two lists interleave. Reviewed per corpus pair before adding here; remove once a per-pair check shows no such case."}
+]

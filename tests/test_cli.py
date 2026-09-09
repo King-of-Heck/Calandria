@@ -41,3 +41,15 @@ def test_compare_usage_errors(tmp_path, capsys):
     assert main(["compare", a]) == 2
     assert main(["compare", a, a, "--bogus"]) == 2
     assert "usage" in capsys.readouterr().out
+
+
+def test_compare_flags_accepted_in_any_position(tmp_path, capsys):
+    a = _write(tmp_path, "a.docx", P("x"))
+    b = _write(tmp_path, "b.docx", P("x"))
+    assert main(["compare", "--ignore-case", b]) == 2
+    assert "usage" in capsys.readouterr().out.lower()
+    assert main(["compare", a, "--ignore-case"]) == 2
+    assert "usage" in capsys.readouterr().out.lower()
+    assert main(["compare", "--ignore-case", a, b]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["options"]["ignore_case"] is True

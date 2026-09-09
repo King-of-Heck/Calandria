@@ -18,12 +18,14 @@ def main(argv) -> int:
     if len(argv) == 2 and argv[0] == "dump":
         print(json.dumps(flatten(parse_docx(argv[1])), ensure_ascii=True, indent=1))
         return 0
-    if len(argv) >= 3 and argv[0] == "compare":
-        flags = set(argv[3:])
-        if flags - _FLAGS:
+    if len(argv) >= 1 and argv[0] == "compare":
+        rest = argv[1:]
+        flags = {a for a in rest if a.startswith("--")}
+        positionals = [a for a in rest if not a.startswith("--")]
+        if flags - _FLAGS or len(positionals) != 2:
             print(USAGE)
             return 2
-        cmp = compare(parse_docx(argv[1]), parse_docx(argv[2]),
+        cmp = compare(parse_docx(positionals[0]), parse_docx(positionals[1]),
                       ignore_case="--ignore-case" in flags,
                       count_numbering="--no-count-numbering" not in flags)
         print(json.dumps(cmp.to_dict(), ensure_ascii=True, indent=1))

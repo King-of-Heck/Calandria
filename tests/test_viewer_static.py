@@ -22,8 +22,6 @@ def _ids_in_html():
 
 @pytest.mark.parametrize("name", sorted(STATIC))
 def test_static_file_exists(name):
-    if name == "changes.js" and not VIEWER.joinpath(name).is_file():
-        pytest.skip("changes.js arrives with the change list task")
     assert VIEWER.joinpath(name).read_bytes(), name
 
 
@@ -41,8 +39,6 @@ def test_index_declares_a_module_script_charset_and_title():
 
 @pytest.mark.parametrize("script", ["app.js", "changes.js"])
 def test_every_id_the_script_looks_up_exists(script):
-    if not VIEWER.joinpath(script).is_file():
-        pytest.skip(f"{script} not written yet")
     wanted = set(re.findall(r'\$\("([A-Za-z0-9_-]+)"\)', _read(script)))
     assert wanted, script
     missing = wanted - _ids_in_html()
@@ -57,7 +53,5 @@ def test_the_v41_caveat_is_on_the_page():
 @pytest.mark.parametrize("script", ["app.js", "changes.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
-    if not path.is_file():
-        pytest.skip(f"{script} not written yet")
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr

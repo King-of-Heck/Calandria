@@ -5,7 +5,7 @@ from calandria.docx.parser import parse_docx
 from calandria.layout.blocks import Ctx, next_tab_stop, para_block
 from calandria.layout.merged import merged_items
 from calandria.layout.pieces import LayoutOptions
-from calandria.testing.makedocx import DOC, NUMBERING, P, STYLES, make_docx
+from calandria.testing.makedocx import DOC, NUMBERING, P, STYLES, W_NS, make_docx
 from calandria.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12
@@ -14,15 +14,17 @@ NUM = NUMBERING([("decimal", "%1.", 720, 360, None)])             # left 36 pt, 
 NUMPR = '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'
 
 
-def _parse(body, numbering=None, styles=STY):
+def _parse(body, numbering=None, styles=STY, settings=None):
     parts = {"word/document.xml": DOC(body), "word/styles.xml": styles}
     if numbering:
         parts["word/numbering.xml"] = numbering
+    if settings:
+        parts["word/settings.xml"] = settings
     return parse_docx(io.BytesIO(make_docx(parts)))
 
 
-def _items(body_a, body_b, numbering=None, styles=STY):
-    c = compare(_parse(body_a, numbering, styles), _parse(body_b, numbering, styles))
+def _items(body_a, body_b, numbering=None, styles=STY, settings=None):
+    c = compare(_parse(body_a, numbering, styles, settings), _parse(body_b, numbering, styles, settings))
     return c, merged_items(c)
 
 
@@ -71,6 +73,14 @@ def test_wide_marker_pushes_the_text_to_the_next_default_tab_stop():
     c, items = _items(P("Item", ppr=NUMPR), P("Item", ppr=NUMPR), num)
     b = _block(items, 0, _ctx(c))
     assert b.marker_x == 18 and b.first_dx == 72          # marker ends at 78 -> next stop 108 -> 108 - 36
+
+
+def test_zero_default_tab_stop_places_the_text_at_the_marker_end():
+    num = NUMBERING([("decimal", "Section %1 of", 720, 360, None)])     # "Section 1 of" = 60 pt
+    settings = f'<w:settings xmlns:w="{W_NS}"><w:defaultTabStop w:val="0"/></w:settings>'
+    c, items = _items(P("Item", ppr=NUMPR), P("Item", ppr=NUMPR), num, settings=settings)
+    b = _block(items, 0, _ctx(c))
+    assert b.marker_x == 18 and b.first_dx == 42          # marker ends at 78, no tab stops -> 78 - 36
 
 
 def test_marker_suffix_space_and_nothing():

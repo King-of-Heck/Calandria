@@ -103,7 +103,10 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
         elif para.num.suff == "nothing":
             text_x = end
         else:
-            text_x = x if end <= x + 1e-9 else next_tab_stop(end, ctx.default_tab)
+            # No default tab stops (w:defaultTabStop 0): there is nothing to advance to, so the
+            # text starts where the marker ends.
+            text_x = (x if end <= x + 1e-9 else
+                      next_tab_stop(end, ctx.default_tab) if ctx.default_tab > 0 else max(end, x))
         first_dx = text_x - x
     else:
         first_dx = first_x - x

@@ -227,6 +227,25 @@ def test_unpack_wheel_skips_data_and_record(tmp_path):
     assert not (site / "x-1.0.data").exists()
 
 
+def test_unpack_embed_writes_lf_only_pth(tmp_path):
+    embed_zip = tmp_path / "embed.zip"
+    with zipfile.ZipFile(embed_zip, "w") as z:
+        z.writestr("python314._pth", "python314.zip\n.\n#import site\n")
+        z.writestr("python.exe", "x")
+    python_dir = tmp_path / "python"
+    br.unpack_embed(embed_zip, python_dir)
+    assert (python_dir / "python314._pth").read_bytes() == br.PTH_TEXT.encode("ascii")
+    assert (python_dir / "python.exe").exists()
+
+
+def test_unpack_embed_without_pth_raises(tmp_path):
+    embed_zip = tmp_path / "embed.zip"
+    with zipfile.ZipFile(embed_zip, "w") as z:
+        z.writestr("python.exe", "x")
+    with pytest.raises(RuntimeError):
+        br.unpack_embed(embed_zip, tmp_path / "python")
+
+
 def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
     stage = tmp_path / "Calandria-9.9.9"
     (stage / "python").mkdir(parents=True)

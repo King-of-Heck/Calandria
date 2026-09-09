@@ -165,7 +165,7 @@ def unpack_embed(embed_zip: Path, python_dir: Path) -> None:
     pth = python_dir / PTH_NAME
     if not pth.exists():
         raise RuntimeError(f"{embed_zip.name} has no {PTH_NAME}: not the {PY_VERSION} embeddable zip?")
-    pth.write_text(PTH_TEXT, encoding="ascii")
+    pth.write_text(PTH_TEXT, encoding="ascii", newline="")
 
 
 def stage(version: str) -> Path:

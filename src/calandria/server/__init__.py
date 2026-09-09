@@ -4,14 +4,17 @@ API (JSON unless stated; errors are {"error": message} with 400 for bad input, 4
 comparison is loaded, 404 / 405 / 413 as usual):
   GET  /                      the viewer page; GET /static/<name> its script and style
   GET  /api/state             {"version", "loaded", "names"}
-  POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...}}
+  POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...},
+                              "render_set"?: NAME, "change_bars"?: true|false}
                               -> the full payload (names, options, summary, changes, page_count,
                               anchors, marks, render_sets, render_set_styles, render_set,
                               change_bars, pages (SVG strings), report_lines)
-  POST /api/layout            {"options": {...}} -> the full payload after re-compare + re-layout
+  POST /api/layout            {"options": {...}, "render_set"?: NAME, "change_bars"?: true|false}
+                              -> the full payload after re-compare + re-layout
                               (options: ignore_case, count_numbering, show_equal, show_insertions,
                               show_deletions, show_formatting; every key optional, merged over the
-                              current options)
+                              current options; render_set and change_bars default to "Standard" and
+                              true when omitted)
   GET  /api/pages?render_set=NAME&change_bars=0|1
                               -> {"render_set", "change_bars", "pages", "report_lines"}
   GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none

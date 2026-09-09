@@ -78,7 +78,7 @@ async function compareNow() {
   busy(true, "Comparing…");
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
-                   options: options() };
+                   options: options(), render_set: state.renderSet, change_bars: state.changeBars };
     show(await api("/api/compare", body));
   } catch (e) {
     msg(e.message, true);
@@ -91,7 +91,7 @@ export async function relayout() {
   if (!state.data) return;
   busy(true, "Laying out…");
   try {
-    show(await api("/api/layout", { options: options() }));
+    show(await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars }));
   } catch (e) {
     msg(e.message, true);
   } finally {

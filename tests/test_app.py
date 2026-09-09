@@ -169,6 +169,40 @@ def test_file_names_are_reduced_to_their_base_name(srv):
     assert status == 200 and d["names"] == {"original": "one.docx", "modified": "two.docx"}
 
 
+def test_compare_and_layout_keep_the_requested_style(srv):
+    body = _compare_body()
+    body["render_set"] = "Black and White"
+    body["change_bars"] = False
+    status, d = _json(srv.url + "api/compare", "POST", body)
+    assert status == 200
+    assert d["render_set"] == "Black and White" and d["change_bars"] is False
+    assert "#0000ff" not in d["pages"][0] and d["report_lines"][3] == "Rendering set: Black and White"
+
+    status, d = _json(srv.url + "api/layout", "POST",
+                       {"options": {"show_insertions": False}, "render_set": "Black and White", "change_bars": False})
+    assert status == 200
+    assert d["render_set"] == "Black and White" and d["change_bars"] is False
+    assert "#0000ff" not in d["pages"][0] and d["report_lines"][3] == "Rendering set: Black and White"
+
+    status, d = _json(srv.url + "api/layout", "POST", {"options": {}})
+    assert status == 200 and d["render_set"] == "Standard" and d["change_bars"] is True
+
+
+def test_style_keys_are_validated(srv):
+    body = _compare_body()
+    body["render_set"] = "Sepia"
+    status, d = _json(srv.url + "api/compare", "POST", body)
+    assert status == 400 and "Sepia" in d["error"]
+
+    body = _compare_body()
+    body["change_bars"] = "no"
+    assert _json(srv.url + "api/compare", "POST", body) == (400, {"error": "change_bars must be true or false"})
+
+    _json(srv.url + "api/compare", "POST", _compare_body())
+    status, d = _json(srv.url + "api/layout", "POST", {"options": {}, "render_set": "Sepia"})
+    assert status == 400
+
+
 def test_ping_touches_and_quit_stops_the_server(srv):
     before = srv.session.last_seen
     time.sleep(0.01)

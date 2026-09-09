@@ -57,6 +57,7 @@ BAR_GAP = 6.0          # bar x = margin_left - BAR_GAP
 NUMBER_SIZE = 7.0
 NUMBER_GAP = 10.0      # number right edge = margin_left - NUMBER_GAP
 GRID_WIDTH = 0.5
+BAR_MERGE_TOL = 0.5    # spans this close vertically are one bar (a changed row and the line under it)
 _EPS = 1e-6
 
 
@@ -74,7 +75,7 @@ def bar_intervals(page: Page) -> list[tuple[float, float]]:
     spans.sort()
     merged: list[tuple[float, float]] = []
     for a, b in spans:
-        if merged and a <= merged[-1][1] + 0.5:
+        if merged and a <= merged[-1][1] + BAR_MERGE_TOL:
             merged[-1] = (merged[-1][0], max(merged[-1][1], b))
         else:
             merged.append((a, b))

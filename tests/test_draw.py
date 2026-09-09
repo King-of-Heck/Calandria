@@ -6,9 +6,9 @@ from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
 from calandria.layout.pages import FontRef
 from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE, DrawResult,
-                                PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid, draw_layout,
-                                draw_page, draw_runs)
+from calandria.pdf.draw import (BAR_GAP, BAR_MERGE_TOL, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
+                                DrawResult, PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid,
+                                draw_layout, draw_page, draw_runs)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
 from calandria.pdf.report import GAP, TITLE, ReportInfo, report_height
 from calandria.testing.fakefonts import FakeResolver
@@ -151,6 +151,17 @@ def test_change_bar_spans_contiguous_changed_lines_only():
     x = 72 - BAR_GAP
     assert bars == [("line", x, 84, x, 108, BAR_WIDTH, BLACK), ("line", x, 120, x, 132, BAR_WIDTH, BLACK)]
     assert bar_intervals(L.pages[0]) == [(84, 108), (120, 132)]
+
+
+def test_a_changed_row_and_the_changed_line_under_it_make_one_bar():
+    a = TBL([["aaa"]], [9360]) + P("cccc")
+    b = TBL([["aaa xxx"]], [9360]) + P("cccc yyy")
+    L = _lay(a, b)
+    (row,) = L.pages[0].table_rows
+    below = L.pages[0].lines[1]
+    assert row.changed and below.changed and below.top == row.y + row.h
+    assert bar_intervals(L.pages[0]) == [(row.y, below.top + below.height)]
+    assert BAR_MERGE_TOL == 0.5
 
 
 def test_change_bars_can_be_switched_off():

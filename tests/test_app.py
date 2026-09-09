@@ -1,4 +1,5 @@
 import base64
+import http.client
 import json
 import os
 import threading
@@ -6,6 +7,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -213,6 +215,75 @@ def test_concurrent_requests_are_serialized(srv):
     for t in threads:
         t.join(30)
     assert results == [200] * 6
+
+
+def test_error_before_the_body_is_read_keeps_the_connection_usable(srv):
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        payload = json.dumps({"filler": "x" * 300}).encode()
+        conn.request("POST", "/api/nope", body=payload, headers={"Content-Type": "application/json"})
+        r = conn.getresponse()
+        assert r.status == 404
+        r.read()
+
+        conn.request("GET", "/api/state")
+        r = conn.getresponse()
+        assert r.status == 200
+        assert json.loads(r.read())["loaded"] is False
+
+        conn.request("POST", "/api/pages", body=b"{}", headers={"Content-Type": "application/json"})
+        r = conn.getresponse()
+        assert r.status == 405
+        r.read()
+
+        conn.request("GET", "/api/state")
+        r = conn.getresponse()
+        assert r.status == 200
+        assert json.loads(r.read())["loaded"] is False
+    finally:
+        conn.close()
+
+
+def test_negative_content_length_is_rejected(srv):
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        conn.putrequest("POST", "/api/ping")
+        conn.putheader("Content-Length", "-5")
+        conn.endheaders()
+        r = conn.getresponse()
+        assert r.status == 400
+        assert json.loads(r.read()) == {"error": "bad Content-Length"}
+    finally:
+        conn.close()
+
+
+def test_state_is_read_under_the_lock(srv):
+    done = threading.Event()
+    result = {}
+
+    def hit():
+        result["status"], result["body"] = _json(srv.url + "api/state")
+        done.set()
+
+    with srv.session.lock:
+        t = threading.Thread(target=hit, daemon=True)
+        t.start()
+        assert not done.wait(0.3)
+
+    assert done.wait(5)
+    t.join(5)
+    assert result["status"] == 200
+
+
+def test_unexpected_exception_is_a_json_500(srv, monkeypatch):
+    def boom():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(srv.session, "state", boom)
+    status, d = _json(srv.url + "api/state")
+    assert status == 500 and d == {"error": "internal error: RuntimeError"}
 
 
 @pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()), reason="no system font directory")

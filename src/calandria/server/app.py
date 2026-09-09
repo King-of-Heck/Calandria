@@ -8,6 +8,7 @@ import logging
 import os
 import threading
 import time
+import traceback
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -88,21 +89,48 @@ class Handler(BaseHTTPRequestHandler):
     def _error(self, status: int, message: str) -> None:
         if status == 413:
             self.close_connection = True        # the unread body would poison a kept-alive socket
+        elif not self._consumed:
+            # an early error (404/405/400 before _body()/_drain() ran) left a declared body
+            # unread; either drain it or close the connection so the next request on this
+            # kept-alive socket doesn't get misparsed.
+            try:
+                length = self._length()
+            except _Bad:
+                self.close_connection = True
+            else:
+                if length:
+                    try:
+                        self.rfile.read(length)
+                    except OSError:
+                        self.close_connection = True
+                self._consumed = True
         self._json({"error": message}, status)
+
+    def _length(self) -> int:
+        raw = self.headers.get("Content-Length")
+        if raw is None:
+            return 0
+        try:
+            length = int(raw)
+        except ValueError:
+            raise _Bad(400, "bad Content-Length") from None
+        if length < 0:
+            raise _Bad(400, "bad Content-Length")
+        if length > MAX_BODY:
+            raise _Bad(413, f"request body over {MAX_BODY} bytes")
+        return length
 
     def _drain(self) -> None:
         """Read and ignore a small body (a browser POST with no payload sends Content-Length: 0)."""
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise _Bad(413, f"request body over {MAX_BODY} bytes")
+        length = self._length()
         if length:
             self.rfile.read(length)
+        self._consumed = True
 
     def _body(self) -> dict:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise _Bad(413, f"request body over {MAX_BODY} bytes")
+        length = self._length()
         raw = self.rfile.read(length) if length else b""
+        self._consumed = True
         try:
             obj = json.loads(raw.decode("utf-8")) if raw else None
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -121,6 +149,7 @@ class Handler(BaseHTTPRequestHandler):
     def _route(self, method: str) -> None:
         session: Session = self.server.session
         session.touch()
+        self._consumed = False
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
         try:
@@ -149,10 +178,16 @@ class Handler(BaseHTTPRequestHandler):
             self._error(400, str(e))
         except LookupError as e:
             self._error(409, str(e))
+        except Exception as e:
+            self.close_connection = True
+            if self.server.verbose:
+                self.log_error("%s", traceback.format_exc())
+            self._json({"error": f"internal error: {type(e).__name__}"}, 500)
 
     # -- the API --------------------------------------------------------------------------------
     def _api_state(self, session, query):
-        self._json(session.state())
+        with session.lock:
+            self._json(session.state())
 
     def _api_ping(self, session, query):
         self._drain()

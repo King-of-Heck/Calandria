@@ -7,7 +7,6 @@ build/
 tests/fixtures/
 tests/corpus/
 docs/
-.superpowers/
-.claude/
 *.docx
 *.pdf
+tests/oracle/

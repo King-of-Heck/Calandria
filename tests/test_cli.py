@@ -185,3 +185,14 @@ def test_serve_opens_the_browser_by_default(monkeypatch):
     monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
     assert main(["serve", "--idle=0.4"]) == 0
     assert len(opened) == 1 and opened[0].startswith("http://127.0.0.1:")
+
+
+def test_version_subcommand(capsys):
+    from calandria import __version__
+    assert main(["version"]) == 0
+    assert capsys.readouterr().out.strip() == f"calandria {__version__}"
+
+
+def test_version_subcommand_takes_no_arguments(capsys):
+    assert main(["version", "extra"]) == 2
+    assert "usage" in capsys.readouterr().out.lower()

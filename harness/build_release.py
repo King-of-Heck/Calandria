@@ -141,11 +141,25 @@ def _fetch(url: str, dest: Path) -> None:
 
 
 def download(url: str, cache: Path, sha256: str) -> Path:
-    """The file at `url` in `cache`, fetched once and verified every time; a mismatch is deleted."""
+    """The file at `url` in `cache`, fetched once and verified every time; a mismatch is deleted.
+
+    Fetches into a `.part` file next to `dest` and only renames it into place once the sha256
+    verifies (or there is no digest to check), so a crash or a failed verification never leaves a
+    partial or corrupt file at `dest`.
+    """
     cache.mkdir(parents=True, exist_ok=True)
     dest = cache / url.rsplit("/", 1)[1]
     if not dest.exists():
-        _fetch(url, dest)
+        part = dest.with_name(dest.name + ".part")
+        if part.exists():
+            part.unlink()
+        _fetch(url, part)
+        actual = sha256_of(part)
+        if sha256 and actual != sha256:
+            part.unlink()
+            raise RuntimeError(f"{dest.name}: sha256 {actual} != expected {sha256}")
+        os.replace(part, dest)
+        return dest
     actual = sha256_of(dest)
     if sha256 and actual != sha256:
         dest.unlink()

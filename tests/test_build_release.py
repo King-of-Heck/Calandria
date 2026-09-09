@@ -212,6 +212,29 @@ def test_download_uses_the_cache_and_verifies(tmp_path, monkeypatch):
     assert not p.exists()                            # a mismatch is deleted, never reused
 
 
+def test_download_fetches_into_a_part_file_then_renames(tmp_path, monkeypatch):
+    def fake_fetch(url, dest):
+        assert dest.name == "abc.whl.part"
+        dest.write_bytes(b"abc")
+
+    monkeypatch.setattr(br, "_fetch", fake_fetch)
+    good = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    p = br.download("https://x/abc.whl", tmp_path, good)
+    assert p == tmp_path / "abc.whl" and p.read_bytes() == b"abc"
+    assert not (tmp_path / "abc.whl.part").exists()
+
+
+def test_download_bad_hash_leaves_no_dest_and_no_part(tmp_path, monkeypatch):
+    def fake_fetch(url, dest):
+        dest.write_bytes(b"wrong bytes")
+
+    monkeypatch.setattr(br, "_fetch", fake_fetch)
+    with pytest.raises(RuntimeError):
+        br.download("https://x/abc.whl", tmp_path, "00" * 32)
+    assert not (tmp_path / "abc.whl").exists()
+    assert not (tmp_path / "abc.whl.part").exists()
+
+
 def test_unpack_wheel_skips_data_and_record(tmp_path):
     whl = tmp_path / "x-1.0-py3-none-any.whl"
     with zipfile.ZipFile(whl, "w") as z:

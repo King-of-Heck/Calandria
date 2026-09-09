@@ -37,7 +37,7 @@ def test_page_break_carries_to_next_nonempty_paragraph():
     assert flags == [("one", False), ("two", True), ("three", False), ("four", True)]
 
 
-def test_style_chain_and_numbering(tmp_path):
+def test_style_chain_and_numbering():
     styles = (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Georgia"/>'
               '<w:sz w:val="20"/></w:rPr></w:rPrDefault></w:docDefaults>'
               '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/>'
@@ -113,6 +113,53 @@ def test_page_break_before_text_applies_to_own_paragraph():
     paras = [b for b in d.blocks if isinstance(b, Paragraph)]
     flags = [(p.text, p.props.page_break_before) for p in paras if not p.is_empty]
     assert flags == [("one", False), ("two", True), ("three", False)]
+
+
+def test_section_break_starts_a_new_page():
+    # A paragraph-level <w:sectPr> ends the section AFTER that paragraph, so the next
+    # paragraph starts a new page (Word: an absent <w:type> means "nextPage").
+    d = _doc(P("cover", ppr='<w:sectPr><w:pgSz w:w="12240" w:h="15840"/></w:sectPr>') + P("after"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    assert [(p.text, p.props.page_break_before) for p in paras] == [("cover", False), ("after", True)]
+    assert d.sections[0].type == "nextPage"
+
+
+def test_continuous_section_break_does_not_start_a_new_page():
+    d = _doc(P("cover", ppr='<w:sectPr><w:type w:val="continuous"/></w:sectPr>') + P("after"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    assert [(p.text, p.props.page_break_before) for p in paras] == [("cover", False), ("after", False)]
+    assert d.sections[0].type == "continuous"
+
+
+def test_next_column_section_break_does_not_start_a_new_page():
+    d = _doc(P("cover", ppr='<w:sectPr><w:type w:val="nextColumn"/></w:sectPr>') + P("after"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    assert [(p.text, p.props.page_break_before) for p in paras] == [("cover", False), ("after", False)]
+
+
+def test_even_page_section_break_starts_a_new_page():
+    d = _doc(P("cover", ppr='<w:sectPr><w:type w:val="evenPage"/></w:sectPr>') + P("after"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph)]
+    assert [(p.text, p.props.page_break_before) for p in paras] == [("cover", False), ("after", True)]
+
+
+def test_section_break_on_empty_paragraph_still_travels():
+    d = _doc(P("one") + '<w:p><w:pPr><w:sectPr/></w:pPr></w:p>' + P("two"))
+    paras = [b for b in d.blocks if isinstance(b, Paragraph) and not b.is_empty]
+    assert [(p.text, p.props.page_break_before) for p in paras] == [("one", False), ("two", True)]
+
+
+def test_empty_numbered_paragraph_consumes_a_number():
+    # Word semantics: an empty numbered paragraph still takes a number, so the next item
+    # skips one. (The reference engine drops empty paragraphs before numbering them --
+    # see tests/parity/KNOWN_DIVERGENCES.md item (c).)
+    numbering = (f'<w:numbering xmlns:w="{W_NS}"><w:abstractNum w:abstractNumId="0">'
+                 '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl>'
+                 '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+    npr = '<w:numPr><w:numId w:val="1"/><w:ilvl w:val="0"/></w:numPr>'
+    body = P("one", ppr=npr) + P("", ppr=npr) + P("two", ppr=npr)
+    d = _doc(body, **{"word/numbering.xml": numbering})
+    assert [(p.text, p.num.marker) for p in d.blocks if not p.is_empty] == [("one", "1."), ("two", "3.")]
 
 
 def test_spacing_and_line_falls_back_to_doc_defaults_per_attribute():

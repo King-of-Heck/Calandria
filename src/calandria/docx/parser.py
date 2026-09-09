@@ -216,7 +216,13 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     if ppr is not None:
         sp = ppr.find(wq("sectPr"))
         if sp is not None:
-            ctx.sections.append(_section(sp))
+            section = _section(sp)
+            ctx.sections.append(section)
+            # A section break stored on a paragraph takes effect AFTER that paragraph: the
+            # following paragraph starts a new page. "continuous" flows on, and "nextColumn"
+            # only starts a new column, so neither breaks the page.
+            if section.type not in ("continuous", "nextColumn"):
+                ctx.pending_break = True
     return p
 
 
@@ -258,4 +264,5 @@ def _section(sp) -> Section:
             if v is not None:
                 setattr(s, key, abs(v))
     s.title_pg = wbool(sp.find(wq("titlePg")))
+    s.type = wval(sp.find(wq("type")), "nextPage") or "nextPage"
     return s

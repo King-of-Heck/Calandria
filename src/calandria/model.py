@@ -100,6 +100,10 @@ class Section:
     header_pt: float = 36.0
     footer_pt: float = 36.0
     title_pg: bool = False
+    # w:sectPr/w:type: "nextPage" (Word's default when the element is absent), "continuous",
+    # "nextColumn", "evenPage", "oddPage". Every value except continuous/nextColumn starts the
+    # following paragraph on a new page. Appended last so positional construction stays stable.
+    type: str = "nextPage"
 
 
 @dataclass

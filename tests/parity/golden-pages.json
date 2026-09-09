@@ -2,76 +2,91 @@
  "bench": {
   "a": 3,
   "b": 3,
+  "digest": "21103a88e149ec85",
   "redline": 3
  },
  "big200": {
   "a": 5,
   "b": 5,
+  "digest": "9f97b6bbb9ec4ab3",
   "redline": 5
  },
  "c4": {
   "a": 1,
   "b": 1,
+  "digest": "01e917a6b47c079b",
   "redline": 1
  },
  "c6": {
   "a": 1,
   "b": 1,
+  "digest": "e24ef2ed1775c430",
   "redline": 1
  },
  "fixture": {
   "a": 1,
   "b": 1,
+  "digest": "5a6f72e368eca6e2",
   "redline": 1
  },
  "gen-dense": {
   "a": 1,
   "b": 1,
+  "digest": "f336dcfb3c996663",
   "redline": 1
  },
  "gen-empty": {
   "a": 1,
   "b": 1,
+  "digest": "ba12788cc94bdf1c",
   "redline": 1
  },
  "gen-fmt": {
   "a": 1,
   "b": 1,
+  "digest": "012d3b17601a98c8",
   "redline": 1
  },
  "gen-latin1": {
   "a": 1,
   "b": 1,
+  "digest": "43f0fa89df9b26ac",
   "redline": 1
  },
  "gen-longcap": {
   "a": 3,
   "b": 3,
+  "digest": "cf34f15e93241f5e",
   "redline": 6
  },
  "gen-punct": {
   "a": 1,
   "b": 1,
+  "digest": "1afecee12c04d6ff",
   "redline": 1
  },
  "gen-table": {
   "a": 1,
   "b": 1,
+  "digest": "189166cf0b833d4a",
   "redline": 1
  },
  "pages": {
   "a": 3,
   "b": 3,
+  "digest": "f5f321aa0c790dcd",
   "redline": 3
  },
  "r3": {
   "a": 1,
   "b": 1,
+  "digest": "35d192e206cadea8",
   "redline": 1
  },
  "spacing": {
   "a": 2,
   "b": 2,
+  "digest": "57dce3888fdf8473",
   "redline": 2
  }
 }

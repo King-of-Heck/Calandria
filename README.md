@@ -42,8 +42,9 @@ changes. Then `uv run pytest tests/parity -q` should be green with an empty
 writer and the viewer draw; `--pages` prints only the page count. Metrics come from the fonts
 installed under `C:\Windows\Fonts` (override with `CALANDRIA_FONT_DIRS`).
 
-Page counts on the corpus are pinned by `tests/parity/golden-pages.json`. After a deliberate
-layout change, regenerate it and review the diff:
+Page counts on the corpus, and a digest of each redline's whole page model (so a line that merely
+moves is caught too), are pinned by `tests/parity/golden-pages.json`. After a deliberate layout
+change, regenerate it and review the diff:
 
 ```
 uv run python harness/golden_pages.py

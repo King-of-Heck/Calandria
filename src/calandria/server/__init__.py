@@ -1,7 +1,9 @@
 """The local server behind the viewer: stdlib http.server on 127.0.0.1, one comparison in memory.
 
 API (JSON unless stated; errors are {"error": message} with 400 for bad input, 409 when no
-comparison is loaded, 404 / 405 / 413 as usual):
+comparison is loaded, 404 / 405 / 413 as usual). A POST carrying an Origin that is not this
+server, or a Sec-Fetch-Site other than same-origin / none, is refused with 403 before its body is
+read: a loopback server is reachable from every page the browser has open.
   GET  /                      the viewer page; GET /static/<name> its script and style
   GET  /api/state             {"version", "loaded", "names"}
   POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...},

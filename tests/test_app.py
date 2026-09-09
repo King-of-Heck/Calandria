@@ -155,6 +155,45 @@ def test_bad_requests(srv):
     assert _json(srv.url + "api/pdf?report=middle")[0] == 400
 
 
+def _post_with_headers(url, extra):
+    req = urllib.request.Request(url, data=b"", method="POST", headers=extra)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+def test_a_cross_origin_post_is_refused(srv):
+    port = srv.server.server_address[1]
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": "http://evil.example"}) == \
+        (403, {"error": "cross-origin request refused"})
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": f"http://localhost:{port + 1}"})[0] == 403
+    assert _post_with_headers(srv.url + "api/ping", {"Sec-Fetch-Site": "cross-site"})[0] == 403
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": f"http://127.0.0.1:{port}"}) == (200, {"ok": True})
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": f"http://localhost:{port}"}) == (200, {"ok": True})
+    assert _post_with_headers(srv.url + "api/ping", {"Sec-Fetch-Site": "same-origin"}) == (200, {"ok": True})
+    assert _post_with_headers(srv.url + "api/ping", {"Sec-Fetch-Site": "none"}) == (200, {"ok": True})
+    assert _post_with_headers(srv.url + "api/ping", {}) == (200, {"ok": True})
+    assert _json(srv.url + "api/state")[0] == 200                  # a GET is never refused
+
+
+def test_a_cross_origin_post_is_refused_before_its_body_is_read(srv):
+    parts = urlsplit(srv.url)
+    conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        payload = json.dumps(_compare_body()).encode()
+        conn.request("POST", "/api/compare", body=payload,
+                     headers={"Content-Type": "application/json", "Origin": "http://evil.example"})
+        r = conn.getresponse()
+        assert r.status == 403 and json.loads(r.read()) == {"error": "cross-origin request refused"}
+        conn.request("GET", "/api/state")
+        r = conn.getresponse()
+        assert r.status == 200 and json.loads(r.read())["loaded"] is False    # nothing was compared
+    finally:
+        conn.close()
+
+
 def test_body_cap(srv, monkeypatch):
     monkeypatch.setattr(appmod, "MAX_BODY", 10)
     status, d = _json(srv.url + "api/compare", "POST", raw=b"x" * 20)

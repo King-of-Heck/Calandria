@@ -78,6 +78,18 @@ def _disposition(name: str) -> str:
     return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(clean, safe='')}"
 
 
+def _same_origin(headers, port: int) -> bool:
+    """A localhost server is reachable from any page in the browser, so a POST that another site
+    aimed at us is refused before it is read. Both signals are optional (a same-origin fetch may
+    send neither) and both are believed only to say no: an Origin that is not this server, or a
+    Sec-Fetch-Site that is neither same-origin nor a direct navigation."""
+    origin = headers.get("Origin")
+    if origin is not None and urlsplit(origin).netloc not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+        return False
+    site = headers.get("Sec-Fetch-Site")
+    return site is None or site in ("same-origin", "none")
+
+
 def _style(body: dict) -> tuple[str, bool]:
     render_set = body.get("render_set", "Standard")
     if not isinstance(render_set, str):
@@ -213,6 +225,8 @@ class Handler(BaseHTTPRequestHandler):
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
         try:
+            if method == "POST" and not _same_origin(self.headers, self.server.server_address[1]):
+                raise _Bad(403, "cross-origin request refused")
             if path == "/" or path.startswith("/static/"):
                 if method != "GET":
                     raise _Bad(405, "method not allowed")

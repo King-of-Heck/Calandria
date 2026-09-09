@@ -365,8 +365,31 @@ def test_pdf_download_with_real_fonts():
         assert _json(s.url + "api/compare", "POST", body)[0] == 200
         status, headers, data = _req(s.url + "api/pdf?render_set=Standard&change_bars=1&report=none")
         assert status == 200 and headers["Content-Type"] == "application/pdf" and data.startswith(b"%PDF")
-        assert headers["Content-Disposition"] == 'attachment; filename="Draft v1 vs Draft v2 redline.pdf"'
+        assert headers["Content-Disposition"] == appmod._disposition("Draft v1 vs Draft v2 redline.pdf")
         assert int(headers["Content-Length"]) == len(data)
+    finally:
+        s.stop()
+
+
+def test_disposition_of_a_plain_name():
+    header = appmod._disposition("Draft v1 vs Draft v2 redline.pdf")
+    assert header == ('attachment; filename="Draft v1 vs Draft v2 redline.pdf"; '
+                      "filename*=UTF-8''Draft%20v1%20vs%20Draft%20v2%20redline.pdf")
+
+
+@pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()), reason="no system font directory")
+def test_pdf_download_name_survives_a_non_latin1_quoted_and_newline_bearing_file_name():
+    s = Served(Session(clock=lambda: WHEN))
+    try:
+        body = {"a": {"name": "Draft – v1.docx", "data": _b64(make_docx({"word/document.xml": DOC(P("aaaa"))}))},
+                "b": {"name": "Dr\"aft\r\nv2.docx", "data": _b64(make_docx({"word/document.xml": DOC(P("aaaa bbbb"))}))}}
+        assert _json(s.url + "api/compare", "POST", body)[0] == 200
+        status, headers, data = _req(s.url + "api/pdf?report=none")
+        assert status == 200 and headers["Content-Type"] == "application/pdf" and data.startswith(b"%PDF")
+        cd = headers["Content-Disposition"]
+        assert "filename*=UTF-8''Draft%20%E2%80%93%20v1%20vs%20Dr_aftv2%20redline.pdf" in cd
+        plain = cd.split('filename="', 1)[1].split('"', 1)[0]
+        assert plain.isascii() and all(0x20 <= ord(c) != 0x7f for c in plain)
     finally:
         s.stop()
 

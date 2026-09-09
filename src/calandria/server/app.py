@@ -13,7 +13,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
 from .session import BadDocument, Session, check_render, parse_options
@@ -65,6 +65,19 @@ def _file(body: dict, key: str) -> tuple[str, bytes]:
     return name, data
 
 
+def _disposition(name: str) -> str:
+    """A Content-Disposition value for a download name that came from the uploaded file names.
+
+    Headers are latin-1 and line-oriented, so a name is never interpolated raw: control
+    characters go, a quote or a backslash becomes `_`, and the value carries both the ASCII
+    `filename="..."` fallback (every non-ASCII character replaced by `_`) and the percent-encoded
+    UTF-8 `filename*` every current browser prefers (RFC 5987 / 6266).
+    """
+    clean = "".join("_" if c in '"\\' else c for c in name if 0x20 <= ord(c) != 0x7f)
+    ascii_name = "".join(c if c.isascii() else "_" for c in clean)
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(clean, safe='')}"
+
+
 def _style(body: dict) -> tuple[str, bool]:
     render_set = body.get("render_set", "Standard")
     if not isinstance(render_set, str):
@@ -79,6 +92,7 @@ def _style(body: dict) -> tuple[str, bool]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "Calandria/" + __version__
     protocol_version = "HTTP/1.1"
+    _sent = False                           # set once this request's headers are on the wire
 
     def log_message(self, fmt, *args):
         if self.server.verbose:
@@ -93,12 +107,16 @@ class Handler(BaseHTTPRequestHandler):
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
+        self._sent = True                   # past this point a second response would corrupt the stream
         self.wfile.write(body)
 
     def _json(self, obj, status: int = 200) -> None:
         self._send(status, json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8")
 
     def _error(self, status: int, message: str) -> None:
+        if self._sent:                      # a failure after the headers went out: say no more, hang up
+            self.close_connection = True
+            return
         if status == 413:
             self.close_connection = True        # the unread body would poison a kept-alive socket
             # A client still writing an oversized body can have the OS abort the connection
@@ -179,7 +197,7 @@ class Handler(BaseHTTPRequestHandler):
     def _route(self, method: str) -> None:
         session: Session = self.server.session
         session.touch()
-        self._consumed = False
+        self._consumed = self._sent = False
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
         try:
@@ -212,7 +230,8 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             if self.server.verbose:
                 self.log_error("%s", traceback.format_exc())
-            self._json({"error": f"internal error: {type(e).__name__}"}, 500)
+            if not self._sent:
+                self._json({"error": f"internal error: {type(e).__name__}"}, 500)
 
     # -- the API --------------------------------------------------------------------------------
     def _api_state(self, session, query):
@@ -261,7 +280,7 @@ class Handler(BaseHTTPRequestHandler):
         check_render(rs, report)
         with session.lock:
             data, name = session.pdf(rs, bars, report)
-        self._send(200, data, "application/pdf", {"Content-Disposition": f'attachment; filename="{name}"'})
+        self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})
 
 
 def make_server(session: Session, host: str = HOST, port: int = 0, verbose: bool = False) -> ThreadingHTTPServer:

@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..layout.pages import FontRef, GlyphRun, Page, PlacedLine, TableRowBox
+from ..layout.pages import FontRef, GlyphRun, Layout, Page, PlacedLine, TableRowBox
 from .decor import decorations, run_effects
 from .rendersets import RenderSet
+from .report import GAP, ReportInfo, draw_report, report_height
 
 BLACK = "000000"
 
@@ -115,3 +116,41 @@ def content_bottom(page: Page) -> float:
     ys += [ln.top + ln.height for ln in page.lines]
     ys += [r.y + r.h for r in page.table_rows]
     return max(ys)
+
+
+@dataclass
+class DrawResult:
+    pages: int                  # pages emitted, report page included
+    report_page: int | None     # 1-based page the report block is on, None when omitted
+
+
+def _report_faces(layout: Layout, resolver):
+    fam = next((f.family for f in layout.fonts.values()), None)
+    return resolver.face(fam), resolver.face(fam, bold=True)
+
+
+def draw_layout(layout: Layout, rs: RenderSet, opts: PdfOptions, painter, resolver,
+                report: ReportInfo | None) -> DrawResult:
+    number_face = resolver.face(None)
+    where = opts.report if report is not None else "none"
+    n, report_page = 0, None
+    if where == "first":
+        g = layout.pages[0]
+        regular, bold = _report_faces(layout, resolver)
+        painter.page(g.w, g.h)
+        draw_report(report, g.margin_left, g.margin_top, g.w - g.margin_left - g.margin_right, regular, bold, painter)
+        n, report_page = 1, 1
+    for page in layout.pages:
+        draw_page(page, layout.fonts, rs, opts, painter, number_face)
+        n += 1
+    if where == "last":
+        last = layout.pages[-1]
+        regular, bold = _report_faces(layout, resolver)
+        w = last.w - last.margin_left - last.margin_right
+        y = content_bottom(last) + GAP
+        if y + report_height(report, regular, bold) > last.h - last.margin_bottom + _EPS:
+            painter.page(last.w, last.h)
+            n, y = n + 1, last.margin_top
+        draw_report(report, last.margin_left, y, w, regular, bold, painter)
+        report_page = n
+    return DrawResult(n, report_page)

@@ -1,19 +1,23 @@
 import io
+from datetime import datetime
 
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
 from calandria.layout.pages import FontRef
 from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE, PdfOptions,
-                                bar_intervals, cid_label, content_bottom, draw_grid, draw_page, draw_runs)
+from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE, DrawResult,
+                                PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid, draw_layout,
+                                draw_page, draw_runs)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
+from calandria.pdf.report import GAP, TITLE, ReportInfo, report_height
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
 from calandria.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
+WHEN = datetime(2026, 9, 9, 14, 5)
 
 
 def _parse(body):
@@ -199,3 +203,55 @@ def test_content_bottom():
     assert content_bottom(L2.pages[0]) == row.y + row.h
     empty = _lay("", "")
     assert content_bottom(empty.pages[0]) == 72
+
+
+def _info():
+    s = {"total": 1, "insertions": 1, "deletions": 0, "amendments": 0, "numbering": 0, "formatting": 0}
+    return ReportInfo("a.docx", "b.docx", WHEN, "Standard", s, False, True)
+
+
+def _layout(L, info, **kw):
+    p = RecordingPainter()
+    res = draw_layout(L, STANDARD, PdfOptions(**kw), p, FR, info)
+    return p, res
+
+
+def test_report_on_the_last_page_when_it_fits():
+    p, res = _layout(_lay(P("aaaa"), P("aaaa") + P("bbbb")), _info())
+    assert res == DrawResult(1, 1) and p.pages == 1
+    title = next(o for o in p.of("text") if o[3] == TITLE)
+    assert title[2] == 96 + GAP + 6 + 0.8 * 11          # content bottom 96, gap, rule gap, ascent
+    assert title[4] == "<fake:Fake|B>"
+
+
+def test_report_moves_to_an_extra_page_when_it_does_not_fit():
+    body = "".join(P(f"p{i}") for i in range(54))       # exactly fills page 1 (54 x 12 = 648)
+    p, res = _layout(_lay(body, body), _info())
+    assert res == DrawResult(2, 2) and p.pages == 2
+    assert p.of("page")[1] == ("page", 612, 792)
+    title = next(o for o in p.of("text") if o[3] == TITLE)
+    assert title[2] == 72 + 6 + 0.8 * 11
+
+
+def test_report_first_and_none():
+    L = _lay(P("aaaa"), P("aaaa"))
+    p, res = _layout(L, _info(), report="first")
+    assert res == DrawResult(2, 1) and p.page_ops(1)[1][3] == TITLE and p.page_ops(2)[0][3] == "aaaa"
+    p, res = _layout(L, _info(), report="none")
+    assert res == DrawResult(1, None) and not any(o[0] == "text" and o[3] == TITLE for o in p.ops)
+    p, res = _layout(L, None)
+    assert res == DrawResult(1, None)
+
+
+def test_report_uses_the_document_family():
+    L = _lay(P("aaaa"), P("aaaa"))
+    p, _ = _layout(L, _info())
+    faces = {o[4] for o in p.of("text") if o[3] != "aaaa"}
+    assert faces == {"<fake:Fake|>", "<fake:Fake|B>"}
+
+
+def test_every_page_is_drawn_in_order():
+    body = "".join(P(f"p{i}") for i in range(100))
+    p, res = _layout(_lay(body, body), None)
+    assert p.pages == 2 and res.pages == 2
+    assert p.page_ops(1)[0][3] == "p0" and p.page_ops(2)[0][3] == "p54"

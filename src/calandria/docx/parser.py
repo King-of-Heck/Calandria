@@ -101,7 +101,9 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
     d = dict(para_rpr)
     own = read_rpr(rpr)
     d.update(own)
-    return RunProps(bold=bool(own.get("bold", False)),   # bold: run level only (SorkWhare invariant)
+    # Deferred: bold resolves from the run only (paragraph-style and w:rStyle bold are not yet
+    # applied); see docs spec later-minors.
+    return RunProps(bold=bool(own.get("bold", False)),
                     italic=bool(d.get("italic", False)), underline=bool(d.get("underline", False)),
                     font=d.get("font") or ctx.styles.defaults["font"],
                     size_pt=d.get("size_pt") or ctx.styles.defaults["size_pt"], color=d.get("color"))

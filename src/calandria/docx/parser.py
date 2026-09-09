@@ -1,8 +1,6 @@
 """document.xml -> model.Document."""
 from __future__ import annotations
 
-import re
-
 from ..model import (Cell, Document, ParaProps, Paragraph, Row, Run, RunProps, Section, Table)
 from .ns import wq, wval, wbool, twips_to_pt
 from .numbering import Numbering, NumberingCounter
@@ -13,9 +11,6 @@ _TRANSPARENT = {wq("hyperlink"), wq("smartTag"), wq("sdt"), wq("sdtContent"), wq
                 wq("ins"), wq("customXml"), wq("dir"), wq("bdo")}
 _SKIP = {wq("del"), wq("moveFrom"), wq("pPr"), wq("rPr"), wq("proofErr"), wq("bookmarkStart"),
          wq("bookmarkEnd"), wq("commentRangeStart"), wq("commentRangeEnd")}
-_TITLE_STYLE = re.compile(r"^Title$", re.I)
-_HEADING_NAME = re.compile(r"heading\s*(\d)", re.I)
-_HEADING_ID = re.compile(r"Heading(\d)", re.I)
 
 
 class _Ctx:
@@ -112,40 +107,18 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
 def _paragraph(el, ctx: _Ctx) -> Paragraph:
     ppr = el.find(wq("pPr"))
     style_id = wval(ppr.find(wq("pStyle"))) if ppr is not None else None
-    st_ppr = ctx.styles.resolved_ppr(style_id)
+    # resolved_ppr(None) (no pStyle) resolves through Word's default paragraph style chain,
+    # not an empty chain -- see Styles._chain.
+    style_ppr = ctx.styles.resolved_ppr(style_id)
     own = read_ppr(ppr)
-    merged = dict(st_ppr)
-    # "line" is a GROUP (line_spacing/line_rule/line_exact_pt always arrive together from
-    # whichever <w:spacing> supplied a w:line value -- line_rule is always set whenever
-    # line_spacing/line_exact_pt is). When the paragraph's OWN pPr declares its own w:line,
-    # it replaces the whole group inherited from the style chain rather than merging into
-    # it key-by-key -- else a style's auto line_spacing and the paragraph's own exact
-    # line_exact_pt could both end up set at once (self-contradictory: line_spacing and
-    # line_exact_pt describe mutually exclusive line rules).
-    if "line_rule" in own:
-        for key in ("line_spacing", "line_rule", "line_exact_pt"):
-            merged.pop(key, None)
+    merged = dict(style_ppr)
     merged.update(own)
-    # spaceBefore/spaceAfter/line each fall back to docDefaults' <w:pPrDefault>, independently,
-    # only when neither the paragraph nor its style chain set that attribute at all -- a
-    # paragraph or style that sets e.g. spaceAfter but not spaceBefore still inherits the
-    # document default spaceBefore. Every other property (align, indents, keep flags) has
-    # its own explicit default and does not fall through to docDefaults.
-    # "line" is a GROUP: line_spacing/line_rule/line_exact_pt always arrive together from
-    # whichever <w:spacing> element supplied the w:line value (line_rule is always set
-    # whenever line_* is), so the group falls back as a whole, gated on line_rule's
-    # presence -- never mix a paragraph's own w:line with docDefaults' lineRule/lineSpacing.
-    defaults = ctx.styles.defaults
-    for key in ("space_before_pt", "space_after_pt"):
-        if key not in merged and defaults.get(key) is not None:
-            merged[key] = defaults[key]
-    if "line_rule" not in merged:
-        for key in ("line_spacing", "line_rule", "line_exact_pt"):
-            if defaults.get(key) is not None:
-                merged[key] = defaults[key]
     para_rpr = ctx.styles.resolved_rpr(style_id)
 
+    # ---- Numbering: paragraph's own numPr, else the style chain's own numPr (already folded
+    # into `merged` above), else a level that names this style via its own <w:pStyle>.
     num = None
+    lv = None
     num_id, ilvl = merged.get("num_id"), merged.get("ilvl", 0)
     if num_id is None and style_id in ctx.numbering.style_to_num:
         num_id, ilvl = ctx.numbering.style_to_num[style_id]
@@ -158,22 +131,51 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
             if "ind_hanging_pt" not in merged and lv.ind_hanging_pt is not None:
                 merged["ind_hanging_pt"] = lv.ind_hanging_pt
 
-    # Heading is derived ONLY from an explicit Title/Heading-N style -- never from a raw
-    # <w:outlineLvl> (the reference engine ignores it entirely for this purpose; matching
-    # its heuristic is the point of this field). "Title" is a hardcoded special case
-    # (Word's built-in Title style is not named "heading N"); otherwise the style's NAME
-    # is tried first ("heading 2"), then the styleId itself as a fallback ("Heading2") --
-    # the id fallback works even when the style isn't found in styles.xml at all.
-    st = ctx.styles.get(style_id)
-    heading = None
-    if style_id:
-        if _TITLE_STYLE.match(style_id):
-            heading = 1
+    # ---- Spacing (w:spacing), resolved PER ATTRIBUTE: paragraph's own -> the numbering
+    # LEVEL's own <w:pPr>/<w:spacing> -> the style chain (or the default paragraph style
+    # when the paragraph names no pStyle, already folded into `style_ppr` above) ->
+    # docDefaults' <w:pPrDefault>. spaceBefore/spaceAfter fall back independently; the
+    # "line" group (line_spacing/line_rule/line_exact_pt) is taken atomically from whichever
+    # source is the first to set a line rule at all -- these three always arrive together
+    # from one <w:spacing> element and describe mutually exclusive line-height concepts
+    # (a multiplier for "auto", a fixed point height for "exact"/"atLeast"), so they must
+    # never be picked from two different sources.
+    level_ppr = lv.ppr if lv is not None else {}
+    defaults = ctx.styles.defaults
+    space_before_pt = own.get("space_before_pt")
+    if space_before_pt is None:
+        space_before_pt = level_ppr.get("space_before_pt")
+    if space_before_pt is None:
+        space_before_pt = style_ppr.get("space_before_pt")
+    if space_before_pt is None:
+        space_before_pt = defaults.get("space_before_pt")
+    space_after_pt = own.get("space_after_pt")
+    if space_after_pt is None:
+        space_after_pt = level_ppr.get("space_after_pt")
+    if space_after_pt is None:
+        space_after_pt = style_ppr.get("space_after_pt")
+    if space_after_pt is None:
+        space_after_pt = defaults.get("space_after_pt")
+    line_spacing = line_rule = line_exact_pt = None
+    for src in (own, level_ppr, style_ppr, defaults):
+        if src.get("line_rule") is not None:
+            line_spacing, line_rule, line_exact_pt = (
+                src.get("line_spacing"), src.get("line_rule"), src.get("line_exact_pt"))
+            break
+    merged["space_before_pt"], merged["space_after_pt"] = space_before_pt, space_after_pt
+    for key, val in (("line_spacing", line_spacing), ("line_rule", line_rule), ("line_exact_pt", line_exact_pt)):
+        if val is None:
+            merged.pop(key, None)
         else:
-            m = (_HEADING_NAME.search(st.name) if st is not None and st.name else None) or _HEADING_ID.search(style_id)
-            if m:
-                heading = min(6, int(m.group(1)))
-    outline = None if heading is None else heading - 1
+            merged[key] = val
+
+    # `heading` (Title/Heading-N style detection) is a projection concern, not a model one --
+    # see harness/flatten.py. The model keeps Word semantics: outline_level is w:outlineLvl
+    # from the paragraph's own pPr, else the style chain, else None (already resolved into
+    # `merged` by the dict merge above; never derived from styleId/style name here).
+    outline = merged.get("outline_level")
+    st = ctx.styles.get(style_id)
+    style_name = st.name if st is not None else None
 
     # A pending break travels from paragraph to paragraph. Snapshot what arrived from
     # earlier paragraphs, then let _runs discover (and reset) whatever this paragraph's
@@ -195,7 +197,8 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       line_exact_pt=merged.get("line_exact_pt"),
                       keep_next=merged.get("keep_next", False), keep_lines=merged.get("keep_lines", False),
                       page_break_before=merged.get("page_break_before", False),
-                      contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline)
+                      contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
+                      style_name=style_name)
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

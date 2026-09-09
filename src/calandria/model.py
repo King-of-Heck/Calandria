@@ -53,6 +53,7 @@ class ParaProps:
     page_break_before: bool = False
     contextual_spacing: bool = False
     outline_level: int | None = None
+    style_name: str | None = None
 
 
 @dataclass

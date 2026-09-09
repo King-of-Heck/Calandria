@@ -1,7 +1,30 @@
 """Project the tree onto SorkWhare's flat paragraph records for the parity harness."""
 from __future__ import annotations
 
+import re
+
 from ..model import Document, Paragraph, Table, iter_paragraphs
+
+# SorkWhare 1.16.0.html, extractStructured (~line 503-506): "Heading ONLY from an explicit
+# Heading N / Title style." styleId "Title" (any case) is a hardcoded special case; otherwise
+# the style's own NAME is tried first ("heading 2"), falling back to the styleId itself
+# ("Heading2") -- the id fallback works even when the style isn't defined in styles.xml at
+# all. w:outlineLvl is parsed into the reference's style map but is never consulted for this
+# field, so it must not be consulted here either -- that is the whole point of this
+# projection existing separately from the model's Word-semantics outline_level.
+_TITLE_STYLE = re.compile(r"^Title$", re.I)
+_HEADING_NAME = re.compile(r"heading\s*(\d)", re.I)
+_HEADING_ID = re.compile(r"Heading(\d)", re.I)
+
+
+def _heading(pr) -> int | None:
+    sid = pr.style_id
+    if not sid:
+        return None
+    if _TITLE_STYLE.match(sid):
+        return 1
+    m = (_HEADING_NAME.search(pr.style_name) if pr.style_name else None) or _HEADING_ID.search(sid)
+    return min(6, int(m.group(1))) if m else None
 
 
 def _rec(p: Paragraph, tbl) -> dict:
@@ -23,7 +46,7 @@ def _rec(p: Paragraph, tbl) -> dict:
         "keepLines": pr.keep_lines,
         "pageBreakBefore": pr.page_break_before,
         "contextualSpacing": pr.contextual_spacing,
-        "heading": None if pr.outline_level is None else pr.outline_level + 1,
+        "heading": _heading(pr),
         "tbl": tbl,
     }
 

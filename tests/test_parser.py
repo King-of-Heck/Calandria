@@ -53,7 +53,8 @@ def test_style_chain_and_numbering(tmp_path):
     d = _doc(body, **{"word/styles.xml": styles, "word/numbering.xml": numbering})
     top, sub, sub2 = d.blocks
     assert top.num.marker == "1." and sub.num.marker == "1.1" and sub2.num.marker == "1.2"
-    assert sub.props.keep_next and sub.props.outline_level == 1 and sub.props.style_id == "Heading2"
+    assert sub.props.keep_next and sub.props.style_id == "Heading2" and sub.props.style_name == "heading 2"
+    assert sub.props.outline_level is None   # no <w:outlineLvl> anywhere in this fixture's style chain
     assert sub.props.ind_left_pt == 72.0 and sub.props.ind_hanging_pt == 36.0   # from the level
     assert sub.runs[0].props.italic and sub.runs[0].props.size_pt == 14.0 and sub.runs[0].props.font == "Georgia"
     assert top.runs[0].props.size_pt == 10.0 and d.default_font == "Georgia" and d.default_size_pt == 10.0
@@ -161,25 +162,53 @@ def test_own_exact_line_rule_is_not_overridden_by_doc_defaults_auto_line():
     assert pr.line_spacing is None and pr.line_rule == "exact" and pr.line_exact_pt == 24.0
 
 
-def test_heading_from_title_style_id():
-    # SorkWhare hardcodes styleId "Title" (Word's built-in Title style) as heading 1,
-    # regardless of the style's declared name.
-    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Title">'
-              '<w:name w:val="Title"/></w:style></w:styles>')
-    d = _doc(P("Contract Name", ppr='<w:pStyle w:val="Title"/>'), **{"word/styles.xml": styles})
-    assert d.blocks[0].props.outline_level == 0   # heading == outline_level + 1 == 1
-
-
-def test_heading_from_style_id_when_style_undefined():
-    # SorkWhare falls back to matching "HeadingN" against the styleId itself even when the
-    # style isn't found in styles.xml at all (no styles part supplied here).
-    d = _doc(P("Section", ppr='<w:pStyle w:val="Heading3"/>'))
-    assert d.blocks[0].props.outline_level == 2
-
-
-def test_outline_lvl_alone_is_not_a_heading():
-    # A raw <w:outlineLvl> with no Heading/Title style attached is NOT a heading in the
-    # reference -- it derives `heading` purely from styleId/style-name, never from
-    # outlineLvl. (outlineLvl is still read into ParaProps for other consumers.)
+def test_outline_level_from_own_ppr():
+    # outline_level is Word semantics: the paragraph's own <w:outlineLvl>, independent of
+    # any Title/Heading-N style naming (that heuristic lives in harness/flatten.py's
+    # `heading` projection, not here -- see tests/test_flatten.py).
     d = _doc(P("plain", ppr='<w:outlineLvl w:val="1"/>'))
-    assert d.blocks[0].props.outline_level is None
+    assert d.blocks[0].props.outline_level == 1
+
+
+def test_outline_level_falls_back_to_style_chain():
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Body">'
+              '<w:pPr><w:outlineLvl w:val="3"/></w:pPr></w:style></w:styles>')
+    d = _doc(P("x", ppr='<w:pStyle w:val="Body"/>'), **{"word/styles.xml": styles})
+    assert d.blocks[0].props.outline_level == 3
+
+
+def test_default_paragraph_style_feeds_unstyled_paragraphs():
+    # A paragraph naming no pStyle resolves through Word's DEFAULT paragraph style
+    # (w:type="paragraph" w:default="1"), not an empty chain.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Normal" w:default="1">'
+              '<w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr>'
+              '<w:rPr><w:i/></w:rPr></w:style></w:styles>')
+    d = _doc(P("x"), **{"word/styles.xml": styles})
+    pr = d.blocks[0].props
+    assert pr.align == "center" and pr.space_after_pt == 0.0
+    assert d.blocks[0].runs[0].props.italic is True
+
+
+def test_spacing_falls_back_through_numbering_level():
+    # A numbered paragraph whose LEVEL's own <w:pPr> sets a spacing attribute (and whose
+    # style/docDefaults set nothing) inherits it from the level -- the rung between the
+    # paragraph's own properties and the style chain.
+    numbering = (f'<w:numbering xmlns:w="{W_NS}"><w:abstractNum w:abstractNumId="0">'
+                 '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/>'
+                 '<w:pPr><w:spacing w:before="240"/></w:pPr></w:lvl></w:abstractNum>'
+                 '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+    d = _doc(P("x", ppr='<w:numPr><w:numId w:val="1"/><w:ilvl w:val="0"/></w:numPr>'),
+             **{"word/numbering.xml": numbering})
+    assert d.blocks[0].props.space_before_pt == 12.0
+
+
+def test_unstyled_paragraph_spacing_normal_default_wins_over_doc_defaults():
+    # Confirms fix 2's precedence end-to-end: an unstyled paragraph -> its style is the
+    # DEFAULT paragraph style (Normal here) -> Normal sets space_after=0 -> docDefaults'
+    # space_after=200 (10pt) must NOT override it (Normal is closer in the chain).
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:pPrDefault><w:pPr>'
+              '<w:spacing w:after="200"/></w:pPr></w:pPrDefault></w:docDefaults>'
+              '<w:style w:type="paragraph" w:styleId="Normal" w:default="1">'
+              '<w:pPr><w:spacing w:after="0"/></w:pPr></w:style></w:styles>')
+    d = _doc(P("x"), **{"word/styles.xml": styles})
+    assert d.blocks[0].props.space_after_pt == 0.0

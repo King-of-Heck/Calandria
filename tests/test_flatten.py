@@ -1,11 +1,11 @@
 from calandria.docx.parser import parse_docx
 from calandria.harness.flatten import flatten
-from calandria.testing.makedocx import make_docx, DOC, P
+from calandria.testing.makedocx import make_docx, DOC, P, W_NS
 
 
 def test_flatten_shape_and_empty_paragraphs_dropped():
     # Heading comes from an explicit style ("Heading2" here, via the styleId fallback --
-    # see test_parser.py's heading tests), never from a raw <w:outlineLvl>.
+    # see the heading tests below), never from a raw <w:outlineLvl>.
     body = (P("Intro", ppr='<w:pStyle w:val="Heading2"/>') + "<w:p/>" +
             '<w:tbl><w:tr><w:tc>' + P("a") + '</w:tc><w:tc>' + P("b") + '</w:tc></w:tr>'
             '<w:tr><w:tc>' + P("c") + '</w:tc></w:tr></w:tbl>' + P("End"))
@@ -38,3 +38,40 @@ def test_cols_from_grid():
             '<w:tr><w:tc>' + P("a") + '</w:tc><w:tc>' + P("b") + '</w:tc></w:tr></w:tbl>')
     recs = flatten(parse_docx(make_docx({"word/document.xml": DOC(body)})))
     assert recs[0]["tbl"]["cols"] == 3
+
+
+def test_heading_from_title_style_id():
+    # SorkWhare hardcodes styleId "Title" (Word's built-in Title style) as heading 1,
+    # regardless of the style's declared name.
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Title">'
+              '<w:name w:val="Title"/></w:style></w:styles>')
+    recs = flatten(parse_docx(make_docx({"word/document.xml": DOC(P("Contract Name", ppr='<w:pStyle w:val="Title"/>')),
+                                          "word/styles.xml": styles})))
+    assert recs[0]["heading"] == 1
+
+
+def test_heading_from_style_name():
+    # A custom styleId that doesn't itself look like "HeadingN" still becomes a heading when
+    # the style's declared NAME matches "heading \d" (checked before the styleId fallback).
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="MySectionHead">'
+              '<w:name w:val="Heading 3"/></w:style></w:styles>')
+    recs = flatten(parse_docx(make_docx({"word/document.xml": DOC(P("Section", ppr='<w:pStyle w:val="MySectionHead"/>')),
+                                          "word/styles.xml": styles})))
+    assert recs[0]["heading"] == 3
+
+
+def test_heading_from_style_id_when_style_undefined():
+    # SorkWhare falls back to matching "HeadingN" against the styleId itself even when the
+    # style isn't found in styles.xml at all (no styles part supplied here).
+    recs = flatten(parse_docx(make_docx({"word/document.xml": DOC(P("Section", ppr='<w:pStyle w:val="Heading3"/>'))})))
+    assert recs[0]["heading"] == 3
+
+
+def test_outline_lvl_alone_is_not_a_heading():
+    # A raw <w:outlineLvl> with no Heading/Title style attached is NOT a heading in the
+    # reference -- `heading` derives purely from styleId/style-name, never from outlineLvl.
+    # The model still keeps outline_level itself (Word semantics) for other consumers.
+    d = parse_docx(make_docx({"word/document.xml": DOC(P("plain", ppr='<w:outlineLvl w:val="1"/>'))}))
+    assert d.blocks[0].props.outline_level == 1
+    recs = flatten(d)
+    assert recs[0]["heading"] is None

@@ -58,7 +58,7 @@ def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef],
         face = fonts[g.face]
         color, eff, fake_bold, fake_italic = run_style(g, face, rs)
         if g.text.strip():
-            painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic)
+            painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic, width=g.w)
         for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, line.baseline, g.size):
             painter.rule(x1, x2, y, t, color, dotted)
 

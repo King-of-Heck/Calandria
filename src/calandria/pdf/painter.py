@@ -1,6 +1,7 @@
 """The drawing surface the sink draws on. Four operations, points, origin top-left, y downward.
 `face` is any object with path, font_number, family, bold, italic, synthetic (a layout FontRef, a
-fonts.Face or the test FakeFace); the painter decides how to load it."""
+fonts.Face or the test FakeFace); the painter decides how to load it. `width` is the run's
+laid-out advance for painters that can pin it (the viewer's SVG); the PDF ignores it."""
 from __future__ import annotations
 
 from typing import Protocol
@@ -10,7 +11,7 @@ class Painter(Protocol):
     def page(self, w: float, h: float) -> None: ...
 
     def text(self, x: float, baseline: float, text: str, face, size: float, color: str,
-             fake_bold: bool = False, fake_italic: bool = False) -> None: ...
+             fake_bold: bool = False, fake_italic: bool = False, width: float | None = None) -> None: ...
 
     def rule(self, x1: float, x2: float, y: float, thickness: float, color: str,
              dotted: bool = False) -> None: ...

@@ -46,10 +46,11 @@ def test_payload_pages_anchors_and_marks_agree_with_the_layout_and_the_changes(p
 def test_hidden_unchanged_keeps_every_anchor():
     pair = pairs()[0]
     s = _session(pair)
+    before = s.layout.page_count
     s.relayout(Options(show_equal=False))
     d = s.payload()
     cids = {r["cid"] for r in d["changes"] if r["cid"] is not None}
-    assert set(d["anchors"]) == cids and d["page_count"] <= s.layout.page_count
+    assert set(d["anchors"]) == cids and d["page_count"] <= before
 
 
 def test_texts_carry_the_resolved_family():

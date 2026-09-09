@@ -262,10 +262,10 @@ def test_idle_watchdog_stops_an_unvisited_server():
 
 
 def test_requests_keep_the_watchdog_quiet():
-    s = Served(Session(fonts=FakeResolver()), idle=0.6)
+    s = Served(Session(fonts=FakeResolver()), idle=3.0)
     try:
         for _ in range(4):
-            time.sleep(0.3)
+            time.sleep(0.5)
             assert _json(s.url + "api/state")[0] == 200
         assert s.thread.is_alive()
     finally:

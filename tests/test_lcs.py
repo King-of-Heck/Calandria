@@ -1,7 +1,5 @@
 import random
 
-import pytest
-
 from calandria.diff import lcs
 from calandria.diff.lcs import lcs_ops
 

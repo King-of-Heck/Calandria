@@ -30,6 +30,7 @@ class Seg:
 
 
 def _in_runs(runs, i: int) -> bool:
+    # runs must be sorted and non-overlapping (as bold_runs produces) for the early break below.
     for s, e in runs or []:
         if s <= i < e:
             return True

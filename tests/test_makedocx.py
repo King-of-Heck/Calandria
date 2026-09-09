@@ -1,5 +1,5 @@
 import zipfile, io
-from calandria.testing.makedocx import make_docx, DOC, P
+from calandria.testing.makedocx import make_docx, DOC, P, PR, R, STYLES, TBL
 
 
 def test_make_docx_roundtrip():
@@ -15,9 +15,6 @@ def test_p_with_props():
     xml = P("x", ppr="<w:jc w:val=\"center\"/>", rpr="<w:b/>")
     assert xml == ('<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
                    '<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">x</w:t></w:r></w:p>')
-
-
-from calandria.testing.makedocx import PR, R, STYLES, TBL
 
 
 def test_run_and_paragraph_helpers():

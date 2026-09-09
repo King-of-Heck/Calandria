@@ -70,6 +70,7 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
             if s + 1 < len(segs) and segs[s + 1][0] == "delete":
                 dels = [i for i, _ in segs[s + 1][1]]
                 s += 1
+        # both sets mirror the reference engine; kept identical on purpose
         used: set[int] = set()
         paired: list[tuple[int, int]] = []
         for di in dels:

@@ -6,6 +6,7 @@ its table location. Empty paragraphs are not units (they are layout, not content
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Iterator
 
 from ..model import Document, Paragraph, Table, iter_paragraphs
 from .chars import FmtSpan, bold_runs, fmt_spans
@@ -30,24 +31,33 @@ class Unit:
     para: Paragraph
 
 
-def units(doc: Document) -> list[Unit]:
-    out: list[Unit] = []
+def walk(doc: Document) -> Iterator[tuple[Paragraph, Loc | None]]:
+    """Every paragraph in stream order (empty ones included) with its table location.
 
-    def add(p: Paragraph, loc: Loc | None):
-        if p.is_empty:
-            return
-        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold_runs(p), fmt_spans(p),
-                        loc, p))
-
+    This is the ONE definition of stream order: units() is built on it, and the layout's merged
+    walk relies on empties and units sharing it."""
     ti = 0
     for b in doc.blocks:
         if isinstance(b, Paragraph):
-            add(b, None)
+            yield b, None
         elif isinstance(b, Table):
             cols = len(b.grid_pt) or max((len(r.cells) for r in b.rows), default=0)
             for ri, row in enumerate(b.rows):
                 for ci, cell in enumerate(row.cells):
                     for p in iter_paragraphs(cell.blocks):
-                        add(p, Loc(ti, ri, ci, cols))
+                        yield p, Loc(ti, ri, ci, cols)
             ti += 1
+
+
+def units(doc: Document) -> list[Unit]:
+    out: list[Unit] = []
+    for p, loc in walk(doc):
+        if p.is_empty:
+            continue
+        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold_runs(p), fmt_spans(p), loc, p))
     return out
+
+
+def table_by_ti(doc: Document, ti: int) -> Table:
+    """The ti-th top-level table -- the table a Loc.ti refers to."""
+    return [b for b in doc.blocks if isinstance(b, Table)][ti]

@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 import tomllib
 import zipfile
 from pathlib import Path
@@ -229,3 +230,22 @@ def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
     with zipfile.ZipFile(out) as z:
         assert sorted(z.namelist()) == names
         assert z.read("Calandria-9.9.9/Calandria.cmd") == b"@echo off\r\n"
+
+
+def test_child_env_drops_python_variables_and_disables_bytecode():
+    env = br.child_env({"PATH": "x", "PYTHONPATH": "y", "pythonhome": "z", "SystemRoot": "C:\\Windows"})
+    assert env == {"PATH": "x", "SystemRoot": "C:\\Windows", "PYTHONDONTWRITEBYTECODE": "1"}
+
+
+def test_src_on_path_is_added_once():
+    import calandria
+
+    src = str(br.ROOT / "src")
+    # Some other module already on sys.path (calandria's own editable install, a harness script
+    # imported by another test module) may have put `src` there before this test runs -- that is
+    # not what is under test. What matters is that _src_on_path() itself never grows the count.
+    before = sys.path.count(src)
+    br._version()
+    br._version()
+    assert sys.path.count(src) == max(before, 1)
+    assert br._version() == calandria.__version__

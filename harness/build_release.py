@@ -194,27 +194,45 @@ def stage(version: str) -> Path:
     return stage_dir
 
 
+def child_env(base: dict[str, str]) -> dict[str, str]:
+    """`base` without any PYTHON* variable (case-insensitive), plus PYTHONDONTWRITEBYTECODE=1.
+
+    Keeps a subprocess -- especially the staged interpreter, whose whole point is that its
+    `._pth` alone defines `sys.path` -- from inheriting a PYTHONPATH / PYTHONHOME /
+    PYTHONSAFEPATH set in this process's own environment.
+    """
+    env = {k: v for k, v in base.items() if not k.upper().startswith("PYTHON")}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
+
+
 def _run(cmd: list[str], cwd: Path, timeout: float = 300) -> str:
     print("  " + " ".join(cmd[1:] if cmd[0].endswith("python.exe") else cmd))
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
-                        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+                        env=child_env(os.environ))
     if p.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd)} failed ({p.returncode}):\n{p.stdout}\n{p.stderr}")
     return p.stdout
 
 
+def _src_on_path() -> None:
+    """Make the repo's `calandria` importable in THIS process (for the version and the smoke pair)."""
+    src = str(ROOT / "src")
+    if src not in sys.path:
+        sys.path.insert(0, src)
+
+
 def smoke(stage_dir: Path, version: str) -> None:
     """Run the staged interpreter the way the launcher will: version, imports, a PDF, a serve."""
     py = str(stage_dir / "python" / "python.exe")
-    env_note = "(stage smoke)"
-    print("smoke", env_note)
+    print("smoke")
     out = _run([py, "-m", "calandria", "version"], stage_dir)
     if out.strip() != f"calandria {version}":
         raise RuntimeError(f"version smoke printed {out!r}")
     _run([py, "-c", SMOKE_IMPORTS], stage_dir)
     _run([py, "-c", "import os, sys; real = [p for p in sys.path if p and p != os.getcwd()]; "
                     "assert len(real) == 4, sys.path"], stage_dir)   # -c may prepend '' / the cwd
-    sys.path.insert(0, str(ROOT / "src"))
+    _src_on_path()
     from calandria.testing.makedocx import make_docx, DOC, P
     work = stage_dir.parent / "smoke"
     work.mkdir(exist_ok=True)
@@ -244,7 +262,7 @@ def zip_stage(stage_dir: Path, out: Path) -> list[str]:
 
 
 def _version() -> str:
-    sys.path.insert(0, str(ROOT / "src"))
+    _src_on_path()
     from calandria import __version__
     return __version__
 

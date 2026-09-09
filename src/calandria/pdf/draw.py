@@ -1,5 +1,9 @@
 """Walks a Layout and emits Painter calls: runs and markers with their decorations, the table
-grid, change bars, gutter change numbers, and the pages themselves."""
+grid, change bars, gutter change numbers, and the pages themselves.
+
+The HTML viewer mirrors this module rather than reimplementing it: run_style, cid_label,
+bar_intervals, content_bottom and report_lines are the shared decisions, so a change to any of
+them shows in both sinks."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,15 +41,22 @@ def cid_label(cids: list[int]) -> str:
     return ", ".join(parts)
 
 
+def run_style(g: GlyphRun, face: FontRef, rs: RenderSet) -> tuple[str, frozenset, bool, bool]:
+    """How one run is painted: (colour, effects, fake_bold, fake_italic). The colour is the
+    category's, else the run's own, else black; a synthetic face is faked in the direction the
+    resolver could not supply, and the bold / italic effects fake it too."""
+    style = rs.category(g.mode, g.fmt)
+    color = style.color if style else (g.color or BLACK)
+    eff = run_effects(style.effects if style else (), g.underline)
+    return (color, eff, (face.synthetic and face.bold) or "bold" in eff,
+            (face.synthetic and face.italic) or "italic" in eff)
+
+
 def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef], rs: RenderSet, painter) -> None:
     """Text and decorations of one list of glyph runs on one line (the marker or the body runs)."""
     for g in runs:
         face = fonts[g.face]
-        style = rs.category(g.mode, g.fmt)
-        color = style.color if style else (g.color or BLACK)
-        eff = run_effects(style.effects if style else (), g.underline)
-        fake_bold = (face.synthetic and face.bold) or "bold" in eff
-        fake_italic = (face.synthetic and face.italic) or "italic" in eff
+        color, eff, fake_bold, fake_italic = run_style(g, face, rs)
         if g.text.strip():
             painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic)
         for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, line.baseline, g.size):

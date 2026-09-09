@@ -8,7 +8,7 @@ from calandria.layout.pages import FontRef
 from calandria.layout.pieces import LayoutOptions
 from calandria.pdf.draw import (BAR_GAP, BAR_MERGE_TOL, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
                                 DrawResult, PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid,
-                                draw_layout, draw_page, draw_runs)
+                                draw_layout, draw_page, draw_runs, run_style)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
 from calandria.pdf.report import GAP, TITLE, ReportInfo, report_height
 from calandria.testing.fakefonts import FakeResolver
@@ -118,6 +118,34 @@ def test_bold_italic_effects_are_faked():
     p = _runs(_lay(P("aaaa"), P("aaaa bbbb")), rs)
     assert ("text", 97, 80, "bbbb", "<fake:Fake|>", 10, BLACK, True, True) in p.ops
     assert ("rule", 97, 117, 81.1, 0.6, BLACK, False) in p.ops
+
+
+def _one_run(L, page=0, line=0, idx=0):
+    ln = L.pages[page].lines[line]
+    g = ln.runs[idx]
+    return g, L.fonts[g.face]
+
+
+def test_run_style_of_an_equal_run_keeps_the_document_colour():
+    body = PR(R("aaaa", '<w:u w:val="single"/><w:color w:val="00AA00"/>'))
+    g, face = _one_run(_lay(body, body))
+    assert run_style(g, face, STANDARD) == ("00aa00", frozenset({"underline"}), False, False)
+
+
+def test_run_style_of_an_inserted_run_takes_the_category():
+    L = _lay(P("aaaa"), P("aaaa bbbb"))
+    g, face = _one_run(L, idx=2)
+    assert g.text == "bbbb"
+    assert run_style(g, face, STANDARD) == ("0000ff", frozenset({"double-underline"}), False, False)
+    assert run_style(g, face, BLACK_AND_WHITE)[0] == BLACK
+
+
+def test_run_style_fakes_a_synthetic_face():
+    L = _lay(P("aaaa"), P("aaaa"))
+    g, _ = _one_run(L)
+    assert run_style(g, FontRef("<fake:Fake|>", 0, "Fake", True, True, True), STANDARD)[2:] == (True, True)
+    assert run_style(g, FontRef("<fake:Fake|>", 0, "Fake", True, False, True), STANDARD)[2:] == (True, False)
+    assert run_style(g, FontRef("<fake:Fake|BI>", 0, "Fake", True, True, False), STANDARD)[2:] == (False, False)
 
 
 def test_cid_label():

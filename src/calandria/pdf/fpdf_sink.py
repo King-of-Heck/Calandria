@@ -37,17 +37,23 @@ class FpdfPainter:
         p = self.pdf
         p.set_font(self._family(face), "", size)
         p.set_text_color(*rgb(color))
-        if fake_bold:
-            p.set_draw_color(*rgb(color))
-            p.set_line_width(size * STROKE_FRACTION)
-            p.text_mode = TextMode.FILL_STROKE
-        if fake_italic:
+        if not fake_bold:
+            self._emit(x, baseline, text, fake_italic)
+            return
+        # fpdf2 writes no "0 Tr" to leave the fill mode again, and only brackets a text object in
+        # q/Q when the fill colour differs from the text colour: without a context of our own the
+        # stroke mode would stay set for every later run on the page.
+        with p.local_context(text_mode=TextMode.FILL_STROKE, line_width=size * STROKE_FRACTION,
+                             draw_color=rgb(color)):
+            self._emit(x, baseline, text, fake_italic)
+
+    def _emit(self, x: float, baseline: float, text: str, skewed: bool) -> None:
+        p = self.pdf
+        if skewed:
             with p.skew(ax=ITALIC_DEGREES, x=x, y=baseline):
                 p.text(x, baseline, text)
         else:
             p.text(x, baseline, text)
-        if fake_bold:
-            p.text_mode = TextMode.FILL
 
     def rule(self, x1: float, x2: float, y: float, thickness: float, color: str, dotted: bool = False) -> None:
         p = self.pdf

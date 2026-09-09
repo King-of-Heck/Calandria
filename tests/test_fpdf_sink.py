@@ -43,6 +43,7 @@ def test_one_registration_per_file_and_font_number():
     p.text(72, 96, "b", reg, 11, "000000")
     p.text(72, 110, "c", bold, 11, "000000")
     assert len(p._fonts) == (1 if bold.path == reg.path and bold.font_number == reg.font_number else 2)
+    assert len(_fonts(_read(p.output()))) == len(p._fonts)
 
 
 def test_ttc_member_is_selected_by_font_number():
@@ -77,10 +78,27 @@ def test_fake_bold_italic_rules_and_lines_render():
     content = r.pages[0].get_contents().get_data()
     # fpdf2 writes the text mode inside the text object that uses it and nothing at all for the
     # default fill mode, so "2 Tr" on the fake-bold run and no Tr on the next one is entered-and-left
-    assert b" 2 Tr" in content
+    fake = content.split(b"72.00 710.00 Td")[1].split(b"ET")[0]
+    assert b" 2 Tr" in fake and b"0.33 w" in fake             # 11 pt * STROKE_FRACTION
     plain = content.split(b"72.00 696.00 Td")[1].split(b"ET")[0]
     assert b"Tr" not in plain
     assert b"[1.000 1.500] 0.000 d" in content and b"[] 0 d" in content    # dashed then solid
+
+
+def test_fake_bold_does_not_leak_the_text_mode_into_the_next_run():
+    # fpdf2 brackets a text object in q/Q only when the fill colour differs from the text colour,
+    # so a BLACK fake-bold run is the case where a leaked stroke mode would reach the next run.
+    p = FpdfPainter()
+    face = default_resolver().face("Calibri")
+    p.page(612, 792)
+    p.text(72, 82, "fake", face, 11, "000000", fake_bold=True)
+    p.text(72, 96, "plain", face, 11, "000000")
+    content = _read(p.output()).pages[0].get_contents().get_data()
+    head, _, tail = content.partition(b"72.00 696.00 Td")
+    bold = head.split(b"72.00 710.00 Td")[1]
+    assert b" 2 Tr" in bold and b"0.33 w" in bold             # 11 pt * STROKE_FRACTION
+    assert b"Q" in bold                                       # the stroke mode is left behind
+    assert b"Tr" not in tail.split(b"ET")[0]                  # the plain run renders in fill mode
 
 
 def test_empty_text_draws_nothing_and_output_is_deterministic():

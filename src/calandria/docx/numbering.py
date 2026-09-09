@@ -55,6 +55,7 @@ class Level:
     ind_left_pt: float | None = None
     ind_hanging_pt: float | None = None
     align: str | None = None
+    suff: str = "tab"
     # The level's own <w:pPr> (spacing group etc.) -- the rung the reference inserts between
     # a paragraph's own properties and the style chain in its spacing fallback. Indents are
     # already captured above as their own fields; kept for the existing callers of those.
@@ -93,6 +94,7 @@ class Numbering:
                     ind_hanging_pt=twips_to_pt(ind.get(wq("hanging"))) if ind is not None else None,
                     align=wval(lv.find(f"{wq('pPr')}/{wq('jc')}")) or wval(lv.find(wq("lvlJc"))),
                     ppr=read_ppr(lv.find(wq("pPr"))),
+                    suff=wval(lv.find(wq("suff")), "tab") or "tab",
                 )
             n.abstract[int(aid)] = levels
         for num in root.iter(wq("num")):
@@ -130,7 +132,7 @@ class NumberingCounter:
         if lv is None:
             return None
         if lv.fmt == "bullet":
-            return NumInfo(num_id, ilvl, BULLETS[min(ilvl, len(BULLETS) - 1)], True)
+            return NumInfo(num_id, ilvl, BULLETS[min(ilvl, len(BULLETS) - 1)], True, lv.suff, lv.align or "left")
         aid = self.n.num_to_abs[num_id]
         counts = self._counts.setdefault(aid, {})
         so = self.n.overrides.get(num_id, {}).get(ilvl)
@@ -147,4 +149,4 @@ class NumberingCounter:
             l2 = levels.get(li, Level())
             return fmt_num(counts.get(li, l2.start), l2.fmt)
 
-        return NumInfo(num_id, ilvl, _PH.sub(sub, lv.text), False)
+        return NumInfo(num_id, ilvl, _PH.sub(sub, lv.text), False, lv.suff, lv.align or "left")

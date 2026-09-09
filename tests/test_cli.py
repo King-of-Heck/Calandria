@@ -1,6 +1,14 @@
 import json
+import os
+
+import pytest
+
 from calandria.__main__ import main
+from calandria.layout.fonts import default_dirs
 from calandria.testing.makedocx import make_docx, DOC, P
+
+_needs_fonts = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
+                                  reason="no system font directory on this machine")
 
 
 def test_dump(tmp_path, capsys):
@@ -53,3 +61,30 @@ def test_compare_flags_accepted_in_any_position(tmp_path, capsys):
     assert main(["compare", "--ignore-case", a, b]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["options"]["ignore_case"] is True
+
+
+
+@_needs_fonts
+def test_layout_pages_only(tmp_path, capsys):
+    a = _write(tmp_path, "a.docx", P("Alpha"))
+    b = _write(tmp_path, "b.docx", P("Alpha") + P("Beta"))
+    assert main(["layout", a, b, "--pages"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"pages": 1}
+
+
+@_needs_fonts
+def test_layout_model_and_hide_flag(tmp_path, capsys):
+    a = _write(tmp_path, "a.docx", P("Alpha"))
+    b = _write(tmp_path, "b.docx", P("Alpha") + P("Beta"))
+    assert main(["layout", "--hide-unchanged", a, b]) == 0
+    d = json.loads(capsys.readouterr().out)
+    assert d["page_count"] == 1 and d["options"]["show_equal"] is False
+    assert [r["t"] for r in d["pages"][0]["lines"][0]["runs"]] == ["Beta"]
+    assert d["pages"][0]["lines"][0]["runs"][0]["m"] == "ins"
+
+
+def test_layout_rejects_unknown_flags_and_wrong_arity(tmp_path, capsys):
+    a = _write(tmp_path, "a.docx", P("Alpha"))
+    assert main(["layout", a, a, "--bogus"]) == 2
+    assert main(["layout", a]) == 2
+    assert main(["compare", a, a, "--pages"]) == 2      # a layout-only flag is not a compare flag

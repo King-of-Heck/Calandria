@@ -12,7 +12,8 @@ import gen_pairs  # noqa: E402
 
 def test_every_pair_parses_and_compares(tmp_path):
     pairs = gen_pairs.write_all(tmp_path)
-    assert [p["alias"] for p in pairs] == ["gen-fmt", "gen-table", "gen-punct", "gen-dense", "gen-longcap"]
+    assert [p["alias"] for p in pairs] == ["gen-fmt", "gen-table", "gen-punct", "gen-dense", "gen-longcap",
+                                           "gen-empty", "gen-latin1"]
     manifest = json.loads((tmp_path / "manifest.gen.json").read_text("utf8"))
     assert manifest["pairs"] == pairs
     for p in pairs:

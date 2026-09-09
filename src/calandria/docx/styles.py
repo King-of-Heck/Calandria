@@ -45,6 +45,7 @@ def read_ppr(ppr) -> dict:
     ind = ppr.find(wq("ind"))
     if ind is not None:
         for attr, key in (("left", "ind_left_pt"), ("start", "ind_left_pt"),
+                          ("right", "ind_right_pt"), ("end", "ind_right_pt"),
                           ("hanging", "ind_hanging_pt"), ("firstLine", "ind_first_line_pt")):
             v = twips_to_pt(ind.get(wq(attr)))
             if v is not None:

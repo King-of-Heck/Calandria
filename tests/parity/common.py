@@ -1,5 +1,6 @@
 """Shared pieces of the parity gates: corpus/oracle paths, manifests, divergence lists, allow policy."""
 import functools
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -57,3 +58,13 @@ def allowed(div, alias, allow):
 @functools.lru_cache(maxsize=None)
 def parse_cached(path: Path):
     return parse_docx(path)
+
+
+def page_digest(lay) -> str:
+    """A stable fingerprint of a whole page model: page counts alone cannot see a line that moved.
+    Written into golden-pages.json by harness/golden_pages.py and checked by test_pages.py, so both
+    sides must compute it the same way -- hence one definition here. Hashes only the "pages" part
+    of to_dict(), excluding "fonts" (whose entries carry absolute font file paths, so the digest
+    would otherwise change on a machine that resolves the same faces from a different directory)."""
+    blob = json.dumps(lay.to_dict()["pages"], sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]

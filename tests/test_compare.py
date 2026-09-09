@@ -126,3 +126,27 @@ def test_compare_carries_both_documents_but_compare_units_does_not():
     assert c.a_doc is a and c.b_doc is b
     cu = compare_units(units(a), units(b))
     assert cu.a_doc is None and cu.b_doc is None
+
+
+def test_delete_group_without_inserts():
+    a = _doc(P("one") + P("two") + P("three"))
+    b = _doc(P("one") + P("three"))
+    c = compare(a, b)
+    assert [r.type for r in c.rows] == ["equal", "deleted", "equal"]
+    assert (c.summary["deletions"], c.summary["insertions"], c.summary["total"]) == (1, 0, 1)
+
+
+def test_all_deleted_document():
+    a = _doc(P("one") + P("two"))
+    b = _doc("")
+    c = compare(a, b)
+    assert [r.type for r in c.rows] == ["deleted", "deleted"]
+    assert (c.summary["deletions"], c.summary["total"], c.rows[1].cid) == (2, 2, 2)
+
+
+def test_all_inserted_document():
+    a = _doc("")
+    b = _doc(P("one") + P("two"))
+    c = compare(a, b)
+    assert [r.type for r in c.rows] == ["inserted", "inserted"]
+    assert (c.summary["insertions"], c.summary["total"], c.rows[1].cid) == (2, 2, 2)

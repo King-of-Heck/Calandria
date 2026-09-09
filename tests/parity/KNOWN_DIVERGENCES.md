@@ -120,3 +120,43 @@ closing tag and truncate the outer table.
 
 Calandria is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
 Calandria to match.
+
+# Layout (Plan 3)
+
+The layout engine has no oracle: page counts are pinned by `tests/parity/golden-pages.json`
+(our own output, regenerated deliberately with `harness/golden_pages.py`) and Word's page count
+is a manual smoke check (`harness/word_pages.py`). Two model-level readings matter here:
+
+## (k) Section break type is read from the section being closed
+
+`w:sectPr/w:type` describes how the section it belongs to STARTS relative to the previous one
+(ECMA-376 17.6.22). Both the parser and the reference read it as how the section ENDS -- the
+paragraph carrying the sectPr sets the next paragraph's page break unless its own type is
+continuous. The extraction gate pins `pageBreakBefore`, so the parser keeps the reference's
+reading, and the layout groups page geometry the same way (a section whose predecessor closed
+"continuous" flows on under the previous geometry). Only a document whose sections carry
+different types is affected; none in the corpus does. Fixing it means moving the decision to a
+post-pass over the sections and adding a scoped allow entry for the first pair that hits it.
+`evenPage` and `oddPage` start the following paragraph on a new page like `nextPage`, but no
+blank page is inserted to reach the requested parity -- page parity is not modelled.
+
+## (l) Empty paragraphs and deleted empty paragraphs
+
+Empty paragraphs of the revised document are laid out as one blank line each (their height is
+the document default font's line height -- the paragraph mark's own run properties are not
+modelled). Empty paragraphs that exist only in the original are not rendered: they are not diff
+units, so nothing marks them deleted. Word shows a struck paragraph mark there.
+
+A deleted (non-empty) paragraph that is the only thing left after a section-break paragraph is
+flushed into the closing section rather than the one that follows, because `merged_items` only
+knows the boundary as "before the next revised paragraph" and has no revised paragraph left to
+flush against once the tail of the document is all deletions. The deleted paragraph's own
+position among the original document's section breaks is the information a fix would need to
+place it in the section it actually stood in.
+
+## (m) Table borders, shading and vertical alignment
+
+The page model carries cell boxes only. In v2.0.0 every sink draws the same uniform 0.5 pt grid
+around every cell box (a `v_merge_continue` cell draws no top rule), no shading, and cells are
+top-aligned. `w:tblBorders` / `w:tcBorders`, `w:shd` and `w:vAlign` are not modelled; when they
+are, they will be added to `Cell` and `CellBox` so that both sinks keep reading one answer.

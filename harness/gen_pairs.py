@@ -47,12 +47,19 @@ _LONG = " ".join(f"w{i}" for i in range(2100))
 _LONGCAP_A = P(_LONG) + P("End")
 _LONGCAP_B = P(_LONG.replace("w1000 ", "changed ")) + P("End")
 
+_EMPTY_A = P("Only paragraph") + P("Second paragraph")
+_EMPTY_B = ""
+_LATIN1_A = P("Café résumé naïve façade") + P("Same line")
+_LATIN1_B = P("Cafe resume naive facade") + P("Same line")
+
 PAIRS = {
     "fmt": _pair(_FMT_A, _FMT_B),
     "table": _pair(_TABLE_A, _TABLE_B),
     "punct": _pair(_PUNCT_A, _PUNCT_B),
     "dense": _pair(_DENSE_A, _DENSE_B),
     "longcap": _pair(_LONGCAP_A, _LONGCAP_B),
+    "empty": _pair(_EMPTY_A, _EMPTY_B),
+    "latin1": _pair(_LATIN1_A, _LATIN1_B),
 }
 
 

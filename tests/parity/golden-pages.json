@@ -1,0 +1,92 @@
+{
+ "bench": {
+  "a": 3,
+  "b": 3,
+  "digest": "26be729a9e5682bc",
+  "redline": 3
+ },
+ "big200": {
+  "a": 5,
+  "b": 5,
+  "digest": "966698dca1389d95",
+  "redline": 5
+ },
+ "c4": {
+  "a": 1,
+  "b": 1,
+  "digest": "31c1e75ad8ce8505",
+  "redline": 1
+ },
+ "c6": {
+  "a": 1,
+  "b": 1,
+  "digest": "868c841677ea77df",
+  "redline": 1
+ },
+ "fixture": {
+  "a": 1,
+  "b": 1,
+  "digest": "cefe76b379abad78",
+  "redline": 1
+ },
+ "gen-dense": {
+  "a": 1,
+  "b": 1,
+  "digest": "58ef673bed7133da",
+  "redline": 1
+ },
+ "gen-empty": {
+  "a": 1,
+  "b": 1,
+  "digest": "02e6a86474695ac8",
+  "redline": 1
+ },
+ "gen-fmt": {
+  "a": 1,
+  "b": 1,
+  "digest": "6332b579bd176714",
+  "redline": 1
+ },
+ "gen-latin1": {
+  "a": 1,
+  "b": 1,
+  "digest": "0054160ee44d82a6",
+  "redline": 1
+ },
+ "gen-longcap": {
+  "a": 3,
+  "b": 3,
+  "digest": "021c91e9191e0b77",
+  "redline": 6
+ },
+ "gen-punct": {
+  "a": 1,
+  "b": 1,
+  "digest": "4b02987ab5c15e99",
+  "redline": 1
+ },
+ "gen-table": {
+  "a": 1,
+  "b": 1,
+  "digest": "3a74a4fbe017b0b4",
+  "redline": 1
+ },
+ "pages": {
+  "a": 3,
+  "b": 3,
+  "digest": "c0021e0d44f3340c",
+  "redline": 3
+ },
+ "r3": {
+  "a": 1,
+  "b": 1,
+  "digest": "97a6e0ade2d1ea01",
+  "redline": 1
+ },
+ "spacing": {
+  "a": 2,
+  "b": 2,
+  "digest": "ea89d1b0dd05ce69",
+  "redline": 2
+ }
+}

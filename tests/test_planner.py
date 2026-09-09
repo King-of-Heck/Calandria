@@ -83,7 +83,8 @@ def test_space_before_dropped_on_an_automatic_page_kept_after_an_explicit_break(
 
 def test_first_page_applies_space_before():
     plan = plan_breaks([B(10, space_before=20), B(10)], const(35))
-    assert plan.before == [True, True] and plan.breaks == [Break(1, 0)]
+    # page 2 was started automatically, so block 1's space-before is dropped
+    assert plan.before == [True, False] and plan.breaks == [Break(1, 0)]
 
 
 def test_a_line_taller_than_the_page_is_forced_through():

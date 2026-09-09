@@ -49,6 +49,9 @@ def merged_items(cmp: Comparison) -> list[Item]:
             out.append(Item(para, loc, "b", state["section"], rows[k], k))
             state["emitted"] = max(state["emitted"], k + 1)
         if para.props.section_break:
+            # Deletions that stood after the closing paragraph but before the next revised one
+            # belong to the section being closed, so place them before the index moves on.
+            flush_deleted(by_ni.get(ni, len(rows)))
             state["section"] += 1
     flush_deleted(len(rows))
     return out

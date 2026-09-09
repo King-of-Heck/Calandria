@@ -71,6 +71,14 @@ def test_section_index_increments_after_the_closing_paragraph():
     assert [(it.para.text, it.section) for it in items] == [("cover", 0), ("body", 1), ("gone", 1), ("more", 1)]
 
 
+def test_deletion_at_the_end_of_a_section_stays_in_that_section():
+    sect = '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/></w:sectPr>'
+    a = P("cover", ppr=sect) + P("gone") + P("body")
+    b = P("cover", ppr=sect) + P("body")
+    items = merged_items(_cmp(a, b))
+    assert [(it.para.text, it.section) for it in items] == [("cover", 0), ("gone", 0), ("body", 1)]
+
+
 def test_table_items_carry_their_side_location():
     # "old value" / "new value" share one of two tokens: similarity 0.5, exactly the pairing threshold.
     a = P("intro") + TBL([["h1", "h2"], ["old value", "x"]]) + P("outro")

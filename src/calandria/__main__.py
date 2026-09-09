@@ -9,6 +9,7 @@
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                             [--report=first|last|none]
     python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
+    python -m calandria version
 """
 import json
 import math
@@ -16,6 +17,7 @@ import os
 import sys
 from datetime import datetime
 
+from . import __version__
 from .diff.compare import compare
 from .docx.parser import parse_docx
 from .harness.flatten import flatten
@@ -36,7 +38,8 @@ USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "                               [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
          "                               [--report=first|last|none]\n"
-         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]")
+         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]\n"
+         "       python -m calandria version")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
 _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
@@ -78,6 +81,9 @@ def _compare(flags, pa, pb):
 
 
 def main(argv) -> int:
+    if argv == ["version"]:
+        print(f"calandria {__version__}")
+        return 0
     if len(argv) == 2 and argv[0] == "dump":
         print(json.dumps(flatten(parse_docx(argv[1])), ensure_ascii=True, indent=1))
         return 0

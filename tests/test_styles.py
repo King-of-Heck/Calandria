@@ -16,13 +16,15 @@ STYLES = f'''<w:styles xmlns:w="{W}">
 
 def test_defaults():
     s = Styles.parse(etree.fromstring(STYLES))
-    assert s.defaults == {"font": "Calibri", "size_pt": 11.0, "space_after_pt": 8.0, "line_spacing": 259 / 240}
+    assert s.defaults == {"font": "Calibri", "size_pt": 11.0, "space_before_pt": None, "space_after_pt": 8.0,
+                          "line_spacing": 259 / 240, "line_rule": "auto", "line_exact_pt": None}
 
 
 def test_absent_styles_part():
     s = Styles.parse(None)
     assert s.get("Normal") is None
-    assert s.defaults == {"font": None, "size_pt": 11.0, "space_after_pt": None, "line_spacing": None}
+    assert s.defaults == {"font": None, "size_pt": 11.0, "space_before_pt": None, "space_after_pt": None,
+                          "line_spacing": None, "line_rule": None, "line_exact_pt": None}
     assert s.resolved_rpr("Nope") == {} and s.resolved_ppr("Nope") == {}
 
 

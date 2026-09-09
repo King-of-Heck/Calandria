@@ -61,10 +61,17 @@ def read_ppr(ppr) -> dict:
         if line is not None:
             try:
                 n = float(line)
-                out["line_rule"] = rule
-                out["line_spacing"] = n / 240.0 if rule == "auto" else n / 20.0
             except ValueError:
-                pass
+                n = None
+            if n is not None:
+                out["line_rule"] = rule
+                # "auto" is a multiplier (240 twips == a single line); "exact"/"atLeast" is a
+                # fixed line height in twips. These are different units for different concepts,
+                # so they are kept in separate fields rather than one conflated line_spacing.
+                if rule == "auto":
+                    out["line_spacing"] = n / 240.0
+                else:
+                    out["line_exact_pt"] = n / 20.0
     for tag, key in (("keepNext", "keep_next"), ("keepLines", "keep_lines"),
                      ("contextualSpacing", "contextual_spacing"), ("pageBreakBefore", "page_break_before")):
         el = ppr.find(wq(tag))
@@ -96,7 +103,8 @@ class Style:
 class Styles:
     def __init__(self):
         self._map: dict[str, Style] = {}
-        self.defaults = {"font": None, "size_pt": 11.0, "space_after_pt": None, "line_spacing": None}
+        self.defaults = {"font": None, "size_pt": 11.0, "space_before_pt": None, "space_after_pt": None,
+                          "line_spacing": None, "line_rule": None, "line_exact_pt": None}
         self.style_to_num: dict[str, tuple[int, int]] = {}
 
     @classmethod
@@ -109,7 +117,9 @@ class Styles:
             r = read_rpr(dd.find(f"{wq('rPrDefault')}/{wq('rPr')}"))
             p = read_ppr(dd.find(f"{wq('pPrDefault')}/{wq('pPr')}"))
             s.defaults = {"font": r.get("font"), "size_pt": r.get("size_pt", 11.0),
-                          "space_after_pt": p.get("space_after_pt"), "line_spacing": p.get("line_spacing")}
+                          "space_before_pt": p.get("space_before_pt"), "space_after_pt": p.get("space_after_pt"),
+                          "line_spacing": p.get("line_spacing"), "line_rule": p.get("line_rule"),
+                          "line_exact_pt": p.get("line_exact_pt")}
         for el in root.iter(wq("style")):
             sid = el.get(wq("styleId"))
             if not sid:

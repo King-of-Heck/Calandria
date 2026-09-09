@@ -47,6 +47,7 @@ class ParaProps:
     space_after_pt: float | None = None
     line_spacing: float | None = None
     line_rule: str | None = None
+    line_exact_pt: float | None = None
     keep_next: bool = False
     keep_lines: bool = False
     page_break_before: bool = False

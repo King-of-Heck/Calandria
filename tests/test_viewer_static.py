@@ -7,7 +7,7 @@ from importlib import resources
 
 import pytest
 
-from calandria.server.app import STATIC
+from calandria.server.app import DEFAULT_IDLE, STATIC
 
 VIEWER = resources.files("calandria.viewer")
 
@@ -49,9 +49,33 @@ def test_the_v41_caveat_is_on_the_page():
     assert "nothing is written to Word" in _read("index.html")
 
 
+def test_the_heartbeat_is_faster_than_the_server_idle_timeout():
+    js = _read("app.js")
+    ping_ms = int(re.search(r"const PING_MS = (\d+);", js).group(1))
+    misses = int(re.search(r"const PING_MISSES = (\d+);", js).group(1))
+    assert ping_ms == 2000
+    # the server stops DEFAULT_IDLE s after the last ping: three pings must fit inside that
+    assert ping_ms * misses / 1000 < DEFAULT_IDLE
+    assert "close this window" in js and "close this tab" not in js
+
+
+def test_the_ping_carries_the_page_visibility():
+    js = _read("app.js")
+    # a hidden page's timers are throttled to one wake a minute, so the server has to be told
+    assert "/api/ping?hidden=" in js
+    assert "visibilitychange" in js
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
 @pytest.mark.parametrize("script", ["app.js", "changes.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_a_closed_page_does_not_ping():
+    js = _read("app.js")
+    body = js[js.index("function ping()"):]
+    body = body[:body.index("\n}\n")]
+    assert "if (state.closed) return;" in body.splitlines()[1]

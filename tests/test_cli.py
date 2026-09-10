@@ -1,12 +1,13 @@
 import json
 import os
+import sys
 import time
 from datetime import datetime
 
 import pytest
 from pypdf import PdfReader
 
-from calandria.__main__ import main
+from calandria.__main__ import _open_log, main
 from calandria.layout.fonts import default_dirs
 from calandria.testing.makedocx import make_docx, DOC, P
 
@@ -171,9 +172,9 @@ def test_serve_usage_errors(capsys):
 
 def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
     t0 = time.perf_counter()
-    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4"]) == 0
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4"]) == 0
     assert time.perf_counter() - t0 < 30
     line = capsys.readouterr().out.splitlines()[0]
     url = json.loads(line)["url"]
@@ -182,8 +183,8 @@ def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
 
 def test_serve_opens_the_browser_by_default(monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
-    assert main(["serve", "--idle=0.4"]) == 0
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
+    assert main(["serve", "--idle=0.4", "--grace=0.4"]) == 0
     assert len(opened) == 1 and opened[0].startswith("http://127.0.0.1:")
 
 
@@ -196,3 +197,55 @@ def test_version_subcommand(capsys):
 def test_version_subcommand_takes_no_arguments(capsys):
     assert main(["version", "extra"]) == 2
     assert "usage" in capsys.readouterr().out.lower()
+
+
+def test_serve_grace_usage_errors(capsys):
+    assert main(["serve", "--grace=-1"]) == 2
+    assert main(["serve", "--grace=soon"]) == 2
+    assert main(["serve", "--grace=inf"]) == 2
+    assert "--grace=SECONDS" in capsys.readouterr().out
+
+
+def test_serve_writes_the_url_line_to_the_log_file(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    log = tmp_path / "sub" / "calandria.log"
+    assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={log}"]) == 0
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[0].startswith("--- ") and "calandria" in lines[0]
+    assert json.loads(lines[1])["url"].startswith("http://127.0.0.1:")
+    assert json.loads(capsys.readouterr().out.splitlines()[0])["url"] == json.loads(lines[1])["url"]
+
+
+def test_open_log_binds_missing_streams_and_rotates(tmp_path, monkeypatch):
+    log = tmp_path / "c.log"
+    log.write_bytes(b"x" * 1_000_001)
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    f = _open_log(str(log))
+    try:
+        assert sys.stdout is f and sys.stderr is f
+        print("hello")
+        f.flush()
+    finally:
+        f.close()
+    text = log.read_text(encoding="utf-8")
+    assert not text.startswith("x") and text.splitlines()[0].startswith("--- ") and "hello" in text
+
+
+def test_open_log_appends_when_a_console_exists(tmp_path):
+    log = tmp_path / "c.log"
+    log.write_text("old\n", encoding="utf-8")
+    f = _open_log(str(log))
+    f.close()
+    assert sys.stdout is not f
+    assert log.read_text(encoding="utf-8").startswith("old\n--- ")
+
+
+def test_serve_carries_on_when_the_log_cannot_be_opened(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={blocker / 'calandria.log'}"]) == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out.splitlines()[0])["url"].startswith("http://127.0.0.1:")
+    assert "cannot open the log file" in err

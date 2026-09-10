@@ -14,7 +14,7 @@ import pytest
 from calandria import __version__
 from calandria.layout.fonts import default_dirs
 from calandria.server import app as appmod
-from calandria.server.app import DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
+from calandria.server.app import DEFAULT_GRACE, DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
 from calandria.server.session import Session
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import DOC, P, STYLES, make_docx
@@ -48,11 +48,11 @@ def _json(url, method="GET", body=None, raw=None):
 
 
 class Served:
-    def __init__(self, session, idle=0.0):
+    def __init__(self, session, idle=0.0, grace=0.0):
         self.session = session
         self.server = make_server(session)
         self.url = url_of(self.server)
-        self.thread = threading.Thread(target=run, args=(self.server, idle), daemon=True)
+        self.thread = threading.Thread(target=run, args=(self.server, idle, grace), daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -76,7 +76,7 @@ def _compare_body(a=P("aaaa"), b=P("aaaa bbbb"), options=None):
 
 
 def test_defaults():
-    assert DEFAULT_IDLE == 300.0 and MAX_BODY == 64 * 1024 * 1024
+    assert DEFAULT_IDLE == 8.0 and DEFAULT_GRACE == 120.0 and MAX_BODY == 64 * 1024 * 1024
     assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js"}
 
 
@@ -322,6 +322,87 @@ def test_ping_without_a_body_is_fine(srv):
         assert r.status == 200 and json.loads(r.read()) == {"ok": True}
 
 
+def test_ping_reports_whether_the_page_is_hidden(srv):
+    assert srv.server.hidden is False
+    assert _json(srv.url + "api/ping?hidden=1", "POST", {}) == (200, {"ok": True})
+    assert srv.server.hidden is True
+    assert _json(srv.url + "api/ping?hidden=0", "POST", {}) == (200, {"ok": True})
+    assert srv.server.hidden is False
+    assert _json(srv.url + "api/ping?hidden=maybe", "POST", {}) == (400, {"error": "hidden must be 0 or 1"})
+
+
+def test_watchdog_gives_a_hidden_page_a_longer_silence():
+    import types
+    t = [0.0]
+    session = types.SimpleNamespace(last_seen=0.0, touch=lambda: None)
+    shut = []
+    server = types.SimpleNamespace(session=session, stopped=False, visited=True, hidden=True,
+                                   shutdown=lambda: shut.append(t[0]))
+    # a hidden page is throttled to one ping a minute: 60 s of silence is not a closed window
+    advances = iter([1.0] * 200)
+
+    def sleep(_):
+        try:
+            t[0] += next(advances)
+        except StopIteration:                     # pragma: no cover - the watchdog stops first
+            server.stopped = True
+
+    appmod._watchdog(server, idle=4.0, grace=0.0, clock=lambda: t[0], sleep=sleep)
+    assert shut == [91.0]                         # survives 60 s, stops once HIDDEN_IDLE passes
+    assert appmod.HIDDEN_IDLE == 90.0
+
+
+def test_any_request_marks_the_server_visited(srv):
+    assert srv.server.visited is False
+    # a page on another site can reach a loopback server: its refused POST must not spend the grace
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": "http://evil.example"}) == \
+        (403, {"error": "cross-origin request refused"})
+    assert srv.server.visited is False
+    assert _req(srv.url)[0] == 200
+    assert srv.server.visited is True
+
+
+def test_grace_covers_the_time_before_the_first_visit():
+    s = Served(Session(fonts=FakeResolver()), idle=0.3, grace=5.0)
+    try:
+        time.sleep(0.8)
+        assert s.thread.is_alive()                    # 0.8 s > idle, but nobody has visited yet
+        assert _json(s.url + "api/state")[0] == 200
+        s.thread.join(5)
+        assert not s.thread.is_alive() and s.server.stopped     # after the visit, idle rules
+    finally:
+        s.stop()
+
+
+def test_watchdog_treats_a_clock_jump_as_a_suspend_not_as_silence():
+    import types
+    t = [0.0]
+    session = types.SimpleNamespace(last_seen=0.0)
+    touched = []
+
+    def touch():
+        touched.append(t[0])
+        session.last_seen = t[0]
+
+    session.touch = touch
+    shut = []
+    server = types.SimpleNamespace(session=session, stopped=False, visited=True, hidden=False,
+                                   shutdown=lambda: shut.append(t[0]))
+    advances = iter([1.0, 60.0] + [1.0] * 300)
+
+    def sleep(_):
+        try:
+            t[0] += next(advances)
+        except StopIteration:                     # pragma: no cover - the watchdog stops first
+            server.stopped = True
+
+    appmod._watchdog(server, idle=4.0, grace=120.0, clock=lambda: t[0], sleep=sleep)
+    assert touched == [61.0]           # the 60 s jump was a sleep: the page gets its ping back
+    assert server.visited is False     # and the grace back, so a woken browser has time to resume
+    assert shut[0] > 91.0              # 30 s of post-resume silence is not a closed window
+    assert shut == [182.0]             # then genuine silence past the grace stops the server
+
+
 def test_idle_watchdog_stops_an_unvisited_server():
     s = Served(Session(fonts=FakeResolver()), idle=0.3)
     s.thread.join(5)
@@ -530,3 +611,18 @@ def test_index_and_static_files_are_served_with_their_types(srv):
     status, headers, data = _req(srv.url + "static/style.css")
     assert status == 200 and headers["Content-Type"] == "text/css; charset=utf-8"
     assert headers["Cache-Control"] == "no-store"
+
+
+def test_a_client_that_resets_the_connection_leaves_no_traceback(srv, capsys):
+    import socket
+    import struct
+    host, port = srv.server.server_address[:2]
+    for _ in range(3):
+        s = socket.create_connection((host, port), timeout=5)
+        s.sendall(b"GET /api/state HTTP/1.1\r\nHost: x\r\n\r\n")
+        s.recv(1)                                        # the request is being served on a live socket
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))   # close = RST
+        s.close()
+    time.sleep(0.5)
+    assert _json(srv.url + "api/state")[0] == 200
+    assert capsys.readouterr().err == ""

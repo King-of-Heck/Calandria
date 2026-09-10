@@ -6,10 +6,10 @@ import base64
 import json
 import logging
 import os
+import sys
 import threading
 import time
 import traceback
-import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -17,12 +17,15 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
 from .session import BadDocument, Session, check_render, parse_options
+from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
-DEFAULT_IDLE = 300.0
+DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)
+DEFAULT_GRACE = 120.0       # seconds allowed before the first request (a cold Edge start)
+HIDDEN_IDLE = 90.0          # above Chromium's one-wake-per-minute floor for a page hidden over five minutes
 HOST = "127.0.0.1"
 
 
@@ -232,6 +235,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if method == "POST" and not _same_origin(self.headers, self.server.server_address[1]):
                 raise _Bad(403, "cross-origin request refused")
+            self.server.visited = True      # only a request that could be our own page counts
             if path == "/" or path.startswith("/static/"):
                 if method != "GET":
                     raise _Bad(405, "method not allowed")
@@ -271,7 +275,9 @@ class Handler(BaseHTTPRequestHandler):
         self._json(payload)
 
     def _api_ping(self, session, query):
+        hidden = _flag(query, "hidden", False)
         self._drain()
+        self.server.hidden = hidden
         self._json({"ok": True})
 
     def _api_quit(self, session, query):
@@ -318,12 +324,22 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})
 
 
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        """A client that hung up mid-request (the app window closed, a reset keep-alive socket) is
+        not an error worth a traceback in the log; anything else still gets socketserver's report."""
+        if not isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):
+            super().handle_error(request, client_address)
+
+
 def make_server(session: Session, host: str = HOST, port: int = 0, verbose: bool = False) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = Server((host, port), Handler)
     server.daemon_threads = True
     server.session = session
     server.verbose = verbose
     server.stopped = False
+    server.visited = False
+    server.hidden = False
     return server
 
 
@@ -332,19 +348,35 @@ def url_of(server) -> str:
     return f"http://{host}:{port}/"
 
 
-def _watchdog(server, idle: float) -> None:
+def _watchdog(server, idle: float, grace: float, clock=time.monotonic, sleep=time.sleep) -> None:
+    """Stop the server after `idle` seconds without a request -- or `max(idle, grace)` before the
+    first one, so a slow browser start is not mistaken for a closed window. A gap between two
+    ticks far longer than the tick means the machine slept (the page could not ping); that counts
+    as a touch, not as silence, and the page gets its grace back to resume. A page that says it is
+    hidden gets HIDDEN_IDLE instead: a hidden window's timers are throttled to one wake a minute."""
     step = max(0.05, min(1.0, idle / 4))
+    last = clock()
     while not server.stopped:
-        time.sleep(step)
-        if not server.stopped and time.monotonic() - server.session.last_seen > idle:
+        sleep(step)
+        now = clock()
+        if now - last > 4 * step + 2.0:
+            server.session.touch()
+            server.visited = False      # a woken browser gets the grace back, not one idle window
+        last = now
+        if server.stopped:
+            return
+        limit = idle if server.visited else max(idle, grace)
+        if server.visited and server.hidden:
+            limit = max(limit, HIDDEN_IDLE)
+        if now - server.session.last_seen > limit:
             server.shutdown()
             return
 
 
-def run(server, idle: float = 0.0) -> None:
+def run(server, idle: float = 0.0, grace: float = 0.0) -> None:
     """Serve until /api/quit, the idle watchdog (idle > 0) or shutdown() from another thread."""
     if idle > 0:
-        threading.Thread(target=_watchdog, args=(server, idle), daemon=True).start()
+        threading.Thread(target=_watchdog, args=(server, idle, grace), daemon=True).start()
     try:
         server.serve_forever(poll_interval=0.1)
     finally:
@@ -352,8 +384,8 @@ def run(server, idle: float = 0.0) -> None:
         server.server_close()
 
 
-def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, verbose: bool = False,
-          fonts=None, ready=None) -> None:
+def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, grace: float = DEFAULT_GRACE,
+          verbose: bool = False, fonts=None, ready=None) -> None:
     logging.getLogger("fontTools").setLevel(logging.ERROR)     # "'created' timestamp seems very low"
     session = Session(fonts=fonts)
     server = make_server(session, port=port, verbose=verbose)
@@ -361,8 +393,8 @@ def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, 
     if ready is not None:
         ready(url)
     if open_browser:
-        webbrowser.open(url)
+        open_viewer(url)
     try:
-        run(server, idle)
+        run(server, idle, grace)
     except KeyboardInterrupt:
-        pass                # Ctrl+C in the launcher window is a quit, not a crash; run() still closes
+        pass                # Ctrl+C in a console is a quit, not a crash; run() still closes

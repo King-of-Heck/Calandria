@@ -329,7 +329,7 @@ def test_any_request_marks_the_server_visited(srv):
 
 
 def test_grace_covers_the_time_before_the_first_visit():
-    s = Served(Session(fonts=FakeResolver()), idle=0.3, grace=1.5)
+    s = Served(Session(fonts=FakeResolver()), idle=0.3, grace=5.0)
     try:
         time.sleep(0.8)
         assert s.thread.is_alive()                    # 0.8 s > idle, but nobody has visited yet

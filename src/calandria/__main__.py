@@ -157,7 +157,14 @@ def main(argv) -> int:
         if not 0 <= port <= 65535 or not all(math.isfinite(x) and x >= 0 for x in (idle, grace)):
             print(USAGE)            # float() takes "nan" and "inf"; neither is a timeout
             return 2
-        logf = _open_log(values["--log"]) if "--log" in values else None
+        logf = None
+        if values.get("--log"):
+            try:
+                logf = _open_log(values["--log"])
+            except OSError as e:
+                # a log that cannot be opened must not stop the app (under pythonw.exe nothing else
+                # is visible); say so where a console exists and carry on without one
+                print("cannot open the log file", ascii(values["--log"]), ascii(str(e)), file=sys.stderr)
 
         def ready(url):
             line = json.dumps({"url": url})

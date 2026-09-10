@@ -239,3 +239,13 @@ def test_open_log_appends_when_a_console_exists(tmp_path):
     f.close()
     assert sys.stdout is not f
     assert log.read_text(encoding="utf-8").startswith("old\n--- ")
+
+
+def test_serve_carries_on_when_the_log_cannot_be_opened(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={blocker / 'calandria.log'}"]) == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out.splitlines()[0])["url"].startswith("http://127.0.0.1:")
+    assert "cannot open the log file" in err

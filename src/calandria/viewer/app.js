@@ -11,10 +11,12 @@ const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
+const ZOOM_MIN = 0.2, ZOOM_MAX = 4, ZOOM_STEP = 0.1;
+const NOTICE_DELAY_MS = 400;                        // Task 4 uses it; declared here so the constants sit together
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
 
 export const state = {
-  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false,
+  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, shown: 1,
   renderSet: "Standard", changeBars: true, closed: false, timer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -189,14 +191,35 @@ function renderPages() {
 
 function applyZoom() {
   const main = $("pages");
+  let shown = state.zoom;
   for (const page of main.querySelectorAll(".page")) {
     const svg = page.querySelector("svg");
     const { w, h } = pageSize(svg);
-    const z = state.fit ? Math.max(0.2, (main.clientWidth - 48) / (w * PT)) : state.zoom;
+    const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
+    shown = z;
     svg.setAttribute("width", `${w * z}pt`);
     svg.setAttribute("height", `${h * z}pt`);
     page.style.width = `${w * z}pt`;
   }
+  state.shown = shown;
+  $("zoomPct").textContent = `${Math.round(shown * 100)} %`;
+  $("zoomFit").setAttribute("aria-pressed", String(state.fit));
+  $("zoomFit").classList.toggle("on", state.fit);
+}
+
+function setZoom(z) {
+  state.fit = false;
+  state.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+  applyZoom();
+}
+
+function toggleFit() {
+  state.fit = !state.fit;
+  applyZoom();
+}
+
+function stepZoom(direction) {
+  setZoom((state.fit ? state.shown : state.zoom) + direction * ZOOM_STEP);
 }
 
 function applyStyles() {
@@ -270,11 +293,25 @@ function wire() {
   for (const id of OPTION_IDS) $(id).addEventListener("change", relayout);
   $("renderSet").addEventListener("change", (e) => { state.renderSet = e.target.value; restyle(); });
   $("changeBars").addEventListener("change", (e) => { state.changeBars = e.target.checked; restyle(); });
-  $("zoom").addEventListener("change", (e) => {
-    state.fit = e.target.value === "fit";
-    if (!state.fit) state.zoom = Number(e.target.value);
-    applyZoom();
+  $("zoomOut").addEventListener("click", () => stepZoom(-1));
+  $("zoomIn").addEventListener("click", () => stepZoom(1));
+  $("zoomPct").addEventListener("click", () => setZoom(1));
+  $("zoomFit").addEventListener("click", toggleFit);
+  main.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;                          // plain wheel scrolls; Ctrl+wheel zooms instead of Edge's page zoom
+    e.preventDefault();
+    stepZoom(e.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
+    else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "-") { e.preventDefault(); stepZoom(-1); }
+    else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "0") { e.preventDefault(); setZoom(1); }
+    else if (e.key === "?" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.target.matches("input, select, textarea")) {
+      e.preventDefault();
+      $("keys").showModal();
+    }
   });
+  document.addEventListener("calandria:resized", () => { if (state.fit) applyZoom(); });
   window.addEventListener("resize", () => { if (state.fit) applyZoom(); });
   main.addEventListener("scroll", updatePageStatus);
   $("pdf").addEventListener("click", savePdf);

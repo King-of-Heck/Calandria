@@ -116,3 +116,15 @@ def test_the_toolbar_holds_navigation_zoom_pdf_and_options_only():
 def test_the_option_labels_say_show_not_hide():
     html = _read("index.html")
     assert "Hide unchanged" not in html and "Show unchanged text" in html
+
+
+def test_zoom_is_a_stepper_and_the_keys_have_a_sheet():
+    html = _read("index.html")
+    assert '<select id="zoom"' not in html
+    for id_ in ("zoomOut", "zoomPct", "zoomIn", "zoomFit", "keys", "keysClose"):
+        assert f'id="{id_}"' in html, id_
+    assert '<dialog id="keys"' in html
+    js = _read("changes.js")
+    assert '"j"' in js and '"k"' in js and '"ArrowRight"' in js and '"ArrowLeft"' in js
+    app = _read("app.js")
+    assert '"?"' in app and "e.ctrlKey" in app and '"wheel"' in app

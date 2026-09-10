@@ -43,6 +43,20 @@ body.closed #bar, body.closed #panel { opacity: .5; }
 #bar .popover h4 small { text-transform: none; letter-spacing: 0; font-weight: normal; margin-left: 6px; }
 #bar .popover label { display: flex; }
 #bar .popover .quitrow { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); }
+#bar .zoom { display: inline-flex; }
+#bar .zoom button { border-radius: 0; margin-left: -1px; }
+#bar .zoom button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+#bar .zoom button:last-child { border-radius: 0 4px 4px 0; }
+#bar .zoom #zoomPct { min-width: 4.5em; }
+#bar .zoom button.on { background: #dbeafe; border-color: #93c5fd; }
+#keys { border: 1px solid var(--edge); border-radius: 8px; padding: 16px 20px; max-width: 32em; font: inherit; color: var(--ink); }
+#keys::backdrop { background: rgba(0,0,0,.3); }
+#keys h3 { margin: 0 0 10px; font-size: 15px; }
+#keys table { border-collapse: collapse; }
+#keys td { padding: 3px 12px 3px 0; vertical-align: top; }
+#keys kbd { font: 12px/1 "Segoe UI", system-ui, sans-serif; border: 1px solid var(--edge); border-radius: 3px; padding: 2px 5px; background: var(--bar); }
+#keys .note { font-size: 12px; color: var(--muted); margin: 8px 0; }
+#keys form { text-align: right; margin: 0; }
 button { padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
 button:disabled { opacity: .5; cursor: default; }
 

@@ -18,10 +18,12 @@
     <span id="changeStatus" class="count"></span>
   </div>
   <div class="tools">
-    <label>Zoom <select id="zoom">
-      <option value="0.5">50 %</option><option value="0.75">75 %</option><option value="1" selected>100 %</option>
-      <option value="1.25">125 %</option><option value="1.5">150 %</option><option value="2">200 %</option>
-      <option value="fit">Fit width</option></select></label>
+    <span class="zoom" role="group" aria-label="Zoom">
+      <button id="zoomOut" title="Zoom out (Ctrl+-)">−</button>
+      <button id="zoomPct" title="Reset to 100 % (Ctrl+0)">100 %</button>
+      <button id="zoomIn" title="Zoom in (Ctrl+=)">+</button>
+      <button id="zoomFit" title="Fit the page width" aria-pressed="false">Fit</button>
+    </span>
     <button id="pdf" disabled>Save PDF</button>
     <details id="options" class="options">
       <summary title="Comparison, page, rendering and PDF settings">Options ▾</summary>
@@ -86,6 +88,20 @@
     </section>
   </main>
 </div>
+<dialog id="keys">
+  <h3>Keyboard shortcuts</h3>
+  <table>
+    <tr><td><kbd>n</kbd> <kbd>j</kbd> <kbd>→</kbd></td><td>Next change</td></tr>
+    <tr><td><kbd>p</kbd> <kbd>k</kbd> <kbd>←</kbd></td><td>Previous change</td></tr>
+    <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>First / last change</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom in / out (also Ctrl+wheel over the pages)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Zoom 100 %</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close this sheet or the Options popover</td></tr>
+    <tr><td><kbd>?</kbd></td><td>This sheet</td></tr>
+  </table>
+  <p class="note">Keys work outside text boxes.</p>
+  <form method="dialog"><button id="keysClose">Close</button></form>
+</dialog>
 <footer id="status">
   <span id="pageStatus">No comparison</span>
   <span id="msg" class="msg"></span>

@@ -10,6 +10,11 @@ if not exist "%PYW%" (
   exit /b 1
 )
 set "LOG=%LOCALAPPDATA%\Calandria\calandria.log"
-if "%LOCALAPPDATA%"=="" set "LOG=%~dp0calandria.log"
+if "%LOCALAPPDATA%"=="" (
+  set "LOG=%~dp0calandria.log"
+) else (
+  if not exist "%LOCALAPPDATA%\Calandria" mkdir "%LOCALAPPDATA%\Calandria" 2>nul
+)
+>>"%LOG%" echo === launching %PYW%
 start "" "%PYW%" -m calandria serve --log="%LOG%"
 endlocal

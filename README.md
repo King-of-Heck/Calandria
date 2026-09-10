@@ -15,7 +15,8 @@ opens in its own window (Microsoft Edge in app mode; the default browser if Edge
 Close the window, or press Quit, to stop it. Nothing is installed: the folder holds its own
 64-bit Python and libraries, and removing the folder removes everything. To update, extract the
 new zip and delete the old folder. If nothing appears, look at
-`%LOCALAPPDATA%\Calandria\calandria.log`.
+`%LOCALAPPDATA%\Calandria\calandria.log`. Its first line is written by `Calandria.cmd` itself,
+so a missing or empty log means the launcher never ran.
 
 Inside the folder: `Calandria.cmd`, this file, the changelog and `_internal\` (`python\`, the
 official embeddable Python with the libraries extracted into `Lib\site-packages`, and

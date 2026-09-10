@@ -9,11 +9,6 @@
 <body>
 <header id="bar">
   <span class="brand">Calandria</span>
-  <label class="file" title="The original document">Original
-    <input type="file" id="fileA" accept=".docx"><span id="nameA" class="name">none</span></label>
-  <label class="file" title="The modified document">Modified
-    <input type="file" id="fileB" accept=".docx"><span id="nameB" class="name">none</span></label>
-  <button id="compare" disabled>Compare</button>
   <span class="sep"></span>
   <label title="Compare without regard to letter case"><input type="checkbox" id="optIgnoreCase"> Ignore case</label>
   <label title="Count list numbering changes as changes"><input type="checkbox" id="optCountNumbering" checked> Count numbering</label>
@@ -58,7 +53,26 @@
     <p class="note">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word.</p>
   </aside>
   <main id="pages">
-    <div id="drop" class="drop">Drop the original and the modified .docx here, or pick them above, then press Compare.</div>
+    <section id="sources" class="sources">
+      <p class="intro">Calandria compares two Word documents and shows every difference as a redline, on screen and in a PDF.</p>
+      <div class="cards">
+        <div id="cardA" class="card" tabindex="0" title="The original document">
+          <span class="side">Original</span>
+          <span id="nameA" class="name">Drop the .docx here or click to choose</span>
+          <button id="clearA" class="clear" title="Remove this file" hidden>×</button>
+          <input type="file" id="fileA" accept=".docx" hidden>
+        </div>
+        <button id="swap" title="Swap Original and Modified" disabled>⇄</button>
+        <div id="cardB" class="card" tabindex="0" title="The modified document">
+          <span class="side">Modified</span>
+          <span id="nameB" class="name">Drop the .docx here or click to choose</span>
+          <button id="clearB" class="clear" title="Remove this file" hidden>×</button>
+          <input type="file" id="fileB" accept=".docx" hidden>
+        </div>
+      </div>
+      <button id="compare" class="go" disabled>Compare</button>
+      <p class="hint">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word. Closing this window closes Calandria.</p>
+    </section>
   </main>
 </div>
 <footer id="status">

@@ -5,6 +5,7 @@
 // The change list lives
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
+import { initSources, refreshSources } from "./sources.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
@@ -13,7 +14,7 @@ const PT = 4 / 3;                                   // CSS px per pt
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "hideUnchanged", "hideInsertions", "hideDeletions", "hideFormatting"];
 
 export const state = {
-  data: null, files: { a: null, b: null }, zoom: 1, fit: false,
+  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false,
   renderSet: "Standard", changeBars: true, closed: false, timer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -45,6 +46,7 @@ function msg(text, isError) {
 }
 
 function busy(on, text) {
+  state.busy = on;
   document.body.classList.toggle("busy", on);
   msg(on ? text : "");
   enableControls(!on);
@@ -53,14 +55,14 @@ function busy(on, text) {
 // The controls whose requests could overlap (relayout, restyle, compare) are disabled while any
 // one of those requests is in flight, so a second toggle can't fire a request whose reply races
 // the first and wins with stale data. `on` is true only when nothing is in flight; `closed` still
-// wins even then, and `pdf` / `compare` re-enable only when their own preconditions hold.
+// wins even then, and `pdf` re-enables only when a comparison exists; `compare` is decided by `sources.js`.
 function enableControls(on) {
   if (state.closed) return;
   for (const id of OPTION_IDS) $(id).disabled = !on;
   $("renderSet").disabled = !on;
   $("changeBars").disabled = !on;
   $("pdf").disabled = !(on && state.data);
-  $("compare").disabled = !(on && state.files.a && state.files.b);
+  refreshSources();                                  // Compare: both slots filled and not the compared pair
 }
 
 function readBase64(file) {
@@ -70,12 +72,6 @@ function readBase64(file) {
     fr.onerror = () => reject(fr.error);
     fr.readAsDataURL(file);
   });
-}
-
-function setFile(slot, file) {
-  state.files[slot] = file;
-  $(slot === "a" ? "nameA" : "nameB").textContent = file ? file.name : "none";
-  $("compare").disabled = !(state.files.a && state.files.b) || state.closed;
 }
 
 function options() {
@@ -99,12 +95,13 @@ async function compareNow() {
   const { a, b } = state.files;
   if (!a || !b || state.closed) return;
   const seq = ++state.seq;
-  busy(true, "Comparing…");
+  busy(true, `Comparing ${a.name} with ${b.name}…`);
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
                    options: options(), render_set: state.renderSet, change_bars: state.changeBars };
     const d = await api("/api/compare", body);
     if (state.seq !== seq) return;
+    state.compared = { a, b };
     show(d);
   } catch (e) {
     msg(e.message, true);
@@ -149,6 +146,7 @@ async function restyle() {
 
 function show(data) {
   state.data = data;
+  refreshSources();
   const sel = $("renderSet");
   sel.innerHTML = "";
   for (const name of data.render_sets) {
@@ -162,7 +160,6 @@ function show(data) {
   $("changeBars").checked = data.change_bars;
   setOptions(data.options);
   $("pdf").disabled = false;
-  $("drop").hidden = true;
   document.title = `${data.names.original} vs ${data.names.modified} — Calandria`;
   renderPages();
   applyStyles();
@@ -258,21 +255,8 @@ function ping() {
 }
 
 function wire() {
-  $("fileA").addEventListener("change", (e) => setFile("a", e.target.files[0] || null));
-  $("fileB").addEventListener("change", (e) => setFile("b", e.target.files[0] || null));
-  $("compare").addEventListener("click", compareNow);
+  initSources({ compare: compareNow, swap: compareNow });   // the slots are already exchanged when swap fires
   const main = $("pages");
-  main.addEventListener("dragover", (e) => { e.preventDefault(); main.classList.add("over"); });
-  main.addEventListener("dragleave", () => main.classList.remove("over"));
-  main.addEventListener("drop", (e) => {
-    e.preventDefault();
-    main.classList.remove("over");
-    if (state.closed) return;
-    const files = [...e.dataTransfer.files].filter((f) => /\.docx$/i.test(f.name));
-    if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
-    else if (files.length === 1) setFile(state.files.a ? "b" : "a", files[0]);
-    if (state.files.a && state.files.b) compareNow();
-  });
   for (const id of OPTION_IDS) $(id).addEventListener("change", relayout);
   $("renderSet").addEventListener("change", (e) => { state.renderSet = e.target.value; restyle(); });
   $("changeBars").addEventListener("change", (e) => { state.changeBars = e.target.checked; restyle(); });

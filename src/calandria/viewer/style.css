@@ -25,11 +25,8 @@ body.closed #bar, body.closed #panel { opacity: .5; }
 #bar .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
 #bar .sep { width: 1px; height: 20px; background: var(--edge); }
 #bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-#bar label.file { padding: 2px 6px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; }
-#bar label.file input { display: none; }
-#bar .name { color: var(--muted); max-width: 16em; overflow: hidden; text-overflow: ellipsis; }
-#bar button, #panel button { padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; }
-#bar button:disabled, #panel button:disabled { opacity: .5; cursor: default; }
+button { padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+button:disabled { opacity: .5; cursor: default; }
 #bar button.quit { margin-left: auto; }
 
 #body { display: flex; flex: 1; min-height: 0; }
@@ -65,7 +62,30 @@ body.closed #bar, body.closed #panel { opacity: .5; }
 
 #pages { flex: 1; overflow: auto; position: relative; padding: 16px; }
 #pages.over { outline: 3px dashed #2563eb; outline-offset: -6px; }
-#pages .drop { margin: 15vh auto; max-width: 30em; padding: 24px; text-align: center; color: #fff; }
+#pages .sources { margin: 10vh auto 0; max-width: 46em; text-align: center; }
+#pages .sources .intro { color: #fff; font-size: 15px; margin: 0 0 20px; }
+#pages .sources .cards { display: flex; align-items: stretch; gap: 12px; }
+#pages .sources .card {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 9em;
+  padding: 18px 28px; background: #fff; border: 2px dashed var(--edge); border-radius: 8px; cursor: pointer; position: relative;
+}
+#pages .sources .card.over { border-color: #2563eb; background: #eff6ff; }
+#pages .sources .card.filled { border-style: solid; }
+#pages .sources .card .side { font-weight: 600; font-size: 15px; }
+#pages .sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pages .sources .card.filled .name { color: var(--ink); }
+#pages .sources .card .clear { position: absolute; top: 6px; right: 6px; padding: 0 6px; line-height: 18px; }
+#pages .sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
+#pages .sources .go { margin-top: 16px; padding: 8px 28px; font-size: 15px; font-weight: 600; }
+#pages .sources .hint { color: #fff; font-size: 12px; margin: 20px 0 0; }
+#pages .sources.compact { max-width: none; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
+#pages .sources.compact .intro, #pages .sources.compact .hint { display: none; }
+#pages .sources.compact .cards { flex: 1; gap: 8px; }
+#pages .sources.compact .card { flex-direction: row; align-items: center; min-height: 0; padding: 4px 26px 4px 8px; border-radius: 4px; gap: 8px; }
+#pages .sources.compact .card .side { font-size: 13px; flex: none; }
+#pages .sources.compact .card .clear { top: 3px; right: 4px; }
+#pages .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
+#pages .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }
 #pages .page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.4); }
 #pages .page svg { display: block; }
 #pages .page svg text { user-select: text; }

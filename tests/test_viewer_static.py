@@ -37,7 +37,7 @@ def test_index_declares_a_module_script_charset_and_title():
     assert '<script type="module" src="/static/app.js">' in html
 
 
-@pytest.mark.parametrize("script", ["app.js", "changes.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js"])
 def test_every_id_the_script_looks_up_exists(script):
     wanted = set(re.findall(r'\$\("([A-Za-z0-9_-]+)"\)', _read(script)))
     assert wanted, script
@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -79,3 +79,22 @@ def test_a_closed_page_does_not_ping():
     body = js[js.index("function ping()"):]
     body = body[:body.index("\n}\n")]
     assert "if (state.closed) return;" in body.splitlines()[1]
+
+
+def _main_html():
+    html = _read("index.html")
+    return html[:html.index("<main")], html[html.index("<main"):]
+
+
+def test_the_source_cards_are_in_the_page_area_not_the_toolbar():
+    head, main = _main_html()
+    for id_ in ("cardA", "cardB", "fileA", "fileB", "nameA", "nameB", "clearA", "clearB", "swap", "compare", "sources"):
+        assert f'id="{id_}"' in main, id_
+        assert f'id="{id_}"' not in head, id_
+
+
+def test_the_empty_state_teaches():
+    _, main = _main_html()
+    assert "nothing is written to Word" in main
+    assert "Closing this window closes Calandria" in main
+    assert "Drop the .docx here or click to choose" in main

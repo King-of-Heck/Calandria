@@ -322,6 +322,36 @@ def test_ping_without_a_body_is_fine(srv):
         assert r.status == 200 and json.loads(r.read()) == {"ok": True}
 
 
+def test_ping_reports_whether_the_page_is_hidden(srv):
+    assert srv.server.hidden is False
+    assert _json(srv.url + "api/ping?hidden=1", "POST", {}) == (200, {"ok": True})
+    assert srv.server.hidden is True
+    assert _json(srv.url + "api/ping?hidden=0", "POST", {}) == (200, {"ok": True})
+    assert srv.server.hidden is False
+    assert _json(srv.url + "api/ping?hidden=maybe", "POST", {}) == (400, {"error": "hidden must be 0 or 1"})
+
+
+def test_watchdog_gives_a_hidden_page_a_longer_silence():
+    import types
+    t = [0.0]
+    session = types.SimpleNamespace(last_seen=0.0, touch=lambda: None)
+    shut = []
+    server = types.SimpleNamespace(session=session, stopped=False, visited=True, hidden=True,
+                                   shutdown=lambda: shut.append(t[0]))
+    # a hidden page is throttled to one ping a minute: 60 s of silence is not a closed window
+    advances = iter([1.0] * 200)
+
+    def sleep(_):
+        try:
+            t[0] += next(advances)
+        except StopIteration:                     # pragma: no cover - the watchdog stops first
+            server.stopped = True
+
+    appmod._watchdog(server, idle=4.0, grace=0.0, clock=lambda: t[0], sleep=sleep)
+    assert shut == [91.0]                         # survives 60 s, stops once HIDDEN_IDLE passes
+    assert appmod.HIDDEN_IDLE == 90.0
+
+
 def test_any_request_marks_the_server_visited(srv):
     assert srv.server.visited is False
     assert _req(srv.url)[0] == 200
@@ -352,7 +382,7 @@ def test_watchdog_treats_a_clock_jump_as_a_suspend_not_as_silence():
 
     session.touch = touch
     shut = []
-    server = types.SimpleNamespace(session=session, stopped=False, visited=True,
+    server = types.SimpleNamespace(session=session, stopped=False, visited=True, hidden=False,
                                    shutdown=lambda: shut.append(t[0]))
     advances = iter([1.0, 60.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 

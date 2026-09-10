@@ -1,6 +1,8 @@
 // Calandria viewer: loads two .docx files, shows the server's page drawings, restyles them by
 // rendering set, zooms, downloads the PDF, and keeps the server alive while this window is open
-// (it stops a few seconds after the pings stop). The change list lives
+// (it stops a few seconds after the pings stop; each ping says whether the page is hidden, since
+// a hidden window's timers are throttled to one wake a minute and the server allows for that).
+// The change list lives
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
 
@@ -243,7 +245,7 @@ async function quit() {
 }
 
 function ping() {
-  fetch("/api/ping", { method: "POST" })
+  fetch("/api/ping?hidden=" + (document.visibilityState === "hidden" ? 1 : 0), { method: "POST" })
     .then((r) => { if (!r.ok) throw new Error(); state.misses = 0; })
     .catch(() => {
       // One lost ping is a hiccup (a sleeping laptop, a busy server); three in a row is a server
@@ -282,6 +284,7 @@ function wire() {
   main.addEventListener("scroll", updatePageStatus);
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
+  document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
   state.timer = setInterval(ping, PING_MS);
   initChanges();
 }

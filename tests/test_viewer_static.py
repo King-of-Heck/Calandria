@@ -59,6 +59,13 @@ def test_the_heartbeat_is_faster_than_the_server_idle_timeout():
     assert "close this window" in js and "close this tab" not in js
 
 
+def test_the_ping_carries_the_page_visibility():
+    js = _read("app.js")
+    # a hidden page's timers are throttled to one wake a minute, so the server has to be told
+    assert "/api/ping?hidden=" in js
+    assert "visibilitychange" in js
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
 @pytest.mark.parametrize("script", ["app.js", "changes.js"])
 def test_scripts_parse(script):

@@ -25,6 +25,7 @@ MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
 DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)
 DEFAULT_GRACE = 120.0       # seconds allowed before the first request (a cold Edge start)
+HIDDEN_IDLE = 90.0          # above Chromium's one-wake-per-minute floor for a page hidden over five minutes
 HOST = "127.0.0.1"
 
 
@@ -274,7 +275,9 @@ class Handler(BaseHTTPRequestHandler):
         self._json(payload)
 
     def _api_ping(self, session, query):
+        hidden = _flag(query, "hidden", False)
         self._drain()
+        self.server.hidden = hidden
         self._json({"ok": True})
 
     def _api_quit(self, session, query):
@@ -336,6 +339,7 @@ def make_server(session: Session, host: str = HOST, port: int = 0, verbose: bool
     server.verbose = verbose
     server.stopped = False
     server.visited = False
+    server.hidden = False
     return server
 
 
@@ -348,7 +352,8 @@ def _watchdog(server, idle: float, grace: float, clock=time.monotonic, sleep=tim
     """Stop the server after `idle` seconds without a request -- or `max(idle, grace)` before the
     first one, so a slow browser start is not mistaken for a closed window. A gap between two
     ticks far longer than the tick means the machine slept (the page could not ping); that counts
-    as a touch, not as silence, and the page gets `idle` seconds to resume."""
+    as a touch, not as silence, and the page gets its grace back to resume. A page that says it is
+    hidden gets HIDDEN_IDLE instead: a hidden window's timers are throttled to one wake a minute."""
     step = max(0.05, min(1.0, idle / 4))
     last = clock()
     while not server.stopped:
@@ -360,6 +365,8 @@ def _watchdog(server, idle: float, grace: float, clock=time.monotonic, sleep=tim
         if server.stopped:
             return
         limit = idle if server.visited else max(idle, grace)
+        if server.visited and server.hidden:
+            limit = max(limit, HIDDEN_IDLE)
         if now - server.session.last_seen > limit:
             server.shutdown()
             return

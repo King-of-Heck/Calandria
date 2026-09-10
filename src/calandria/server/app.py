@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import os
+import sys
 import threading
 import time
 import traceback
@@ -320,8 +321,16 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})
 
 
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        """A client that hung up mid-request (the app window closed, a reset keep-alive socket) is
+        not an error worth a traceback in the log; anything else still gets socketserver's report."""
+        if not isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):
+            super().handle_error(request, client_address)
+
+
 def make_server(session: Session, host: str = HOST, port: int = 0, verbose: bool = False) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = Server((host, port), Handler)
     server.daemon_threads = True
     server.session = session
     server.verbose = verbose

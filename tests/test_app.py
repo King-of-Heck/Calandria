@@ -575,3 +575,18 @@ def test_index_and_static_files_are_served_with_their_types(srv):
     status, headers, data = _req(srv.url + "static/style.css")
     assert status == 200 and headers["Content-Type"] == "text/css; charset=utf-8"
     assert headers["Cache-Control"] == "no-store"
+
+
+def test_a_client_that_resets_the_connection_leaves_no_traceback(srv, capsys):
+    import socket
+    import struct
+    host, port = srv.server.server_address[:2]
+    for _ in range(3):
+        s = socket.create_connection((host, port), timeout=5)
+        s.sendall(b"GET /api/state HTTP/1.1\r\nHost: x\r\n\r\n")
+        s.recv(1)                                        # the request is being served on a live socket
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))   # close = RST
+        s.close()
+    time.sleep(0.5)
+    assert _json(srv.url + "api/state")[0] == 200
+    assert capsys.readouterr().err == ""

@@ -9,45 +9,56 @@
 <body>
 <header id="bar">
   <span class="brand">Calandria</span>
-  <span class="sep"></span>
-  <label title="Compare without regard to letter case"><input type="checkbox" id="optIgnoreCase"> Ignore case</label>
-  <label title="Count list numbering changes as changes"><input type="checkbox" id="optCountNumbering" checked> Count numbering</label>
-  <span class="sep"></span>
-  <label><input type="checkbox" id="hideUnchanged"> Hide unchanged</label>
-  <label><input type="checkbox" id="hideInsertions"> Hide insertions</label>
-  <label><input type="checkbox" id="hideDeletions"> Hide deletions</label>
-  <label><input type="checkbox" id="hideFormatting"> Hide formatting</label>
-  <span class="sep"></span>
-  <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
-  <label><input type="checkbox" id="changeBars" checked> Change bars</label>
-  <label>Zoom <select id="zoom">
-    <option value="0.5">50 %</option><option value="0.75">75 %</option><option value="1" selected>100 %</option>
-    <option value="1.25">125 %</option><option value="1.5">150 %</option><option value="2">200 %</option>
-    <option value="fit">Fit width</option></select></label>
-  <label>Summary <select id="report">
-    <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
-  <button id="pdf" disabled>Save PDF</button>
-  <button id="quit" class="quit">Quit</button>
+  <div class="nav" role="group" aria-label="Change navigation">
+    <button id="navFirst" title="First change (Home)">First</button>
+    <button id="navPrev" title="Previous change (p, k, Left arrow)">Prev <kbd>p</kbd></button>
+    <button id="navNext" title="Next change (n, j, Right arrow)">Next <kbd>n</kbd></button>
+    <button id="navLast" title="Last change (End)">Last</button>
+    <input id="goto" type="number" min="1" placeholder="No." title="Go to change number">
+    <span id="changeStatus" class="count"></span>
+  </div>
+  <div class="tools">
+    <label>Zoom <select id="zoom">
+      <option value="0.5">50 %</option><option value="0.75">75 %</option><option value="1" selected>100 %</option>
+      <option value="1.25">125 %</option><option value="1.5">150 %</option><option value="2">200 %</option>
+      <option value="fit">Fit width</option></select></label>
+    <button id="pdf" disabled>Save PDF</button>
+    <details id="options" class="options">
+      <summary title="Comparison, page, rendering and PDF settings">Options ▾</summary>
+      <div class="popover">
+        <h4>Comparison <small>changing these compares again</small></h4>
+        <label title="Compare without regard to letter case"><input type="checkbox" id="optIgnoreCase"> Ignore case</label>
+        <label title="Count list numbering changes as changes"><input type="checkbox" id="optCountNumbering" checked> Count numbering changes</label>
+        <h4>On the page <small>re-lays out the pages</small></h4>
+        <label><input type="checkbox" id="showUnchanged" checked> Show unchanged text</label>
+        <label><input type="checkbox" id="showInsertions" checked> Show insertions</label>
+        <label><input type="checkbox" id="showDeletions" checked> Show deletions</label>
+        <label><input type="checkbox" id="showFormatting" checked> Show formatting changes</label>
+        <h4>Rendering</h4>
+        <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
+        <label><input type="checkbox" id="changeBars" checked> Change bars</label>
+        <h4>PDF</h4>
+        <label>Summary <select id="report">
+          <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
+        <div class="quitrow"><button id="quit" class="quit" title="Stop Calandria (closing the window does the same)">Quit Calandria</button></div>
+      </div>
+    </details>
+  </div>
 </header>
 <div id="body">
   <aside id="panel">
+    <div class="head">
+      <span id="listCount" class="count">No comparison</span>
+      <select id="fLocation" title="Body text, tables or both">
+        <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
+      </select>
+    </div>
     <div id="tiles" class="tiles"></div>
     <div class="filters">
       <label><input type="checkbox" id="fInsertion" checked> Insertions</label>
       <label><input type="checkbox" id="fDeletion" checked> Deletions</label>
       <label><input type="checkbox" id="fAmendment" checked> Amendments</label>
       <label><input type="checkbox" id="fNumbering" checked> Numbering</label>
-      <select id="fLocation">
-        <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
-      </select>
-    </div>
-    <div class="nav">
-      <button id="navFirst" title="First change (Home)">First</button>
-      <button id="navPrev" title="Previous change (p)">Prev</button>
-      <button id="navNext" title="Next change (n)">Next</button>
-      <button id="navLast" title="Last change (End)">Last</button>
-      <input id="goto" type="number" min="1" placeholder="No." title="Go to change number">
-      <span id="listCount" class="count"></span>
     </div>
     <ol id="changes" class="changes"></ol>
     <p class="note">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word.</p>
@@ -77,7 +88,6 @@
 </div>
 <footer id="status">
   <span id="pageStatus">No comparison</span>
-  <span id="changeStatus"></span>
   <span id="msg" class="msg"></span>
 </footer>
 <script type="module" src="/static/app.js"></script>

@@ -98,3 +98,21 @@ def test_the_empty_state_teaches():
     assert "nothing is written to Word" in main
     assert "Closing this window closes Calandria" in main
     assert "Drop the .docx here or click to choose" in main
+
+
+def test_the_toolbar_holds_navigation_zoom_pdf_and_options_only():
+    html = _read("index.html")
+    header = html[html.index("<header"):html.index("</header>")]
+    for id_ in ("navFirst", "navPrev", "navNext", "navLast", "goto", "changeStatus", "pdf", "options"):
+        assert f'id="{id_}"' in header, id_
+    # the per-comparison and per-office settings sit inside the Options popover, Quit with them
+    popover = header[header.index('id="options"'):]
+    for id_ in ("optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions",
+                "showFormatting", "renderSet", "changeBars", "report", "quit"):
+        assert f'id="{id_}"' in popover, id_
+    assert "hideUnchanged" not in html and "hideInsertions" not in html
+
+
+def test_the_option_labels_say_show_not_hide():
+    html = _read("index.html")
+    assert "Hide unchanged" not in html and "Show unchanged text" in html

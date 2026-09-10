@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
-const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "hideUnchanged", "hideInsertions", "hideDeletions", "hideFormatting"];
+const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
 
 export const state = {
   data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false,
@@ -77,18 +77,18 @@ function readBase64(file) {
 function options() {
   return {
     ignore_case: $("optIgnoreCase").checked, count_numbering: $("optCountNumbering").checked,
-    show_equal: !$("hideUnchanged").checked, show_insertions: !$("hideInsertions").checked,
-    show_deletions: !$("hideDeletions").checked, show_formatting: !$("hideFormatting").checked,
+    show_equal: $("showUnchanged").checked, show_insertions: $("showInsertions").checked,
+    show_deletions: $("showDeletions").checked, show_formatting: $("showFormatting").checked,
   };
 }
 
 function setOptions(o) {
   $("optIgnoreCase").checked = o.ignore_case;
   $("optCountNumbering").checked = o.count_numbering;
-  $("hideUnchanged").checked = !o.show_equal;
-  $("hideInsertions").checked = !o.show_insertions;
-  $("hideDeletions").checked = !o.show_deletions;
-  $("hideFormatting").checked = !o.show_formatting;
+  $("showUnchanged").checked = o.show_equal;
+  $("showInsertions").checked = o.show_insertions;
+  $("showDeletions").checked = o.show_deletions;
+  $("showFormatting").checked = o.show_formatting;
 }
 
 async function compareNow() {
@@ -254,6 +254,16 @@ function ping() {
     });
 }
 
+// The Options popover is a native <details>; it closes on Escape and on a click outside it,
+// and stays open while its own controls are used.
+function wirePopover() {
+  const d = $("options");
+  document.addEventListener("click", (e) => { if (d.open && !d.contains(e.target)) d.open = false; });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && d.open) { d.open = false; e.preventDefault(); }
+  });
+}
+
 function wire() {
   initSources({ compare: compareNow, swap: compareNow });   // the slots are already exchanged when swap fires
   const main = $("pages");
@@ -271,6 +281,7 @@ function wire() {
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
   state.timer = setInterval(ping, PING_MS);
+  wirePopover();
   initChanges();
 }
 

@@ -19,15 +19,32 @@ body.busy { cursor: progress; }
 body.closed #bar, body.closed #panel { opacity: .5; }
 
 #bar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px;
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px; min-height: 40px;
   background: var(--bar); border-bottom: 1px solid var(--edge);
 }
 #bar .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
-#bar .sep { width: 1px; height: 20px; background: var(--edge); }
+#bar .nav { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+#bar .nav input { width: 4.5em; }
+#bar .nav .count { color: var(--muted); margin-left: 6px; min-width: 9em; }
+#bar kbd { font: 11px/1 "Segoe UI", system-ui, sans-serif; color: var(--muted); border: 1px solid var(--edge); border-radius: 3px; padding: 1px 3px; margin-left: 2px; background: var(--bar); }
+#bar .tools { display: flex; align-items: center; gap: 8px; }
 #bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+#bar .options { position: relative; }
+#bar .options summary { list-style: none; padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; user-select: none; }
+#bar .options summary::-webkit-details-marker { display: none; }
+#bar .options[open] summary { background: var(--bar); }
+#bar .popover {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; width: 19em; padding: 8px 12px 10px;
+  background: #fff; border: 1px solid var(--edge); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  display: flex; flex-direction: column; gap: 6px;
+}
+#bar .popover h4 { margin: 8px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+#bar .popover h4:first-child { margin-top: 0; }
+#bar .popover h4 small { text-transform: none; letter-spacing: 0; font-weight: normal; margin-left: 6px; }
+#bar .popover label { display: flex; }
+#bar .popover .quitrow { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); }
 button { padding: 3px 10px; border: 1px solid var(--edge); border-radius: 4px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
 button:disabled { opacity: .5; cursor: default; }
-#bar button.quit { margin-left: auto; }
 
 #body { display: flex; flex: 1; min-height: 0; }
 #panel {
@@ -41,9 +58,9 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .tile.insertion b { color: var(--ins); }
 #panel .tile.deletion b { color: var(--del); }
 #panel .tile.formatting b { color: var(--fmt); }
-#panel .filters, #panel .nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 8px; border-top: 1px solid var(--edge); }
-#panel .nav input { width: 4.5em; }
-#panel .count { color: var(--muted); margin-left: auto; }
+#panel .head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
+#panel .head .count { font-weight: 600; margin-right: auto; }
+#panel .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 8px; border-top: 1px solid var(--edge); }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
 #panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3.5em 1fr; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
 #panel .changes li:hover { background: var(--bar); }

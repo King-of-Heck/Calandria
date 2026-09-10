@@ -17,7 +17,7 @@ const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "show
 
 export const state = {
   data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, shown: 1,
-  renderSet: "Standard", changeBars: true, closed: false, timer: null,
+  renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
   // flight) and is dropped, so the page always shows the answer to the LAST request.
@@ -51,7 +51,33 @@ function busy(on, text) {
   state.busy = on;
   document.body.classList.toggle("busy", on);
   msg(on ? text : "");
+  $("progress").hidden = !on;
+  clearTimeout(state.noticeTimer);
+  if (on) state.noticeTimer = setTimeout(() => notice(text, "wait"), NOTICE_DELAY_MS);
+  else if ($("notice").dataset.kind === "wait") hideNotice();   // an error card set meanwhile stays
   enableControls(!on);
+}
+
+// The card over the pages: "wait" after 400 ms of a request, "error" (dismissible) for a failed
+// one, "closed" (not dismissible) once the page has shut itself down.
+function notice(text, kind) {
+  const n = $("notice");
+  n.dataset.kind = kind;
+  n.className = `notice ${kind}`;
+  $("noticeText").textContent = text;
+  $("noticeClose").hidden = kind !== "error";
+  n.hidden = false;
+}
+
+function hideNotice() {
+  const n = $("notice");
+  n.hidden = true;
+  n.dataset.kind = "";
+}
+
+function fail(e) {
+  msg(e.message, true);
+  notice(e.message, "error");
 }
 
 // The controls whose requests could overlap (relayout, restyle, compare) are disabled while any
@@ -106,7 +132,7 @@ async function compareNow() {
     state.compared = { a, b };
     show(d);
   } catch (e) {
-    msg(e.message, true);
+    fail(e);
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -121,7 +147,7 @@ export async function relayout() {
     if (state.seq !== seq) return;
     show(d);
   } catch (e) {
-    msg(e.message, true);
+    fail(e);
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -140,7 +166,7 @@ async function restyle() {
     applyStyles();
     document.dispatchEvent(new CustomEvent("calandria:restyled"));
   } catch (e) {
-    msg(e.message, true);
+    fail(e);
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -165,6 +191,7 @@ function show(data) {
   document.title = `${data.names.original} vs ${data.names.modified} — Calandria`;
   renderPages();
   applyStyles();
+  hideNotice();
   msg("");
   document.dispatchEvent(new CustomEvent("calandria:loaded", { detail: data }));
 }
@@ -254,9 +281,12 @@ function savePdf() {
 function closed(text) {
   state.closed = true;
   clearInterval(state.timer);
+  clearTimeout(state.noticeTimer);
   document.body.classList.add("closed");
   for (const el of document.querySelectorAll("button, input, select")) el.disabled = true;
+  $("progress").hidden = true;
   msg(text, true);
+  notice(text, "closed");
 }
 
 async function quit() {
@@ -319,6 +349,7 @@ function wire() {
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
   state.timer = setInterval(ping, PING_MS);
+  $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
   initChanges();
 }

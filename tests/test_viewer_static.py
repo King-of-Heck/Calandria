@@ -128,3 +128,13 @@ def test_zoom_is_a_stepper_and_the_keys_have_a_sheet():
     assert '"j"' in js and '"k"' in js and '"ArrowRight"' in js and '"ArrowLeft"' in js
     app = _read("app.js")
     assert '"?"' in app and "e.ctrlKey" in app and '"wheel"' in app
+
+
+def test_progress_and_notice_elements_exist_and_closed_uses_the_card():
+    html = _read("index.html")
+    for id_ in ("progress", "notice", "noticeText", "noticeClose"):
+        assert f'id="{id_}"' in html, id_
+    js = _read("app.js")
+    body = js[js.index("function closed("):]
+    body = body[:body.index("\n}\n")]
+    assert 'notice(text, "closed")' in body

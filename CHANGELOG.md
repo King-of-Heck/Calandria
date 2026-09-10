@@ -1,5 +1,19 @@
 # Calandria changelog
 
+## v2.1.0 — One window (2026-09-09)
+
+- `Calandria.cmd` no longer opens a console: it starts the program in the background and the
+  viewer opens in its own window (Microsoft Edge in app mode: no tabs, no address bar, its own
+  taskbar entry). Without Edge the default browser is used as before.
+- Closing the window stops Calandria within a few seconds (the page pings the server every
+  2 s; `--idle` now defaults to 8 s after the first visit, with a 120 s `--grace` before it).
+  A laptop that sleeps with the window open resumes where it was.
+- `serve --log=PATH` writes the start line and any error to a file; the launcher uses
+  `%LOCALAPPDATA%\Calandria\calandria.log`.
+- The extracted folder holds `Calandria.cmd`, `README.md`, `CHANGELOG.md` and one `_internal`
+  folder (the Python runtime and the program). Command line from the folder:
+  `_internal\python\python.exe -m calandria <command>`.
+
 ## v2.0.0 — First release (2026-09-09)
 
 - Offline Word (`.docx`) redline / compare tool: a paged on-screen viewer and a PDF, both drawn

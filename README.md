@@ -5,20 +5,22 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder — no inst
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.0.0 (see `CHANGELOG.md`).
+Status: v2.1.0 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
 Download `Calandria-<version>.zip` from the GitHub release, extract it anywhere (Explorer's
-"Extract All" is fine) and double-click `Calandria.cmd` inside the extracted folder. A console
-window opens, the default browser shows the viewer, and the console closes when you press Quit
-(or five minutes after the page is closed). Nothing is installed: the folder holds its own
+"Extract All" is fine) and double-click `Calandria.cmd` inside the extracted folder. Calandria
+opens in its own window (Microsoft Edge in app mode; the default browser if Edge is absent).
+Close the window, or press Quit, to stop it. Nothing is installed: the folder holds its own
 64-bit Python and libraries, and removing the folder removes everything. To update, extract the
-new zip and delete the old folder.
+new zip and delete the old folder. If nothing appears, look at
+`%LOCALAPPDATA%\Calandria\calandria.log`.
 
-Inside the folder: `python\` (the official embeddable Python with the libraries extracted into
-`Lib\site-packages`), `app\calandria\` (the program), `Calandria.cmd`, this file and the
-changelog. `python\python.exe -m calandria <command>` runs the command line from the folder.
+Inside the folder: `Calandria.cmd`, this file, the changelog and `_internal\` (`python\`, the
+official embeddable Python with the libraries extracted into `Lib\site-packages`, and
+`app\calandria\`, the program). `_internal\python\python.exe -m calandria <command>` runs the
+command line from the folder.
 
 ## Command line
 
@@ -32,7 +34,8 @@ python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-
                         [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                         [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                         [--report=first|last|none]
-python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
+python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
+                          [--no-browser] [--verbose]
 ```
 
 ## Running the parity gate
@@ -89,7 +92,7 @@ page count and that its text reads back.
 ## Viewer
 
 `python -m calandria serve` (or a double-click on `Calandria.cmd`) starts a local server on
-127.0.0.1 and opens the browser on the viewer. Drop the original and the modified `.docx` on
+127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original and the modified `.docx` on
 the page (or pick them with the two file buttons) and press Compare: the pages shown are the
 same drawing the PDF gets — the server draws every page as SVG from the page model, so the
 screen and the PDF never disagree. The header switches the rendering set and the change bars
@@ -100,9 +103,11 @@ location filters, the numbered change list (click a row to jump to it; First / P
 Next / Last, a go-to box, and the keys `n`, `p`, `Home`, `End` outside inputs) and "Change X
 of Y". Documents never leave the machine.
 
-The server keeps one comparison in memory, stops on Quit, and stops by itself after five
-minutes without the page (`--idle=SECONDS`, 0 = never); `--port=N` fixes the port,
-`--no-browser` only prints the URL, `--verbose` logs requests. Change bars, change numbers
+The server keeps one comparison in memory, stops on Quit, and stops by itself a few seconds
+after the window closes (`--idle=SECONDS` after the last request, default 8, 0 = never;
+`--grace=SECONDS` before the first request, default 120); `--port=N` fixes the port,
+`--no-browser` only prints the URL, `--verbose` logs requests, `--log=PATH` writes the start
+line and any error to a file. Change bars, change numbers
 and the summary exist only in the viewer and the PDF; nothing is written to Word.
 
 The corpus gate `tests/parity/test_viewer.py` checks that every pair's viewer payload has one

@@ -50,6 +50,7 @@ function msg(text, isError) {
 function busy(on, text) {
   state.busy = on;
   document.body.classList.toggle("busy", on);
+  if (state.closed) return;            // closed() already owns the card, the bar and the message
   msg(on ? text : "");
   $("progress").hidden = !on;
   clearTimeout(state.noticeTimer);
@@ -77,6 +78,7 @@ function hideNotice() {
 }
 
 function fail(e) {
+  if (state.closed) return;            // the closed card is the one that must stay
   msg(e.message, true);
   notice(e.message, "error");
 }
@@ -130,6 +132,7 @@ async function compareNow() {
                    options: options(), render_set: state.renderSet, change_bars: state.changeBars };
     const d = await api("/api/compare", body);
     if (state.seq !== seq) return;
+    if (state.closed) return;
     state.compared = { a, b };
     show(d);
   } catch (e) {
@@ -330,11 +333,13 @@ function wire() {
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
   main.addEventListener("wheel", (e) => {
+    if (state.closed) return;
     if (!e.ctrlKey) return;                          // plain wheel scrolls; Ctrl+wheel zooms instead of Edge's page zoom
     e.preventDefault();
     stepZoom(e.deltaY < 0 ? 1 : -1);
   }, { passive: false });
   document.addEventListener("keydown", (e) => {
+    if (state.closed) return;
     if (e.target.matches("input, select, textarea") || e.altKey || e.metaKey) return;   // keys never act inside a text box
     if (e.ctrlKey && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
     else if (e.ctrlKey && e.key === "-") { e.preventDefault(); stepZoom(-1); }

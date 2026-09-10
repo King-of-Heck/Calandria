@@ -42,7 +42,7 @@ export function initChanges() {
     e.target.value = "";
   });
   document.addEventListener("keydown", (e) => {
-    if (e.target.matches("input, select, textarea") || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.target.matches("input, select, textarea") || e.ctrlKey || e.altKey || e.metaKey || $("keys").open) return;
     if (e.key === "n" || e.key === "j" || e.key === "ArrowRight") go(current + 1);
     else if (e.key === "p" || e.key === "k" || e.key === "ArrowLeft") go(current - 1);
     else if (e.key === "Home") go(0);

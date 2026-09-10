@@ -35,7 +35,7 @@ export function initSources(h) {
     });
     $(ids.clear).addEventListener("click", (e) => { e.stopPropagation(); if (!state.closed) setFile(slot, null); });
     card.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); if (!state.closed) card.classList.add("over"); });
-    card.addEventListener("dragleave", () => card.classList.remove("over"));
+    card.addEventListener("dragleave", (e) => { if (!card.contains(e.relatedTarget)) card.classList.remove("over"); });
     card.addEventListener("drop", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -45,7 +45,7 @@ export function initSources(h) {
   }
   const main = $("pages");
   main.addEventListener("dragover", (e) => { e.preventDefault(); if (!state.closed) main.classList.add("over"); });
-  main.addEventListener("dragleave", () => main.classList.remove("over"));
+  main.addEventListener("dragleave", (e) => { if (!main.contains(e.relatedTarget)) main.classList.remove("over"); });
   main.addEventListener("drop", (e) => {
     e.preventDefault();
     main.classList.remove("over");
@@ -62,7 +62,7 @@ function docxOnly(list) {
 
 // `slot` is the card the files landed on, or null for a drop elsewhere on the page area.
 function takeDrop(list, slot) {
-  if (state.closed) return;
+  if (state.closed || state.busy) return;    // no drop while a request is in flight: a second compare could finish first
   const files = docxOnly(list);
   if (!files.length) return;
   const before = !state.data;

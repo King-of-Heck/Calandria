@@ -149,7 +149,7 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .page svg { display: block; }
 #pages .page svg text { user-select: text; }
 #pages .page rect.hl { fill: var(--hl); fill-opacity: .35; }
-#pages .pagenum { position: absolute; right: 0; bottom: -17px; }
+#pages .pagenum { position: absolute; right: 0; bottom: -17px; font-size: 12px; color: #1f2937; background: rgba(255,255,255,.7); padding: 0 4px; border-radius: 3px; }
 
 #status { display: flex; gap: 16px; padding: 4px 10px; background: var(--bar); border-top: 1px solid var(--edge); }
 #status .msg { margin-left: auto; color: var(--muted); }
@@ -159,4 +159,3 @@ button:disabled { opacity: .5; cursor: default; }
 button, input, select, summary, [tabindex] { outline: none; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible, #panel .changes li:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
 button, select, input[type="number"] { min-height: 26px; }
-#pages .pagenum { color: #1f2937; background: rgba(255,255,255,.7); padding: 0 4px; border-radius: 3px; font-size: 12px; }

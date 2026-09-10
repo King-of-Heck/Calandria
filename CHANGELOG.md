@@ -2,9 +2,10 @@
 
 ## v2.1.0 — One window (2026-09-09)
 
-- `Calandria.cmd` no longer leaves a console window open (it flashes and closes): it starts the program in the background and the
-  viewer opens in its own window (Microsoft Edge in app mode: no tabs, no address bar, its own
-  taskbar entry). Without Edge the default browser is used as before.
+- `Calandria.cmd` no longer leaves a console window open (it flashes and closes): it starts
+  the program in the background and the viewer opens in its own window (Microsoft Edge in app
+  mode: no tabs, no address bar, its own taskbar entry). Without Edge the default browser is
+  used as before.
 - Closing the window stops Calandria within a few seconds (the page pings the server every
   2 s; `--idle` now defaults to 8 s after the first visit, with a 120 s `--grace` before it).
   A laptop that sleeps with the window open resumes where it was.

@@ -93,7 +93,7 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .changes li .no { grid-area: no; }
 #panel .changes li .pg { grid-area: pg; color: var(--muted); font-size: 12px; }
 #panel .changes li .tbl { grid-area: tbl; color: var(--muted); }
-#panel .changes li .text { grid-area: text; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#panel .changes li .text { grid-area: text; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 2px; }
 #panel .changes li.current .text { display: block; -webkit-line-clamp: unset; overflow: visible; }
 #panel .changes li:hover { background: var(--bar); }
 #panel .changes li.current { background: #fff4c2; }

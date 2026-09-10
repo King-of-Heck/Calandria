@@ -64,6 +64,7 @@ function initPanel() {
     panel.classList.toggle("collapsed", collapsed);
     btn.textContent = collapsed ? "›" : "‹";
     btn.title = collapsed ? "Show the change list" : "Hide the change list";
+    btn.setAttribute("aria-expanded", String(!collapsed));
     document.dispatchEvent(new CustomEvent("calandria:resized"));
   };
   btn.addEventListener("click", () => {
@@ -111,6 +112,7 @@ function markTiles() {
     t.classList.toggle("on", on);
     t.classList.toggle("dim", solo !== null && !on);
   }
+  $("tiles").querySelector(".tile.formatting").classList.toggle("dim", solo !== null);
 }
 
 function refilter() {
@@ -162,7 +164,7 @@ function renderList() {
     const li = document.createElement("li");
     li.className = en.category;
     li.dataset.i = String(i);
-    li.tabIndex = 0;
+    li.tabIndex = i === 0 ? 0 : -1;                // one tab stop: the first row until one is selected
     li.innerHTML = `<span class="badge">${BADGE[en.category] || en.category}</span><span class="no">${en.cid}</span>` +
                    `<span class="pg" title="Page">${en.page === null ? "" : "p. " + en.page}</span>` +
                    (hasTables ? `<span class="tbl" title="${en.loc === "table" ? "In a table" : ""}">${en.loc === "table" ? "⊞" : ""}</span>` : "") +
@@ -188,14 +190,20 @@ function go(i) {
   const ol = $("changes");
   const was = ol.querySelector("li.current");
   if (was && Number(was.dataset.i) !== i) was.querySelector(".text").innerHTML = changeText(visible[Number(was.dataset.i)], CONTEXT_SHORT);
+  const focusInList = ol.contains(document.activeElement);
   current = i;
   highlight(i);
   status();
-  for (const li of ol.querySelectorAll("li")) li.classList.toggle("current", Number(li.dataset.i) === i);
+  for (const li of ol.querySelectorAll("li")) {
+    const on = Number(li.dataset.i) === i;
+    li.classList.toggle("current", on);
+    li.tabIndex = on ? 0 : -1;                       // the list is one tab stop: the current row
+  }
   const li = ol.querySelector(`li[data-i="${i}"]`);
   if (li) {
     li.querySelector(".text").innerHTML = changeText(visible[i], CONTEXT);   // the selected row shows the full text
     li.scrollIntoView({ block: li.offsetHeight > ol.clientHeight ? "start" : "nearest" });
+    if (focusInList) li.focus({ preventScroll: true });   // the keys move the focus with the selection
   }
   const a = data.anchors[String(visible[i].cid)];
   if (!a) return;

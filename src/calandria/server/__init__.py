@@ -21,7 +21,9 @@ read: a loopback server is reachable from every page the browser has open.
                               -> {"render_set", "change_bars", "pages", "report_lines"}
   GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none
                               -> application/pdf as an attachment
-  POST /api/ping              {"ok": true}; the page sends one every 15 s
+  POST /api/ping              {"ok": true}; the page sends one every 2 s
   POST /api/quit              {"ok": true}, then the server stops
-The server also stops after --idle seconds without any request (default 300; 0 = never).
+The server also stops --idle seconds after the last request once the page has been seen
+(default 8, so closing the window stops it; 0 = never), and --grace seconds (default 120) after
+start if no page ever arrives. A machine that sleeps does not count as silence.
 """

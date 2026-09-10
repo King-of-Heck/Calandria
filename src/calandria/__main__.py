@@ -8,7 +8,8 @@
                             [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                             [--report=first|last|none]
-    python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]
+    python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
+                              [--no-browser] [--verbose]
     python -m calandria version
 """
 import json
@@ -27,7 +28,7 @@ from .pdf.draw import PdfOptions
 from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
 from .pdf.writer import REPORTS, render
-from .server.app import DEFAULT_IDLE, serve
+from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
 
 USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
@@ -38,7 +39,8 @@ USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "                               [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
          "                               [--report=first|last|none]\n"
-         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--no-browser] [--verbose]\n"
+         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]\n"
+         "                                 [--no-browser] [--verbose]\n"
          "       python -m calandria version")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
@@ -46,7 +48,8 @@ _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
 _PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars"}
 _PDF_VALUED = {"--render-set", "--report"}
 _SERVE_FLAGS = {"--no-browser", "--verbose"}
-_SERVE_VALUED = {"--port", "--idle"}
+_SERVE_VALUED = {"--port", "--idle", "--grace", "--log"}
+LOG_ROTATE_BYTES = 1_000_000
 
 
 def _parse(rest, allowed, valued=frozenset(), n=2):
@@ -78,6 +81,22 @@ def _layout_options(flags) -> LayoutOptions:
 def _compare(flags, pa, pb):
     return compare(parse_docx(pa), parse_docx(pb), ignore_case="--ignore-case" in flags,
                    count_numbering="--no-count-numbering" not in flags)
+
+
+def _open_log(path: str):
+    """The serve log: appended to (truncated first past LOG_ROTATE_BYTES), UTF-8, line-buffered.
+    Under pythonw.exe there is no console, so sys.stdout / sys.stderr are None; they are bound to
+    this file so the url line, the --verbose access log and any traceback have somewhere to go."""
+    path = os.path.abspath(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    mode = "w" if os.path.exists(path) and os.path.getsize(path) > LOG_ROTATE_BYTES else "a"
+    f = open(path, mode, encoding="utf-8", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = f
+    if sys.stderr is None:
+        sys.stderr = f
+    print(f"--- {datetime.now():%Y-%m-%d %H:%M:%S} calandria {__version__} serve", file=f, flush=True)
+    return f
 
 
 def main(argv) -> int:
@@ -131,14 +150,27 @@ def main(argv) -> int:
         try:
             port = int(values.get("--port", "0"))
             idle = float(values.get("--idle", str(DEFAULT_IDLE)))
+            grace = float(values.get("--grace", str(DEFAULT_GRACE)))
         except ValueError:
             print(USAGE)
             return 2
-        if not 0 <= port <= 65535 or not math.isfinite(idle) or idle < 0:
+        if not 0 <= port <= 65535 or not all(math.isfinite(x) and x >= 0 for x in (idle, grace)):
             print(USAGE)            # float() takes "nan" and "inf"; neither is a timeout
             return 2
-        serve(port=port, open_browser="--no-browser" not in flags, idle=idle, verbose="--verbose" in flags,
-              ready=lambda url: print(json.dumps({"url": url}), flush=True))
+        logf = _open_log(values["--log"]) if "--log" in values else None
+
+        def ready(url):
+            line = json.dumps({"url": url})
+            print(line, flush=True)
+            if logf is not None and logf is not sys.stdout:
+                print(line, file=logf, flush=True)
+
+        try:
+            serve(port=port, open_browser="--no-browser" not in flags, idle=idle, grace=grace,
+                  verbose="--verbose" in flags, ready=ready)
+        finally:
+            if logf is not None and logf is not sys.stdout and logf is not sys.stderr:
+                logf.close()
         return 0
     print(USAGE)
     return 2

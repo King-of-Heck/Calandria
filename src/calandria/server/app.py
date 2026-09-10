@@ -22,7 +22,8 @@ STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; char
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
-DEFAULT_IDLE = 300.0
+DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)
+DEFAULT_GRACE = 120.0       # seconds allowed before the first request (a cold Edge start)
 HOST = "127.0.0.1"
 
 
@@ -226,6 +227,7 @@ class Handler(BaseHTTPRequestHandler):
     def _route(self, method: str) -> None:
         session: Session = self.server.session
         session.touch()
+        self.server.visited = True
         self._consumed = self._sent = False
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
@@ -324,6 +326,7 @@ def make_server(session: Session, host: str = HOST, port: int = 0, verbose: bool
     server.session = session
     server.verbose = verbose
     server.stopped = False
+    server.visited = False
     return server
 
 
@@ -332,19 +335,31 @@ def url_of(server) -> str:
     return f"http://{host}:{port}/"
 
 
-def _watchdog(server, idle: float) -> None:
+def _watchdog(server, idle: float, grace: float, clock=time.monotonic, sleep=time.sleep) -> None:
+    """Stop the server after `idle` seconds without a request -- or `max(idle, grace)` before the
+    first one, so a slow browser start is not mistaken for a closed window. A gap between two
+    ticks far longer than the tick means the machine slept (the page could not ping); that counts
+    as a touch, not as silence, and the page gets `idle` seconds to resume."""
     step = max(0.05, min(1.0, idle / 4))
+    last = clock()
     while not server.stopped:
-        time.sleep(step)
-        if not server.stopped and time.monotonic() - server.session.last_seen > idle:
+        sleep(step)
+        now = clock()
+        if now - last > 4 * step + 2.0:
+            server.session.touch()
+        last = now
+        if server.stopped:
+            return
+        limit = idle if server.visited else max(idle, grace)
+        if now - server.session.last_seen > limit:
             server.shutdown()
             return
 
 
-def run(server, idle: float = 0.0) -> None:
+def run(server, idle: float = 0.0, grace: float = 0.0) -> None:
     """Serve until /api/quit, the idle watchdog (idle > 0) or shutdown() from another thread."""
     if idle > 0:
-        threading.Thread(target=_watchdog, args=(server, idle), daemon=True).start()
+        threading.Thread(target=_watchdog, args=(server, idle, grace), daemon=True).start()
     try:
         server.serve_forever(poll_interval=0.1)
     finally:
@@ -352,8 +367,8 @@ def run(server, idle: float = 0.0) -> None:
         server.server_close()
 
 
-def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, verbose: bool = False,
-          fonts=None, ready=None) -> None:
+def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, grace: float = DEFAULT_GRACE,
+          verbose: bool = False, fonts=None, ready=None) -> None:
     logging.getLogger("fontTools").setLevel(logging.ERROR)     # "'created' timestamp seems very low"
     session = Session(fonts=fonts)
     server = make_server(session, port=port, verbose=verbose)
@@ -363,6 +378,6 @@ def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, 
     if open_browser:
         open_viewer(url)
     try:
-        run(server, idle)
+        run(server, idle, grace)
     except KeyboardInterrupt:
-        pass                # Ctrl+C in the launcher window is a quit, not a crash; run() still closes
+        pass                # Ctrl+C in a console is a quit, not a crash; run() still closes

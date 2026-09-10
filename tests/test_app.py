@@ -14,7 +14,7 @@ import pytest
 from calandria import __version__
 from calandria.layout.fonts import default_dirs
 from calandria.server import app as appmod
-from calandria.server.app import DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
+from calandria.server.app import DEFAULT_GRACE, DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
 from calandria.server.session import Session
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import DOC, P, STYLES, make_docx
@@ -48,11 +48,11 @@ def _json(url, method="GET", body=None, raw=None):
 
 
 class Served:
-    def __init__(self, session, idle=0.0):
+    def __init__(self, session, idle=0.0, grace=0.0):
         self.session = session
         self.server = make_server(session)
         self.url = url_of(self.server)
-        self.thread = threading.Thread(target=run, args=(self.server, idle), daemon=True)
+        self.thread = threading.Thread(target=run, args=(self.server, idle, grace), daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -76,7 +76,7 @@ def _compare_body(a=P("aaaa"), b=P("aaaa bbbb"), options=None):
 
 
 def test_defaults():
-    assert DEFAULT_IDLE == 300.0 and MAX_BODY == 64 * 1024 * 1024
+    assert DEFAULT_IDLE == 8.0 and DEFAULT_GRACE == 120.0 and MAX_BODY == 64 * 1024 * 1024
     assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js"}
 
 
@@ -320,6 +320,51 @@ def test_ping_without_a_body_is_fine(srv):
     req = urllib.request.Request(srv.url + "api/ping", data=b"", method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:
         assert r.status == 200 and json.loads(r.read()) == {"ok": True}
+
+
+def test_any_request_marks_the_server_visited(srv):
+    assert srv.server.visited is False
+    assert _req(srv.url)[0] == 200
+    assert srv.server.visited is True
+
+
+def test_grace_covers_the_time_before_the_first_visit():
+    s = Served(Session(fonts=FakeResolver()), idle=0.3, grace=1.5)
+    try:
+        time.sleep(0.8)
+        assert s.thread.is_alive()                    # 0.8 s > idle, but nobody has visited yet
+        assert _json(s.url + "api/state")[0] == 200
+        s.thread.join(5)
+        assert not s.thread.is_alive() and s.server.stopped     # after the visit, idle rules
+    finally:
+        s.stop()
+
+
+def test_watchdog_treats_a_clock_jump_as_a_suspend_not_as_silence():
+    import types
+    t = [0.0]
+    session = types.SimpleNamespace(last_seen=0.0)
+    touched = []
+
+    def touch():
+        touched.append(t[0])
+        session.last_seen = t[0]
+
+    session.touch = touch
+    shut = []
+    server = types.SimpleNamespace(session=session, stopped=False, visited=True,
+                                   shutdown=lambda: shut.append(t[0]))
+    advances = iter([1.0, 60.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+
+    def sleep(_):
+        try:
+            t[0] += next(advances)
+        except StopIteration:
+            server.stopped = True
+
+    appmod._watchdog(server, idle=4.0, grace=0.0, clock=lambda: t[0], sleep=sleep)
+    assert touched == [61.0]           # the 60 s jump was a sleep: the page gets its ping back
+    assert shut == [66.0]              # then 5 s of real silence > idle stops the server
 
 
 def test_idle_watchdog_stops_an_unvisited_server():

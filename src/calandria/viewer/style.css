@@ -84,7 +84,7 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .head .count { font-weight: 600; margin-right: auto; }
 #panel.collapsed { width: 28px; }
 #panel.collapsed .head { padding: 6px 2px; border-bottom: 0; }
-#panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes, #panel.collapsed .note { display: none; }
+#panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes { display: none; }
 #panel .head #panelToggle { padding: 1px 6px; font-size: 15px; line-height: 20px; }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
 #panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg ." "text text text text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
@@ -105,7 +105,6 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .no { font-weight: 600; }
 #panel .text s.del { color: var(--del); }
 #panel .text u.ins { color: var(--ins); text-decoration: underline double; }
-#panel .note { margin: 0; padding: 6px 8px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--edge); }
 
 #pages { flex: 1; overflow: auto; position: relative; padding: 16px; }
 #pages.over { outline: 3px dashed #2563eb; outline-offset: -6px; }

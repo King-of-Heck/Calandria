@@ -171,7 +171,7 @@ def test_serve_usage_errors(capsys):
 
 def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
     t0 = time.perf_counter()
     assert main(["serve", "--no-browser", "--port=0", "--idle=0.4"]) == 0
     assert time.perf_counter() - t0 < 30
@@ -182,7 +182,7 @@ def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
 
 def test_serve_opens_the_browser_by_default(monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.webbrowser.open", lambda url: opened.append(url))
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
     assert main(["serve", "--idle=0.4"]) == 0
     assert len(opened) == 1 and opened[0].startswith("http://127.0.0.1:")
 

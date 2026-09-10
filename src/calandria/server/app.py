@@ -9,7 +9,6 @@ import os
 import threading
 import time
 import traceback
-import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -17,6 +16,7 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
 from .session import BadDocument, Session, check_render, parse_options
+from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8"}
@@ -361,7 +361,7 @@ def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, 
     if ready is not None:
         ready(url)
     if open_browser:
-        webbrowser.open(url)
+        open_viewer(url)
     try:
         run(server, idle)
     except KeyboardInterrupt:

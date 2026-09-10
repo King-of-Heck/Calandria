@@ -220,6 +220,14 @@ def test_smoke_serve_arguments_cover_the_console_less_launch():
     assert "--grace=1" in br.SMOKE_SERVE and "--idle=1" in br.SMOKE_SERVE and "--no-browser" in br.SMOKE_SERVE
 
 
+def test_the_serve_smoke_starts_from_no_log_and_survives_a_missing_one():
+    import inspect
+    src = inspect.getsource(br.smoke)
+    assert "log.unlink(missing_ok=True)" in src              # a log left by an earlier build never counts
+    # a serve that wrote nothing must fail with the log smoke message, not a FileNotFoundError
+    assert 'log.read_text(encoding="utf-8") if log.exists() else ""' in src
+
+
 def test_sha256_of(tmp_path):
     p = tmp_path / "f"
     p.write_bytes(b"abc")

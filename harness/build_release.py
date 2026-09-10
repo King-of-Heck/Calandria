@@ -283,10 +283,11 @@ def smoke(stage_dir: Path, version: str) -> None:
     if '"pages": 1' not in out or not (work / "out.pdf").read_bytes().startswith(b"%PDF"):
         raise RuntimeError(f"pdf smoke: {out!r}")
     log = work / "calandria.log"
+    log.unlink(missing_ok=True)         # only this run's log counts, not one an earlier build left
     out = _run([py, *SMOKE_SERVE, f"--log={log}"], stage_dir, timeout=60)
     if '"url": "http://127.0.0.1:' not in out:
         raise RuntimeError(f"serve smoke: {out!r}")
-    logged = log.read_text(encoding="utf-8")
+    logged = log.read_text(encoding="utf-8") if log.exists() else ""
     if '"url": "http://127.0.0.1:' not in logged or not logged.startswith("--- "):
         raise RuntimeError(f"log smoke: {logged!r}")
 

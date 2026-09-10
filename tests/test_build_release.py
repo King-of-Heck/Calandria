@@ -198,11 +198,26 @@ def test_release_notes_has_description_entry_and_download_line():
 
 
 def test_notes_out_writes_the_release_notes_as_utf8(tmp_path):
+    import calandria
     out = tmp_path / "n.md"
     assert br.main(["--notes-out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
     assert text.startswith("**Calandria**")
-    assert "## v2.0.0 —" in text
+    assert f"## v{calandria.__version__} —" in text
+
+
+def test_layout_paths_put_python_and_app_under_internal(tmp_path):
+    stage = tmp_path / "Calandria-9.9.9"
+    paths = br.layout_paths(stage)
+    assert br.INTERNAL == "_internal"
+    assert paths == {"python": stage / "_internal" / "python",
+                     "site": stage / "_internal" / "python" / "Lib" / "site-packages",
+                     "app": stage / "_internal" / "app" / "calandria"}
+    assert br.pth_lines()[-1] == "..\\app"           # python/ and app/ stay siblings
+
+
+def test_smoke_serve_arguments_cover_the_console_less_launch():
+    assert "--grace=1" in br.SMOKE_SERVE and "--idle=1" in br.SMOKE_SERVE and "--no-browser" in br.SMOKE_SERVE
 
 
 def test_sha256_of(tmp_path):

@@ -5,13 +5,14 @@ extracted next to it, the app and the launcher, in one folder.
     uv run python harness/build_release.py --notes        # print the release notes and stop
     uv run python harness/build_release.py --notes-out PATH  # write the release notes and stop
 
-Layout of the zip (one top folder):
+Layout of the zip (one top folder; one thing to double-click):
 
     Calandria-<version>/
       Calandria.cmd  README.md  CHANGELOG.md
-      python/        python.exe, python314.zip, python314._pth (python314.zip / . /
-                     Lib\\site-packages / ..\\app), the DLLs, Lib/site-packages/<wheels extracted>
-      app/calandria/ the package (no bytecode)
+      _internal/python/   python.exe, pythonw.exe, python314.zip, python314._pth
+                          (python314.zip / . / Lib\\site-packages / ..\\app), the DLLs,
+                          Lib/site-packages/<wheels extracted>
+      _internal/app/calandria/   the package (no bytecode)
 
 Wheels come from the URLs in uv.lock and are checked against the lock's sha256. lxml and pillow
 take the compiled cp314-cp314-win_amd64 wheel (never cp314t); everything else takes the pure
@@ -39,6 +40,8 @@ PLATFORM_TAG = "cp314-cp314-win_amd64"
 PURE_TAGS = ("py3-none-any", "py2.py3-none-any")
 PTH_NAME = "python314._pth"
 PTH_TEXT = "python314.zip\n.\nLib\\site-packages\n..\\app\n"
+INTERNAL = "_internal"
+SMOKE_SERVE = ["-m", "calandria", "serve", "--no-browser", "--idle=1", "--grace=1"]
 CACHE = ROOT / "build" / "cache"
 STAGE = ROOT / "build" / "stage"
 DIST = ROOT / "dist"
@@ -47,9 +50,10 @@ SMOKE_IMPORTS = "from lxml import etree; from PIL import Image; from fontTools.t
 DESCRIPTION = (
     "**Calandria** is an offline Word (`.docx`) redline / compare tool from HeckSoft (a King of Heck "
     "Company), the successor to SorkWhare Compare. Extract the zip anywhere, double-click "
-    "`Calandria.cmd`, drop the original and the modified document on the page: the redline is laid "
-    "out page by page on screen and saved as a PDF from the same drawing. No install, no admin "
-    "rights, no internet connection; the documents never leave your computer."
+    "`Calandria.cmd`: Calandria opens in its own window (no console, no browser tabs). Drop the "
+    "original and the modified document on the page: the redline is laid out page by page on "
+    "screen and saved as a PDF from the same drawing. Closing the window stops it. No install, no "
+    "admin rights, no internet connection; the documents never leave your computer."
 )
 
 
@@ -192,12 +196,19 @@ def unpack_embed(embed_zip: Path, python_dir: Path) -> None:
     pth.write_text(PTH_TEXT, encoding="ascii", newline="")
 
 
+def layout_paths(stage_dir: Path) -> dict[str, Path]:
+    python_dir = stage_dir / INTERNAL / "python"
+    return {"python": python_dir, "site": python_dir / "Lib" / "site-packages",
+            "app": stage_dir / INTERNAL / "app" / "calandria"}
+
+
 def stage(version: str) -> Path:
     """Build build/stage/Calandria-<version>/ from scratch; return it."""
     stage_dir = STAGE / f"Calandria-{version}"
     if stage_dir.exists():
         shutil.rmtree(stage_dir)
-    python_dir, site = stage_dir / "python", stage_dir / "python" / "Lib" / "site-packages"
+    paths = layout_paths(stage_dir)
+    python_dir, site = paths["python"], paths["site"]
     print("embeddable Python")
     embed = download(EMBED_URL, CACHE, EMBED_SHA256)
     if not EMBED_SHA256:
@@ -214,7 +225,7 @@ def stage(version: str) -> Path:
     if bad:
         raise RuntimeError(f"unexpected native extension(s): {', '.join(p.name for p in bad)}")
     print("app")
-    stage_app(ROOT / "src" / "calandria", stage_dir / "app" / "calandria")
+    stage_app(ROOT / "src" / "calandria", paths["app"])
     for name in ("Calandria.cmd", "README.md", "CHANGELOG.md"):
         shutil.copyfile(ROOT / name, stage_dir / name)
     return stage_dir
@@ -250,7 +261,10 @@ def _src_on_path() -> None:
 
 def smoke(stage_dir: Path, version: str) -> None:
     """Run the staged interpreter the way the launcher will: version, imports, a PDF, a serve."""
-    py = str(stage_dir / "python" / "python.exe")
+    python_dir = layout_paths(stage_dir)["python"]
+    py = str(python_dir / "python.exe")
+    if not (python_dir / "pythonw.exe").is_file():
+        raise RuntimeError("the embeddable Python has no pythonw.exe; the launcher needs it")
     print("smoke")
     out = _run([py, "-m", "calandria", "version"], stage_dir)
     if out.strip() != f"calandria {version}":
@@ -268,9 +282,13 @@ def smoke(stage_dir: Path, version: str) -> None:
                stage_dir)
     if '"pages": 1' not in out or not (work / "out.pdf").read_bytes().startswith(b"%PDF"):
         raise RuntimeError(f"pdf smoke: {out!r}")
-    out = _run([py, "-m", "calandria", "serve", "--no-browser", "--idle=1"], stage_dir, timeout=60)
+    log = work / "calandria.log"
+    out = _run([py, *SMOKE_SERVE, f"--log={log}"], stage_dir, timeout=60)
     if '"url": "http://127.0.0.1:' not in out:
         raise RuntimeError(f"serve smoke: {out!r}")
+    logged = log.read_text(encoding="utf-8")
+    if '"url": "http://127.0.0.1:' not in logged or not logged.startswith("--- "):
+        raise RuntimeError(f"log smoke: {logged!r}")
 
 
 def zip_stage(stage_dir: Path, out: Path) -> list[str]:

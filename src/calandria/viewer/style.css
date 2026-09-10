@@ -120,15 +120,16 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .sources.compact .card .clear { top: 3px; right: 4px; }
 #pages .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
 #pages .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }
-#pages .notice {
-  position: sticky; top: 30vh; z-index: 5; margin: 0 auto; max-width: 28em; padding: 16px 20px;
+#pages .notice { position: sticky; top: 30vh; z-index: 5; height: 0; overflow: visible; }
+#pages .notice .box {
+  margin: 0 auto; max-width: 28em; padding: 16px 20px;
   background: #fff; border: 1px solid var(--edge); border-left: 6px solid #2563eb; border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0,0,0,.25); text-align: center;
 }
 #pages .notice p { margin: 0 0 8px; overflow-wrap: anywhere; }
 #pages .notice button:not([hidden]) { display: inline-block; }
-#pages .notice.error { border-left-color: var(--del); }
-#pages .notice.closed { border-left-color: var(--muted); }
+#pages .notice.error .box { border-left-color: var(--del); }
+#pages .notice.closed .box { border-left-color: var(--muted); }
 #pages .notice.wait p { padding-left: 22px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232563eb' stroke-width='2' stroke-dasharray='22 16'/%3E%3C/svg%3E") no-repeat left center; display: inline-block; }
 #pages .page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.4); }
 #pages .page svg { display: block; }

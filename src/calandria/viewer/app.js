@@ -73,6 +73,7 @@ function hideNotice() {
   const n = $("notice");
   n.hidden = true;
   n.dataset.kind = "";
+  n.className = "notice";
 }
 
 function fail(e) {
@@ -132,7 +133,7 @@ async function compareNow() {
     state.compared = { a, b };
     show(d);
   } catch (e) {
-    fail(e);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -147,7 +148,7 @@ export async function relayout() {
     if (state.seq !== seq) return;
     show(d);
   } catch (e) {
-    fail(e);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -166,13 +167,14 @@ async function restyle() {
     applyStyles();
     document.dispatchEvent(new CustomEvent("calandria:restyled"));
   } catch (e) {
-    fail(e);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
 }
 
 function show(data) {
+  if (state.closed) return;                        // a reply after Quit or a dead server changes nothing
   state.data = data;
   refreshSources();
   const sel = $("renderSet");

@@ -93,8 +93,8 @@ page count and that its text reads back.
 ## Viewer
 
 `python -m calandria serve` (or a double-click on `Calandria.cmd`) starts a local server on
-127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original and the modified `.docx` on
-the page (or pick them with the two file buttons) and press Compare: the pages shown are the
+127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original
+and the modified `.docx` on the page (or pick them with the two file buttons) and press Compare: the pages shown are the
 same drawing the PDF gets — the server draws every page as SVG from the page model, so the
 screen and the PDF never disagree. The header switches the rendering set and the change bars
 (a redraw), the compare options and the hide filters (a re-compare and re-layout), the zoom

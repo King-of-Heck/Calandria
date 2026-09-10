@@ -7,7 +7,7 @@ from importlib import resources
 
 import pytest
 
-from calandria.server.app import STATIC
+from calandria.server.app import DEFAULT_IDLE, STATIC
 
 VIEWER = resources.files("calandria.viewer")
 
@@ -47,6 +47,16 @@ def test_every_id_the_script_looks_up_exists(script):
 
 def test_the_v41_caveat_is_on_the_page():
     assert "nothing is written to Word" in _read("index.html")
+
+
+def test_the_heartbeat_is_faster_than_the_server_idle_timeout():
+    js = _read("app.js")
+    ping_ms = int(re.search(r"const PING_MS = (\d+);", js).group(1))
+    misses = int(re.search(r"const PING_MISSES = (\d+);", js).group(1))
+    assert ping_ms == 2000
+    # the server stops DEFAULT_IDLE s after the last ping: three pings must fit inside that
+    assert ping_ms * misses / 1000 < DEFAULT_IDLE
+    assert "close this window" in js and "close this tab" not in js
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")

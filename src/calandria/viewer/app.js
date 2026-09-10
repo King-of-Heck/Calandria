@@ -1,10 +1,11 @@
 // Calandria viewer: loads two .docx files, shows the server's page drawings, restyles them by
-// rendering set, zooms, downloads the PDF, and keeps the session alive. The change list lives
+// rendering set, zooms, downloads the PDF, and keeps the server alive while this window is open
+// (it stops a few seconds after the pings stop). The change list lives
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
 
 const $ = (id) => document.getElementById(id);
-const PING_MS = 15000;
+const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "hideUnchanged", "hideInsertions", "hideDeletions", "hideFormatting"];
@@ -238,7 +239,7 @@ function closed(text) {
 
 async function quit() {
   try { await api("/api/quit", {}); } catch (e) { /* already gone */ }
-  closed("Calandria has quit. You can close this tab.");
+  closed("Calandria has quit. You can close this window.");
 }
 
 function ping() {
@@ -248,7 +249,7 @@ function ping() {
       // One lost ping is a hiccup (a sleeping laptop, a busy server); three in a row is a server
       // that has gone, and only then does the page shut itself down.
       if (++state.misses >= PING_MISSES) {
-        closed("Calandria is no longer running (it stops after a while without this page). Double-click Calandria.cmd to start it again.");
+        closed("Calandria is no longer running. Double-click Calandria.cmd to start it again.");
       }
     });
 }

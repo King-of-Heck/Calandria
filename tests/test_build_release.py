@@ -434,3 +434,53 @@ def test_src_on_path_is_added_once():
     br._version()
     assert sys.path.count(src) == max(before, 1)
     assert br._version() == calandria.__version__
+
+
+def test_stage_app_leaves_the_testing_package_out(tmp_path):
+    src = tmp_path / "src" / "calandria"
+    (src / "testing").mkdir(parents=True)
+    (src / "__init__.py").write_text("x = 1")
+    (src / "testing" / "makedocx.py").write_text("y = 2")
+    dst = tmp_path / "app" / "calandria"
+    assert br.stage_app(src, dst) == [dst / "__init__.py"]
+    assert not (dst / "testing").exists()
+
+
+def test_the_smoke_starts_from_a_clean_work_folder(tmp_path, monkeypatch):
+    stage = _fake_stage(tmp_path)
+    work = stage.parent / "smoke"
+    work.mkdir()
+    (work / "stale.txt").write_text("x")
+    monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=True))
+    br.smoke(stage, "9.9.9")
+    assert not (work / "stale.txt").exists()
+
+
+FENCED = """# Calandria changelog
+
+## v2.1.0 — Later (2026-10-01)
+
+- later bullet
+
+```
+## not a heading, a fenced line
+```
+
+- after the fence
+
+## v2.0.0 — First release (2026-09-09)
+
+- first bullet
+"""
+
+
+def test_changelog_entry_does_not_end_at_a_fenced_heading_line():
+    entry = br.changelog_entry(FENCED, "2.1.0")
+    assert "not a heading" in entry and "after the fence" in entry and "first bullet" not in entry
+
+
+def test_notes_and_notes_out_together_write_the_file_and_print(tmp_path, capfdbinary):
+    out = tmp_path / "n.md"
+    assert br.main(["--notes", "--notes-out", str(out)]) == 0
+    printed = capfdbinary.readouterr().out
+    assert printed.startswith(b"**Calandria**") and out.read_bytes() == printed

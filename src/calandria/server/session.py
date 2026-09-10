@@ -41,28 +41,36 @@ class Options:
                              fonts=fonts)
 
 
+class BadRequest(ValueError):
+    """Input the client got wrong (a 400): an unknown option, rendering set or report placement."""
+
+
+class NoComparison(LookupError):
+    """Nothing is loaded yet (a 409): the pages, the PDF and a relayout need a comparison first."""
+
+
+class BadDocument(BadRequest):
+    """A file that is not a Word document (named in the message)."""
+
+
 def parse_options(d, base: Options | None = None) -> Options:
-    """Booleans by name, merged over `base`; an unknown key or a non-boolean is a ValueError."""
+    """Booleans by name, merged over `base`; an unknown key or a non-boolean is a BadRequest."""
     if not isinstance(d, dict):
-        raise ValueError("options must be an object")
+        raise BadRequest("options must be an object")
     bad = sorted(set(d) - set(OPTION_KEYS))
     if bad:
-        raise ValueError("unknown options: " + ", ".join(bad))
+        raise BadRequest("unknown options: " + ", ".join(bad))
     for k, v in d.items():
         if not isinstance(v, bool):
-            raise ValueError(f"option {k} must be true or false")
+            raise BadRequest(f"option {k} must be true or false")
     return replace(base or Options(), **d)
 
 
 def check_render(render_set: str, report: str | None = None) -> None:
     if render_set not in RENDER_SETS:
-        raise ValueError(f"unknown rendering set {render_set!r}; available: " + ", ".join(RENDER_SETS))
+        raise BadRequest(f"unknown rendering set {render_set!r}; available: " + ", ".join(RENDER_SETS))
     if report is not None and report not in REPORTS:
-        raise ValueError(f"unknown report placement {report!r}; expected first, last or none")
-
-
-class BadDocument(ValueError):
-    """A file that is not a Word document (named in the message)."""
+        raise BadRequest(f"unknown report placement {report!r}; expected first, last or none")
 
 
 def _parse(name: str, data: bytes):
@@ -133,7 +141,7 @@ class Session:
 
     def relayout(self, options: Options) -> None:
         if self.a_doc is None:
-            raise LookupError("no comparison loaded")
+            raise NoComparison("no comparison loaded")
         self._commit(self.a_name, self.b_name, self.a_doc, self.b_doc, options)
 
     def _commit(self, a_name: str, b_name: str, a_doc, b_doc, options: Options) -> None:
@@ -148,7 +156,7 @@ class Session:
 
     def _need(self) -> None:
         if not self.loaded:
-            raise LookupError("no comparison loaded")
+            raise NoComparison("no comparison loaded")
 
     def _info(self, render_set: str, when: datetime | None = None):
         return report_info(self.cmp, self.a_name, self.b_name, render_set, when or self.when)

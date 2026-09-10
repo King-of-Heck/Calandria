@@ -223,20 +223,38 @@ function renderPages() {
 
 function applyZoom() {
   const main = $("pages");
-  let shown = state.zoom;
   for (const page of main.querySelectorAll(".page")) {
     const svg = page.querySelector("svg");
     const { w, h } = pageSize(svg);
     const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
-    shown = z;
+    page.dataset.scale = String(z);
     svg.setAttribute("width", `${w * z}pt`);
     svg.setAttribute("height", `${h * z}pt`);
     page.style.width = `${w * z}pt`;
   }
-  state.shown = shown;
-  $("zoomPct").textContent = `${Math.round(shown * 100)} %`;
+  showZoom();
   $("zoomFit").setAttribute("aria-pressed", String(state.fit));
   $("zoomFit").classList.toggle("on", state.fit);
+}
+
+// Fit gives every page its own scale (a landscape page fits smaller), so the percentage shown is
+// the scale of the page under the top of the view, and it follows the scroll.
+function showZoom() {
+  const page = currentPage();
+  state.shown = state.fit && page ? Number(page.dataset.scale) : state.zoom;
+  $("zoomPct").textContent = `${Math.round(state.shown * 100)} %`;
+}
+
+// The page whose top is at or above the top of the view (the first page before any scroll).
+function currentPage() {
+  const main = $("pages");
+  const top = main.getBoundingClientRect().top + 8;
+  let current = null;
+  for (const p of main.querySelectorAll(".page")) {
+    if (current === null || p.getBoundingClientRect().top <= top) current = p;
+    else break;
+  }
+  return current;
 }
 
 function setZoom(z) {
@@ -268,14 +286,9 @@ function updatePageStatus() {
     $("pageStatus").textContent = "No comparison";
     return;
   }
-  const main = $("pages");
-  const top = main.getBoundingClientRect().top + 8;
-  let current = 1;
-  for (const p of main.querySelectorAll(".page")) {
-    if (p.getBoundingClientRect().top <= top) current = Number(p.dataset.page);
-    else break;
-  }
-  $("pageStatus").textContent = `Page ${current} of ${state.data.page_count}`;
+  const page = currentPage();
+  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}`;
+  if (state.fit) showZoom();
 }
 
 function savePdf() {
@@ -289,6 +302,8 @@ function closed(text) {
   clearTimeout(state.noticeTimer);
   document.body.classList.add("closed");
   for (const el of document.querySelectorAll("button, input, select")) el.disabled = true;
+  for (const id of ["panelToggle", "keysOpen", "keysClose"]) $(id).disabled = false;   // reading aids, not requests
+  $("options").open = false;
   $("progress").hidden = true;
   msg(text, true);
   notice(text, "closed");
@@ -316,9 +331,11 @@ function ping() {
 // and stays open while its own controls are used.
 function wirePopover() {
   const d = $("options");
+  const summary = d.querySelector("summary");
+  summary.addEventListener("click", (e) => { if (state.closed) e.preventDefault(); });   // the settings are dead after close
   document.addEventListener("click", (e) => { if (d.open && !d.contains(e.target)) d.open = false; });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && d.open) { d.open = false; e.preventDefault(); }
+    if (e.key === "Escape" && d.open) { d.open = false; e.preventDefault(); summary.focus(); }
   });
 }
 
@@ -332,6 +349,7 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
+  $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });
   main.addEventListener("wheel", (e) => {
     if (state.closed) return;
     if (!e.ctrlKey) return;                          // plain wheel scrolls; Ctrl+wheel zooms instead of Edge's page zoom
@@ -355,6 +373,9 @@ function wire() {
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
+  // The window closing fires visibilitychange (hidden=1, which would buy the server 90 s of
+  // patience) and then pagehide; a beacon still gets out of an unloading page and takes it back.
+  window.addEventListener("pagehide", () => { if (!state.closed) navigator.sendBeacon("/api/ping?hidden=0"); });
   state.timer = setInterval(ping, PING_MS);
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();

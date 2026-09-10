@@ -154,3 +154,77 @@ def test_the_panel_collapses_and_remembers_it():
     assert '"calandria.panel"' in js and "calandria:resized" in js
     css = _read("style.css")
     assert "#panel.collapsed" in css and ":focus-visible" in css
+
+
+# v2.2.1: the minors deferred from the v2.2.0 reviews.
+
+def _function_body(js, name):
+    body = js[js.index(f"function {name}("):]
+    return body[:body.index("\n}\n")]
+
+
+def test_the_keys_sheet_has_an_opener_button():
+    html = _read("index.html")
+    header = html[html.index("<header"):html.index("</header>")]
+    assert 'id="keysOpen"' in header
+    assert 'id="keysOpen"' in html[html.index("<header"):html.index('id="options"')]   # before Options
+    assert '$("keysOpen")' in _read("app.js")
+
+
+def test_the_caveat_appears_once_in_the_empty_state():
+    _, main = _main_html()
+    assert main.count("nothing is written to Word") == 1
+
+
+def test_closed_keeps_the_panel_toggle_and_the_keys_sheet_usable():
+    body = _function_body(_read("app.js"), "closed")
+    for id_ in ("panelToggle", "keysOpen", "keysClose"):
+        assert id_ in body, id_
+    assert '$("options").open = false' in body
+
+
+def test_the_options_button_does_not_toggle_after_close_and_escape_returns_focus():
+    body = _function_body(_read("app.js"), "wirePopover")
+    assert "state.closed" in body
+    assert "summary.focus()" in body
+
+
+def test_fit_reports_the_scale_of_the_page_on_screen():
+    js = _read("app.js")
+    assert "function currentPage()" in js
+    assert "showZoom()" in _function_body(js, "applyZoom")
+    assert "currentPage()" in _function_body(js, "showZoom")
+    assert "currentPage()" in _function_body(js, "updatePageStatus")
+
+
+def test_the_change_rows_share_one_tab_stop():
+    js = _read("changes.js")
+    assert "li.tabIndex = 0;" not in js
+    assert "tabIndex = " in js and "li.focus(" in js
+
+
+def test_the_clamped_row_leaves_room_for_the_underline():
+    css = _read("style.css")
+    rule = next(line for line in css.splitlines() if "-webkit-line-clamp: 2" in line)
+    assert "padding-bottom" in rule
+
+
+def test_the_aria_roles_are_on_the_cards_toggle_progress_and_notice():
+    html = _read("index.html")
+    assert re.search(r'<div id="progress"[^>]*role="progressbar"', html)
+    assert re.search(r'<div id="notice"[^>]*role="status"', html)
+    assert re.search(r'<div id="cardA"[^>]*role="button"', html)
+    assert re.search(r'<div id="cardB"[^>]*role="button"', html)
+    assert re.search(r'<button id="panelToggle"[^>]*aria-controls="panel"', html)
+    assert "aria-expanded" in _function_body(_read("changes.js"), "initPanel")
+
+
+def test_the_formatting_tile_dims_with_the_others():
+    assert ".formatting" in _function_body(_read("changes.js"), "markTiles")
+
+
+def test_the_page_tells_the_server_it_is_going_when_it_unloads():
+    js = _read("app.js")
+    # the last ping before a close says hidden=1 (visibilitychange), which would give the server
+    # 90 s of patience; a beacon on pagehide takes that back so the stop takes the normal 8 s
+    assert '"pagehide"' in js and 'navigator.sendBeacon("/api/ping?hidden=0")' in js

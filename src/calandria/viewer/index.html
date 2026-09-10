@@ -25,6 +25,7 @@
       <button id="zoomFit" title="Fit the page width" aria-pressed="false">Fit</button>
     </span>
     <button id="pdf" disabled>Save PDF</button>
+    <button id="keysOpen" title="Keyboard shortcuts (?)">?</button>
     <details id="options" class="options">
       <summary title="Comparison, page, rendering and PDF settings">Options ▾</summary>
       <div class="popover">
@@ -47,11 +48,11 @@
     </details>
   </div>
 </header>
-<div id="progress" class="progress" hidden><div></div></div>
+<div id="progress" class="progress" role="progressbar" aria-label="Working" hidden><div></div></div>
 <div id="body">
   <aside id="panel">
     <div class="head">
-      <button id="panelToggle" title="Hide the change list">‹</button>
+      <button id="panelToggle" aria-controls="panel" aria-expanded="true" title="Hide the change list">‹</button>
       <span id="listCount" class="count">No comparison</span>
       <select id="fLocation" title="Body text, tables or both">
         <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
@@ -59,10 +60,9 @@
     </div>
     <div id="tiles" class="tiles"></div>
     <ol id="changes" class="changes"></ol>
-    <p class="note">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word.</p>
   </aside>
   <main id="pages">
-    <div id="notice" class="notice" hidden data-kind="">
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden data-kind="">
       <div class="box">
         <p id="noticeText"></p>
         <button id="noticeClose" hidden>Dismiss</button>
@@ -71,14 +71,14 @@
     <section id="sources" class="sources">
       <p class="intro">Calandria compares two Word documents and shows every difference as a redline, on screen and in a PDF.</p>
       <div class="cards">
-        <div id="cardA" class="card" tabindex="0" title="The original document">
+        <div id="cardA" class="card" role="button" tabindex="0" title="The original document">
           <span class="side">Original</span>
           <span id="nameA" class="name">Drop the .docx here or click to choose</span>
           <button id="clearA" class="clear" title="Remove this file" hidden>×</button>
           <input type="file" id="fileA" accept=".docx" hidden>
         </div>
         <button id="swap" title="Swap Original and Modified" disabled>⇄</button>
-        <div id="cardB" class="card" tabindex="0" title="The modified document">
+        <div id="cardB" class="card" role="button" tabindex="0" title="The modified document">
           <span class="side">Modified</span>
           <span id="nameB" class="name">Drop the .docx here or click to choose</span>
           <button id="clearB" class="clear" title="Remove this file" hidden>×</button>

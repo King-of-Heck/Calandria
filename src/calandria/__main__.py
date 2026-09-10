@@ -84,13 +84,14 @@ def _compare(flags, pa, pb):
 
 
 def _open_log(path: str):
-    """The serve log: appended to (truncated first past LOG_ROTATE_BYTES), UTF-8, line-buffered.
+    """The serve log: appended to (rotated to `<path>.1` first past LOG_ROTATE_BYTES), UTF-8, line-buffered.
     Under pythonw.exe there is no console, so sys.stdout / sys.stderr are None; they are bound to
     this file so the url line, the --verbose access log and any traceback have somewhere to go."""
     path = os.path.abspath(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    mode = "w" if os.path.exists(path) and os.path.getsize(path) > LOG_ROTATE_BYTES else "a"
-    f = open(path, mode, encoding="utf-8", buffering=1)
+    if os.path.exists(path) and os.path.getsize(path) > LOG_ROTATE_BYTES:
+        os.replace(path, path + ".1")            # the previous log is kept once, not lost
+    f = open(path, "a", encoding="utf-8", buffering=1)
     if sys.stdout is None:
         sys.stdout = f
     if sys.stderr is None:
@@ -172,9 +173,11 @@ def main(argv) -> int:
             if logf is not None and logf is not sys.stdout:
                 print(line, file=logf, flush=True)
 
+        # under pythonw.exe without --log there is no stderr for the access log to go to
+        verbose = "--verbose" in flags and sys.stderr is not None
         try:
             serve(port=port, open_browser="--no-browser" not in flags, idle=idle, grace=grace,
-                  verbose="--verbose" in flags, ready=ready)
+                  verbose=verbose, ready=ready)
         finally:
             if logf is not None and logf is not sys.stdout and logf is not sys.stderr:
                 logf.close()

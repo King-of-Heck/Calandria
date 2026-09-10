@@ -1,5 +1,23 @@
 # Calandria changelog
 
+## v2.2.1 — Small fixes (2026-09-10)
+
+- Viewer: the panel's footer note is gone; the caveat stays on the empty-state card.
+- Viewer: a `?` button opens the shortcut sheet; the change list is a single tab stop and the
+  keys move the focus within it; the panel toggle and the sheet stay usable after the session
+  closes, and the Options popover folds; Fit shows the on-screen scale of the page under the top
+  of the view and follows the scroll; Escape on the popover returns the focus to Options; aria
+  roles on the source cards, the panel toggle, the progress bar and the notice; the Formatting
+  tile dims like the others when a category is soloed; a little room under the two-line clamp.
+- Server: a refused cross-origin request no longer resets the idle clock; only the session's
+  own bad-request and no-comparison errors map to 400 and 409, anything else is a 500; the page
+  sends a beacon on pagehide so a last hidden ping does not delay the stop; the log rotates to
+  `.1` instead of being truncated; `--verbose` is dropped when there is no stderr.
+- Launcher: the stamp path is quoted; when the log folder cannot be made the log goes next to
+  the launcher.
+- Build: the zip leaves the testing package out; the stage smoke starts from a clean folder; a
+  fenced heading no longer ends a changelog entry; `--notes` with `--notes-out` prints as well.
+
 ## v2.2.0 — Viewer refinements (2026-09-10)
 
 - Two labelled drop cards, "Original" and "Modified", replace the file buttons: drop one file

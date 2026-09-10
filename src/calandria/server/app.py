@@ -16,7 +16,7 @@ from importlib import resources
 from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
-from .session import BadDocument, Session, check_render, parse_options
+from .session import BadRequest, NoComparison, Session, check_render, parse_options
 from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
@@ -229,14 +229,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _route(self, method: str) -> None:
         session: Session = self.server.session
-        session.touch()
         self._consumed = self._sent = False
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
         try:
             if method == "POST" and not _same_origin(self.headers, self.server.server_address[1]):
                 raise _Bad(403, "cross-origin request refused")
-            self.server.visited = True      # only a request that could be our own page counts
+            session.touch()                 # only a request that could be our own page counts,
+            self.server.visited = True      # for the idle clock as for the first visit
             if path == "/" or path.startswith("/static/"):
                 if method != "GET":
                     raise _Bad(405, "method not allowed")
@@ -258,9 +258,9 @@ class Handler(BaseHTTPRequestHandler):
             getattr(self, "_api_" + route)(session, query)
         except _Bad as e:
             self._error(e.status, e.message)
-        except (BadDocument, ValueError) as e:
+        except BadRequest as e:
             self._error(400, str(e))
-        except LookupError as e:
+        except NoComparison as e:
             self._error(409, str(e))
         except Exception as e:
             self.close_connection = True

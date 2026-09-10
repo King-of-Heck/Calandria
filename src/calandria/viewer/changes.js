@@ -50,6 +50,28 @@ export function initChanges() {
     else return;
     e.preventDefault();
   });
+  initPanel();
+}
+
+// The panel folds to a narrow rail; the choice survives a restart (localStorage is per origin,
+// and the origin is fixed at 127.0.0.1:<port>, so it may or may not be found again - harmless).
+function initPanel() {
+  const panel = $("panel");
+  const btn = $("panelToggle");
+  let collapsed = false;
+  try { collapsed = localStorage.getItem("calandria.panel") === "collapsed"; } catch (e) { /* storage off */ }
+  const apply = () => {
+    panel.classList.toggle("collapsed", collapsed);
+    btn.textContent = collapsed ? "›" : "‹";
+    btn.title = collapsed ? "Show the change list" : "Hide the change list";
+    document.dispatchEvent(new CustomEvent("calandria:resized"));
+  };
+  btn.addEventListener("click", () => {
+    collapsed = !collapsed;
+    try { localStorage.setItem("calandria.panel", collapsed ? "collapsed" : "open"); } catch (e) { /* storage off */ }
+    apply();
+  });
+  apply();
 }
 
 function build() {

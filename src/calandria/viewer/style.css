@@ -82,6 +82,10 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .tile.formatting b { font-size: 14px; color: var(--fmt); }
 #panel .head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
 #panel .head .count { font-weight: 600; margin-right: auto; }
+#panel.collapsed { width: 28px; }
+#panel.collapsed .head { padding: 6px 2px; border-bottom: 0; }
+#panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes, #panel.collapsed .note { display: none; }
+#panel .head #panelToggle { padding: 1px 6px; font-size: 15px; line-height: 20px; }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
 #panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg text" "x x x text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
 #panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl text" "x x x x text"; }
@@ -144,8 +148,14 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .page svg { display: block; }
 #pages .page svg text { user-select: text; }
 #pages .page rect.hl { fill: var(--hl); fill-opacity: .35; }
-#pages .pagenum { position: absolute; right: 0; bottom: -15px; font-size: 11px; color: #fff; }
+#pages .pagenum { position: absolute; right: 0; bottom: -17px; }
 
 #status { display: flex; gap: 16px; padding: 4px 10px; background: var(--bar); border-top: 1px solid var(--edge); }
 #status .msg { margin-left: auto; color: var(--muted); }
 #status .msg.error { color: var(--del); }
+
+/* Polish: one focus ring, one button height, readable small text on the grey desk. */
+button, input, select, summary, [tabindex] { outline: none; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible, #panel .changes li:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+button, select, input[type="number"] { min-height: 26px; }
+#pages .pagenum { color: #1f2937; background: rgba(255,255,255,.7); padding: 0 4px; border-radius: 3px; font-size: 12px; }

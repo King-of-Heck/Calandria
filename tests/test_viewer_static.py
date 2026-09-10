@@ -146,3 +146,11 @@ def test_tiles_filter_and_the_checkbox_row_is_gone():
         assert f'id="{id_}"' not in html, id_
     js = _read("changes.js")
     assert "data-cat" in js and "anchors[String(" in js and "line-clamp" in _read("style.css")
+
+
+def test_the_panel_collapses_and_remembers_it():
+    assert 'id="panelToggle"' in _read("index.html")
+    js = _read("changes.js")
+    assert '"calandria.panel"' in js and "calandria:resized" in js
+    css = _read("style.css")
+    assert "#panel.collapsed" in css and ":focus-visible" in css

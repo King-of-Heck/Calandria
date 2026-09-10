@@ -354,6 +354,10 @@ def test_watchdog_gives_a_hidden_page_a_longer_silence():
 
 def test_any_request_marks_the_server_visited(srv):
     assert srv.server.visited is False
+    # a page on another site can reach a loopback server: its refused POST must not spend the grace
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": "http://evil.example"}) == \
+        (403, {"error": "cross-origin request refused"})
+    assert srv.server.visited is False
     assert _req(srv.url)[0] == 200
     assert srv.server.visited is True
 

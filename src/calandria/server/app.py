@@ -229,13 +229,13 @@ class Handler(BaseHTTPRequestHandler):
     def _route(self, method: str) -> None:
         session: Session = self.server.session
         session.touch()
-        self.server.visited = True
         self._consumed = self._sent = False
         parts = urlsplit(self.path)
         path, query = parts.path, parse_qs(parts.query)
         try:
             if method == "POST" and not _same_origin(self.headers, self.server.server_address[1]):
                 raise _Bad(403, "cross-origin request refused")
+            self.server.visited = True      # only a request that could be our own page counts
             if path == "/" or path.startswith("/static/"):
                 if method != "GET":
                     raise _Bad(405, "method not allowed")

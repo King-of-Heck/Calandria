@@ -87,8 +87,8 @@ button:disabled { opacity: .5; cursor: default; }
 #panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes, #panel.collapsed .note { display: none; }
 #panel .head #panelToggle { padding: 1px 6px; font-size: 15px; line-height: 20px; }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
-#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg text" "x x x text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
-#panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl text" "x x x x text"; }
+#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg ." "text text text text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
+#panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl ." "text text text text text"; }
 #panel .changes li .badge { grid-area: badge; }
 #panel .changes li .no { grid-area: no; }
 #panel .changes li .pg { grid-area: pg; color: var(--muted); font-size: 12px; }
@@ -119,7 +119,7 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .sources .card.over { border-color: #2563eb; background: #eff6ff; }
 #pages .sources .card.filled { border-style: solid; }
 #pages .sources .card .side { font-weight: 600; font-size: 15px; }
-#pages .sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pages .sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 #pages .sources .card.filled .name { color: var(--ink); }
 #pages .sources .card .clear { position: absolute; top: 6px; right: 6px; padding: 0 6px; line-height: 18px; }
 #pages .sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
@@ -130,6 +130,7 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .sources.compact .cards { flex: 1; gap: 8px; }
 #pages .sources.compact .card { flex-direction: row; align-items: center; min-height: 0; padding: 4px 26px 4px 8px; border-radius: 4px; gap: 8px; }
 #pages .sources.compact .card .side { font-size: 13px; flex: none; }
+#pages .sources.compact .card .name { white-space: nowrap; }
 #pages .sources.compact .card .clear { top: 3px; right: 4px; }
 #pages .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
 #pages .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }

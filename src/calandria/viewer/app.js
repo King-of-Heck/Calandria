@@ -373,6 +373,9 @@ function wire() {
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
+  // The window closing fires visibilitychange (hidden=1, which would buy the server 90 s of
+  // patience) and then pagehide; a beacon still gets out of an unloading page and takes it back.
+  window.addEventListener("pagehide", () => { if (!state.closed) navigator.sendBeacon("/api/ping?hidden=0"); });
   state.timer = setInterval(ping, PING_MS);
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();

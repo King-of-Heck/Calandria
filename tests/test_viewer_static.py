@@ -221,3 +221,10 @@ def test_the_aria_roles_are_on_the_cards_toggle_progress_and_notice():
 
 def test_the_formatting_tile_dims_with_the_others():
     assert ".formatting" in _function_body(_read("changes.js"), "markTiles")
+
+
+def test_the_page_tells_the_server_it_is_going_when_it_unloads():
+    js = _read("app.js")
+    # the last ping before a close says hidden=1 (visibilitychange), which would give the server
+    # 90 s of patience; a beacon on pagehide takes that back so the stop takes the normal 8 s
+    assert '"pagehide"' in js and 'navigator.sendBeacon("/api/ping?hidden=0")' in js

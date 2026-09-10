@@ -18,7 +18,14 @@ def test_launcher_runs_pythonw_detached_with_a_log_and_no_console():
 def test_launcher_stamps_the_log_before_it_starts_anything():
     text = CMD.read_bytes().decode("ascii")
     assert r'mkdir "%LOCALAPPDATA%\Calandria"' in text                        # the folder may not exist yet
-    stamp = '>>"%LOG%" echo === launching %PYW%'
+    stamp = '>>"%LOG%" echo === launching "%PYW%"'                       # quoted: & or ^ in the path
     assert stamp in text
     # the stamp goes in before the program is started, so an empty log means the launcher never ran
     assert text.index(stamp) < text.index('start "" "%PYW%"')
+
+
+def test_launcher_falls_back_to_a_log_next_to_itself_when_the_folder_cannot_be_made():
+    text = CMD.read_bytes().decode("ascii")
+    mkdir = text.index(r'mkdir "%LOCALAPPDATA%\Calandria"')
+    fallback = text.index(r'if not exist "%LOCALAPPDATA%\Calandria" set "LOG=%~dp0calandria.log"')
+    assert mkdir < fallback < text.index('>>"%LOG%"')

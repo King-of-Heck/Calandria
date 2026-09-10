@@ -626,3 +626,25 @@ def test_a_client_that_resets_the_connection_leaves_no_traceback(srv, capsys):
     time.sleep(0.5)
     assert _json(srv.url + "api/state")[0] == 200
     assert capsys.readouterr().err == ""
+
+
+def test_a_refused_cross_origin_post_does_not_reset_the_idle_clock(srv):
+    before = srv.session.last_seen
+    time.sleep(0.01)
+    assert _post_with_headers(srv.url + "api/ping", {"Origin": "http://evil.example"})[0] == 403
+    assert srv.session.last_seen == before          # only a request that could be our page counts
+
+
+def test_an_internal_value_or_lookup_error_is_a_500_not_a_client_error(srv, monkeypatch):
+    from calandria.server.session import Session
+    for exc in (ValueError("bug"), LookupError("bug")):
+        monkeypatch.setattr(Session, "state", lambda self, exc=exc: (_ for _ in ()).throw(exc))
+        status, d = _json(srv.url + "api/state")
+        assert status == 500 and d["error"] == f"internal error: {type(exc).__name__}"
+
+
+def test_the_client_errors_keep_their_statuses(srv):
+    status, d = _json(srv.url + "api/layout", "POST", {"options": {"bogus": True}})
+    assert status == 400 and "unknown options" in d["error"]
+    status, d = _json(srv.url + "api/pages")
+    assert status == 409 and d["error"] == "no comparison loaded"

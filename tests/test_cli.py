@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import sys
@@ -249,3 +250,24 @@ def test_serve_carries_on_when_the_log_cannot_be_opened(tmp_path, capsys, monkey
     out, err = capsys.readouterr()
     assert json.loads(out.splitlines()[0])["url"].startswith("http://127.0.0.1:")
     assert "cannot open the log file" in err
+
+
+def test_open_log_rotates_the_old_log_to_dot_one(tmp_path):
+    log = tmp_path / "c.log"
+    log.write_bytes(b"x" * 1_000_001)
+    (tmp_path / "c.log.1").write_text("older\n", encoding="utf-8")
+    f = _open_log(str(log))
+    f.close()
+    assert (tmp_path / "c.log.1").read_bytes() == b"x" * 1_000_001      # kept, the older one replaced
+    assert log.read_text(encoding="utf-8").startswith("--- ")
+
+
+def test_verbose_is_dropped_when_there_is_no_stderr_to_write_to(monkeypatch):
+    calls = []
+    monkeypatch.setattr("calandria.__main__.serve", lambda **kw: calls.append(kw))
+    monkeypatch.setattr(sys, "stderr", None)                      # pythonw.exe without --log
+    assert main(["serve", "--no-browser", "--verbose"]) == 0
+    assert calls[0]["verbose"] is False
+    monkeypatch.setattr(sys, "stderr", io.StringIO())
+    assert main(["serve", "--no-browser", "--verbose"]) == 0
+    assert calls[1]["verbose"] is True

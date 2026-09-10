@@ -117,11 +117,12 @@ def wheel_members(names: list[str]) -> list[str]:
 
 
 def stage_app(src: Path, dst: Path) -> list[Path]:
-    """Copy the package tree without bytecode; return the copied files, sorted."""
+    """Copy the package tree without bytecode or the test-only `testing` package; return the
+    copied files, sorted."""
     copied = []
     for path in sorted(src.rglob("*")):
         rel = path.relative_to(src)
-        if "__pycache__" in rel.parts or path.suffix == ".pyc" or path.is_dir():
+        if "__pycache__" in rel.parts or path.suffix == ".pyc" or path.is_dir() or rel.parts[0] == "testing":
             continue
         target = dst / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -131,13 +132,20 @@ def stage_app(src: Path, dst: Path) -> list[Path]:
 
 
 def changelog_entry(text: str, version: str) -> str:
-    """The `## v<version>` section of the changelog (heading through the line before the next `## `)."""
+    """The `## v<version>` section of the changelog (heading through the line before the next `## `
+    outside a fenced code block)."""
     lines = text.splitlines()
     start = next((i for i, l in enumerate(lines) if l.startswith(f"## v{version} ")
                   or l == f"## v{version}"), None)
     if start is None:
         raise LookupError(f"CHANGELOG.md has no '## v{version}' entry")
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    end, fenced = len(lines), False
+    for i in range(start + 1, len(lines)):
+        if lines[i].startswith("```"):
+            fenced = not fenced
+        elif lines[i].startswith("## ") and not fenced:
+            end = i
+            break
     return "\n".join(lines[start:end]).rstrip() + "\n"
 
 
@@ -275,7 +283,9 @@ def smoke(stage_dir: Path, version: str) -> None:
     _src_on_path()
     from calandria.testing.makedocx import make_docx, DOC, P
     work = stage_dir.parent / "smoke"
-    work.mkdir(exist_ok=True)
+    if work.exists():
+        shutil.rmtree(work)                  # only this run's files count, not an earlier build's
+    work.mkdir()
     (work / "a.docx").write_bytes(make_docx({"word/document.xml": DOC(P("Alpha beta gamma") + P("Delta"))}))
     (work / "b.docx").write_bytes(make_docx({"word/document.xml": DOC(P("Alpha beta gamma") + P("Delta epsilon"))}))
     out = _run([py, "-m", "calandria", "pdf", str(work / "a.docx"), str(work / "b.docx"), str(work / "out.pdf")],
@@ -283,7 +293,6 @@ def smoke(stage_dir: Path, version: str) -> None:
     if '"pages": 1' not in out or not (work / "out.pdf").read_bytes().startswith(b"%PDF"):
         raise RuntimeError(f"pdf smoke: {out!r}")
     log = work / "calandria.log"
-    log.unlink(missing_ok=True)         # only this run's log counts, not one an earlier build left
     out = _run([py, *SMOKE_SERVE, f"--log={log}"], stage_dir, timeout=60)
     if '"url": "http://127.0.0.1:' not in out:
         raise RuntimeError(f"serve smoke: {out!r}")
@@ -350,7 +359,7 @@ def main(argv) -> int:
         notes = release_notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), _version())
         if a.notes_out:
             Path(a.notes_out).write_bytes(notes.encode("utf-8"))
-        else:
+        if a.notes or not a.notes_out:
             sys.stdout.buffer.write(notes.encode("utf-8"))
         return 0
     build(a.skip_tests, a.skip_smoke, a.keep_stage)

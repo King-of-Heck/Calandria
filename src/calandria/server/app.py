@@ -361,6 +361,7 @@ def _watchdog(server, idle: float, grace: float, clock=time.monotonic, sleep=tim
         now = clock()
         if now - last > 4 * step + 2.0:
             server.session.touch()
+            server.visited = False      # a woken browser gets the grace back, not one idle window
         last = now
         if server.stopped:
             return

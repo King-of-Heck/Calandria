@@ -384,17 +384,19 @@ def test_watchdog_treats_a_clock_jump_as_a_suspend_not_as_silence():
     shut = []
     server = types.SimpleNamespace(session=session, stopped=False, visited=True, hidden=False,
                                    shutdown=lambda: shut.append(t[0]))
-    advances = iter([1.0, 60.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    advances = iter([1.0, 60.0] + [1.0] * 300)
 
     def sleep(_):
         try:
             t[0] += next(advances)
-        except StopIteration:
+        except StopIteration:                     # pragma: no cover - the watchdog stops first
             server.stopped = True
 
-    appmod._watchdog(server, idle=4.0, grace=0.0, clock=lambda: t[0], sleep=sleep)
+    appmod._watchdog(server, idle=4.0, grace=120.0, clock=lambda: t[0], sleep=sleep)
     assert touched == [61.0]           # the 60 s jump was a sleep: the page gets its ping back
-    assert shut == [66.0]              # then 5 s of real silence > idle stops the server
+    assert server.visited is False     # and the grace back, so a woken browser has time to resume
+    assert shut[0] > 91.0              # 30 s of post-resume silence is not a closed window
+    assert shut == [182.0]             # then genuine silence past the grace stops the server
 
 
 def test_idle_watchdog_stops_an_unvisited_server():

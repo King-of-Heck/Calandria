@@ -1,5 +1,26 @@
 # Calandria changelog
 
+## v2.2.0 — Viewer refinements (2026-09-10)
+
+- Two labelled drop cards, "Original" and "Modified", replace the file buttons: drop one file
+  on a card, or two files anywhere, or click a card to choose; a Swap button exchanges the
+  sides. After a comparison the cards stay above the pages as a compact strip; a new file
+  waits for Compare, Swap compares again at once.
+- The toolbar keeps only what every session needs: First / Prev / Next / Last with the go-to
+  box and "Change x of N", the zoom stepper (−, +, 100 %, Fit; Ctrl+wheel and Ctrl+= / Ctrl+-
+  / Ctrl+0), Save PDF and an Options popover holding the comparison, page, rendering and PDF
+  settings and Quit. The page toggles now say "Show unchanged text", "Show insertions"…
+- Keys `j` / `k` and the left / right arrows join `n` / `p`; the keys are shown on the buttons
+  and `?` opens a shortcut sheet.
+- A progress bar and a card over the pages during a comparison; errors and the closed state
+  show as a card instead of a line in the status bar.
+- Change list: each row shows its page and clamps to two lines (the selected row shows the
+  full text); the count tiles are the category filters (click one to show only that category,
+  click again for all); a table glyph marks changes inside tables when there are any.
+- The change list folds to a narrow rail with the ‹ button and remembers it.
+- Empty state explains what Calandria does, that nothing is written to Word, and that closing
+  the window closes Calandria. Focus rings, one button height and readable page numbers.
+
 ## v2.1.0 — One window (2026-09-09)
 
 - `Calandria.cmd` no longer leaves a console window open (it flashes and closes): it starts

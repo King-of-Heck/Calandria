@@ -9,61 +9,103 @@
 <body>
 <header id="bar">
   <span class="brand">Calandria</span>
-  <label class="file" title="The original document">Original
-    <input type="file" id="fileA" accept=".docx"><span id="nameA" class="name">none</span></label>
-  <label class="file" title="The modified document">Modified
-    <input type="file" id="fileB" accept=".docx"><span id="nameB" class="name">none</span></label>
-  <button id="compare" disabled>Compare</button>
-  <span class="sep"></span>
-  <label title="Compare without regard to letter case"><input type="checkbox" id="optIgnoreCase"> Ignore case</label>
-  <label title="Count list numbering changes as changes"><input type="checkbox" id="optCountNumbering" checked> Count numbering</label>
-  <span class="sep"></span>
-  <label><input type="checkbox" id="hideUnchanged"> Hide unchanged</label>
-  <label><input type="checkbox" id="hideInsertions"> Hide insertions</label>
-  <label><input type="checkbox" id="hideDeletions"> Hide deletions</label>
-  <label><input type="checkbox" id="hideFormatting"> Hide formatting</label>
-  <span class="sep"></span>
-  <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
-  <label><input type="checkbox" id="changeBars" checked> Change bars</label>
-  <label>Zoom <select id="zoom">
-    <option value="0.5">50 %</option><option value="0.75">75 %</option><option value="1" selected>100 %</option>
-    <option value="1.25">125 %</option><option value="1.5">150 %</option><option value="2">200 %</option>
-    <option value="fit">Fit width</option></select></label>
-  <label>Summary <select id="report">
-    <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
-  <button id="pdf" disabled>Save PDF</button>
-  <button id="quit" class="quit">Quit</button>
+  <div class="nav" role="group" aria-label="Change navigation">
+    <button id="navFirst" title="First change (Home)">First</button>
+    <button id="navPrev" title="Previous change (p, k, Left arrow)">Prev <kbd>p</kbd></button>
+    <button id="navNext" title="Next change (n, j, Right arrow)">Next <kbd>n</kbd></button>
+    <button id="navLast" title="Last change (End)">Last</button>
+    <input id="goto" type="number" min="1" placeholder="No." title="Go to change number">
+    <span id="changeStatus" class="count"></span>
+  </div>
+  <div class="tools">
+    <span class="zoom" role="group" aria-label="Zoom">
+      <button id="zoomOut" title="Zoom out (Ctrl+-)">−</button>
+      <button id="zoomPct" title="Reset to 100 % (Ctrl+0)">100 %</button>
+      <button id="zoomIn" title="Zoom in (Ctrl+=)">+</button>
+      <button id="zoomFit" title="Fit the page width" aria-pressed="false">Fit</button>
+    </span>
+    <button id="pdf" disabled>Save PDF</button>
+    <details id="options" class="options">
+      <summary title="Comparison, page, rendering and PDF settings">Options ▾</summary>
+      <div class="popover">
+        <h4>Comparison <small>changing these compares again</small></h4>
+        <label title="Compare without regard to letter case"><input type="checkbox" id="optIgnoreCase"> Ignore case</label>
+        <label title="Count list numbering changes as changes"><input type="checkbox" id="optCountNumbering" checked> Count numbering changes</label>
+        <h4>On the page <small>re-lays out the pages</small></h4>
+        <label><input type="checkbox" id="showUnchanged" checked> Show unchanged text</label>
+        <label><input type="checkbox" id="showInsertions" checked> Show insertions</label>
+        <label><input type="checkbox" id="showDeletions" checked> Show deletions</label>
+        <label><input type="checkbox" id="showFormatting" checked> Show formatting changes</label>
+        <h4>Rendering</h4>
+        <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
+        <label><input type="checkbox" id="changeBars" checked> Change bars</label>
+        <h4>PDF</h4>
+        <label>Summary <select id="report">
+          <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
+        <div class="quitrow"><button id="quit" class="quit" title="Stop Calandria (closing the window does the same)">Quit Calandria</button></div>
+      </div>
+    </details>
+  </div>
 </header>
+<div id="progress" class="progress" hidden><div></div></div>
 <div id="body">
   <aside id="panel">
-    <div id="tiles" class="tiles"></div>
-    <div class="filters">
-      <label><input type="checkbox" id="fInsertion" checked> Insertions</label>
-      <label><input type="checkbox" id="fDeletion" checked> Deletions</label>
-      <label><input type="checkbox" id="fAmendment" checked> Amendments</label>
-      <label><input type="checkbox" id="fNumbering" checked> Numbering</label>
-      <select id="fLocation">
+    <div class="head">
+      <button id="panelToggle" title="Hide the change list">‹</button>
+      <span id="listCount" class="count">No comparison</span>
+      <select id="fLocation" title="Body text, tables or both">
         <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
       </select>
     </div>
-    <div class="nav">
-      <button id="navFirst" title="First change (Home)">First</button>
-      <button id="navPrev" title="Previous change (p)">Prev</button>
-      <button id="navNext" title="Next change (n)">Next</button>
-      <button id="navLast" title="Last change (End)">Last</button>
-      <input id="goto" type="number" min="1" placeholder="No." title="Go to change number">
-      <span id="listCount" class="count"></span>
-    </div>
+    <div id="tiles" class="tiles"></div>
     <ol id="changes" class="changes"></ol>
     <p class="note">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word.</p>
   </aside>
   <main id="pages">
-    <div id="drop" class="drop">Drop the original and the modified .docx here, or pick them above, then press Compare.</div>
+    <div id="notice" class="notice" hidden data-kind="">
+      <div class="box">
+        <p id="noticeText"></p>
+        <button id="noticeClose" hidden>Dismiss</button>
+      </div>
+    </div>
+    <section id="sources" class="sources">
+      <p class="intro">Calandria compares two Word documents and shows every difference as a redline, on screen and in a PDF.</p>
+      <div class="cards">
+        <div id="cardA" class="card" tabindex="0" title="The original document">
+          <span class="side">Original</span>
+          <span id="nameA" class="name">Drop the .docx here or click to choose</span>
+          <button id="clearA" class="clear" title="Remove this file" hidden>×</button>
+          <input type="file" id="fileA" accept=".docx" hidden>
+        </div>
+        <button id="swap" title="Swap Original and Modified" disabled>⇄</button>
+        <div id="cardB" class="card" tabindex="0" title="The modified document">
+          <span class="side">Modified</span>
+          <span id="nameB" class="name">Drop the .docx here or click to choose</span>
+          <button id="clearB" class="clear" title="Remove this file" hidden>×</button>
+          <input type="file" id="fileB" accept=".docx" hidden>
+        </div>
+      </div>
+      <button id="compare" class="go" disabled>Compare</button>
+      <p class="hint">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word. Closing this window closes Calandria.</p>
+    </section>
   </main>
 </div>
+<dialog id="keys">
+  <h3>Keyboard shortcuts</h3>
+  <table>
+    <tr><td><kbd>n</kbd> <kbd>j</kbd> <kbd>→</kbd></td><td>Next change</td></tr>
+    <tr><td><kbd>p</kbd> <kbd>k</kbd> <kbd>←</kbd></td><td>Previous change</td></tr>
+    <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>First / last change</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom in / out (also Ctrl+wheel over the pages)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Zoom 100 %</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close this sheet or the Options popover</td></tr>
+    <tr><td><kbd>?</kbd></td><td>This sheet</td></tr>
+  </table>
+  <p class="note">Keys work outside text boxes.</p>
+  <form method="dialog"><button id="keysClose">Close</button></form>
+</dialog>
 <footer id="status">
   <span id="pageStatus">No comparison</span>
-  <span id="changeStatus"></span>
   <span id="msg" class="msg"></span>
 </footer>
 <script type="module" src="/static/app.js"></script>

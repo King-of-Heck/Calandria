@@ -5,16 +5,19 @@
 // The change list lives
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
+import { initSources, refreshSources } from "./sources.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
-const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "hideUnchanged", "hideInsertions", "hideDeletions", "hideFormatting"];
+const ZOOM_MIN = 0.2, ZOOM_MAX = 4, ZOOM_STEP = 0.1;
+const NOTICE_DELAY_MS = 400;                        // Task 4 uses it; declared here so the constants sit together
+const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
 
 export const state = {
-  data: null, files: { a: null, b: null }, zoom: 1, fit: false,
-  renderSet: "Standard", changeBars: true, closed: false, timer: null,
+  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, shown: 1,
+  renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
   // flight) and is dropped, so the page always shows the answer to the LAST request.
@@ -45,22 +48,52 @@ function msg(text, isError) {
 }
 
 function busy(on, text) {
+  state.busy = on;
   document.body.classList.toggle("busy", on);
+  if (state.closed) return;            // closed() already owns the card, the bar and the message
   msg(on ? text : "");
+  $("progress").hidden = !on;
+  clearTimeout(state.noticeTimer);
+  if (on) state.noticeTimer = setTimeout(() => notice(text, "wait"), NOTICE_DELAY_MS);
+  else if ($("notice").dataset.kind === "wait") hideNotice();   // an error card set meanwhile stays
   enableControls(!on);
+}
+
+// The card over the pages: "wait" after 400 ms of a request, "error" (dismissible) for a failed
+// one, "closed" (not dismissible) once the page has shut itself down.
+function notice(text, kind) {
+  const n = $("notice");
+  n.dataset.kind = kind;
+  n.className = `notice ${kind}`;
+  $("noticeText").textContent = text;
+  $("noticeClose").hidden = kind !== "error";
+  n.hidden = false;
+}
+
+function hideNotice() {
+  const n = $("notice");
+  n.hidden = true;
+  n.dataset.kind = "";
+  n.className = "notice";
+}
+
+function fail(e) {
+  if (state.closed) return;            // the closed card is the one that must stay
+  msg(e.message, true);
+  notice(e.message, "error");
 }
 
 // The controls whose requests could overlap (relayout, restyle, compare) are disabled while any
 // one of those requests is in flight, so a second toggle can't fire a request whose reply races
 // the first and wins with stale data. `on` is true only when nothing is in flight; `closed` still
-// wins even then, and `pdf` / `compare` re-enable only when their own preconditions hold.
+// wins even then, and `pdf` re-enables only when a comparison exists; `compare` is decided by `sources.js`.
 function enableControls(on) {
   if (state.closed) return;
   for (const id of OPTION_IDS) $(id).disabled = !on;
   $("renderSet").disabled = !on;
   $("changeBars").disabled = !on;
   $("pdf").disabled = !(on && state.data);
-  $("compare").disabled = !(on && state.files.a && state.files.b);
+  refreshSources();                                  // Compare: both slots filled and not the compared pair
 }
 
 function readBase64(file) {
@@ -72,42 +105,38 @@ function readBase64(file) {
   });
 }
 
-function setFile(slot, file) {
-  state.files[slot] = file;
-  $(slot === "a" ? "nameA" : "nameB").textContent = file ? file.name : "none";
-  $("compare").disabled = !(state.files.a && state.files.b) || state.closed;
-}
-
 function options() {
   return {
     ignore_case: $("optIgnoreCase").checked, count_numbering: $("optCountNumbering").checked,
-    show_equal: !$("hideUnchanged").checked, show_insertions: !$("hideInsertions").checked,
-    show_deletions: !$("hideDeletions").checked, show_formatting: !$("hideFormatting").checked,
+    show_equal: $("showUnchanged").checked, show_insertions: $("showInsertions").checked,
+    show_deletions: $("showDeletions").checked, show_formatting: $("showFormatting").checked,
   };
 }
 
 function setOptions(o) {
   $("optIgnoreCase").checked = o.ignore_case;
   $("optCountNumbering").checked = o.count_numbering;
-  $("hideUnchanged").checked = !o.show_equal;
-  $("hideInsertions").checked = !o.show_insertions;
-  $("hideDeletions").checked = !o.show_deletions;
-  $("hideFormatting").checked = !o.show_formatting;
+  $("showUnchanged").checked = o.show_equal;
+  $("showInsertions").checked = o.show_insertions;
+  $("showDeletions").checked = o.show_deletions;
+  $("showFormatting").checked = o.show_formatting;
 }
 
 async function compareNow() {
   const { a, b } = state.files;
   if (!a || !b || state.closed) return;
   const seq = ++state.seq;
-  busy(true, "Comparing…");
+  busy(true, `Comparing ${a.name} with ${b.name}…`);
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
                    options: options(), render_set: state.renderSet, change_bars: state.changeBars };
     const d = await api("/api/compare", body);
     if (state.seq !== seq) return;
+    if (state.closed) return;
+    state.compared = { a, b };
     show(d);
   } catch (e) {
-    msg(e.message, true);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -122,7 +151,7 @@ export async function relayout() {
     if (state.seq !== seq) return;
     show(d);
   } catch (e) {
-    msg(e.message, true);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
@@ -141,14 +170,16 @@ async function restyle() {
     applyStyles();
     document.dispatchEvent(new CustomEvent("calandria:restyled"));
   } catch (e) {
-    msg(e.message, true);
+    if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
     if (state.seq === seq) busy(false);   // a superseded reply must not clear the newer one's status
   }
 }
 
 function show(data) {
+  if (state.closed) return;                        // a reply after Quit or a dead server changes nothing
   state.data = data;
+  refreshSources();
   const sel = $("renderSet");
   sel.innerHTML = "";
   for (const name of data.render_sets) {
@@ -162,10 +193,10 @@ function show(data) {
   $("changeBars").checked = data.change_bars;
   setOptions(data.options);
   $("pdf").disabled = false;
-  $("drop").hidden = true;
   document.title = `${data.names.original} vs ${data.names.modified} — Calandria`;
   renderPages();
   applyStyles();
+  hideNotice();
   msg("");
   document.dispatchEvent(new CustomEvent("calandria:loaded", { detail: data }));
 }
@@ -192,14 +223,35 @@ function renderPages() {
 
 function applyZoom() {
   const main = $("pages");
+  let shown = state.zoom;
   for (const page of main.querySelectorAll(".page")) {
     const svg = page.querySelector("svg");
     const { w, h } = pageSize(svg);
-    const z = state.fit ? Math.max(0.2, (main.clientWidth - 48) / (w * PT)) : state.zoom;
+    const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
+    shown = z;
     svg.setAttribute("width", `${w * z}pt`);
     svg.setAttribute("height", `${h * z}pt`);
     page.style.width = `${w * z}pt`;
   }
+  state.shown = shown;
+  $("zoomPct").textContent = `${Math.round(shown * 100)} %`;
+  $("zoomFit").setAttribute("aria-pressed", String(state.fit));
+  $("zoomFit").classList.toggle("on", state.fit);
+}
+
+function setZoom(z) {
+  state.fit = false;
+  state.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+  applyZoom();
+}
+
+function toggleFit() {
+  state.fit = !state.fit;
+  applyZoom();
+}
+
+function stepZoom(direction) {
+  setZoom((state.fit ? state.shown : state.zoom) + direction * ZOOM_STEP);
 }
 
 function applyStyles() {
@@ -234,9 +286,12 @@ function savePdf() {
 function closed(text) {
   state.closed = true;
   clearInterval(state.timer);
+  clearTimeout(state.noticeTimer);
   document.body.classList.add("closed");
   for (const el of document.querySelectorAll("button, input, select")) el.disabled = true;
+  $("progress").hidden = true;
   msg(text, true);
+  notice(text, "closed");
 }
 
 async function quit() {
@@ -257,36 +312,52 @@ function ping() {
     });
 }
 
-function wire() {
-  $("fileA").addEventListener("change", (e) => setFile("a", e.target.files[0] || null));
-  $("fileB").addEventListener("change", (e) => setFile("b", e.target.files[0] || null));
-  $("compare").addEventListener("click", compareNow);
-  const main = $("pages");
-  main.addEventListener("dragover", (e) => { e.preventDefault(); main.classList.add("over"); });
-  main.addEventListener("dragleave", () => main.classList.remove("over"));
-  main.addEventListener("drop", (e) => {
-    e.preventDefault();
-    main.classList.remove("over");
-    if (state.closed) return;
-    const files = [...e.dataTransfer.files].filter((f) => /\.docx$/i.test(f.name));
-    if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
-    else if (files.length === 1) setFile(state.files.a ? "b" : "a", files[0]);
-    if (state.files.a && state.files.b) compareNow();
+// The Options popover is a native <details>; it closes on Escape and on a click outside it,
+// and stays open while its own controls are used.
+function wirePopover() {
+  const d = $("options");
+  document.addEventListener("click", (e) => { if (d.open && !d.contains(e.target)) d.open = false; });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && d.open) { d.open = false; e.preventDefault(); }
   });
+}
+
+function wire() {
+  initSources({ compare: compareNow, swap: compareNow });   // the slots are already exchanged when swap fires
+  const main = $("pages");
   for (const id of OPTION_IDS) $(id).addEventListener("change", relayout);
   $("renderSet").addEventListener("change", (e) => { state.renderSet = e.target.value; restyle(); });
   $("changeBars").addEventListener("change", (e) => { state.changeBars = e.target.checked; restyle(); });
-  $("zoom").addEventListener("change", (e) => {
-    state.fit = e.target.value === "fit";
-    if (!state.fit) state.zoom = Number(e.target.value);
-    applyZoom();
+  $("zoomOut").addEventListener("click", () => stepZoom(-1));
+  $("zoomIn").addEventListener("click", () => stepZoom(1));
+  $("zoomPct").addEventListener("click", () => setZoom(1));
+  $("zoomFit").addEventListener("click", toggleFit);
+  main.addEventListener("wheel", (e) => {
+    if (state.closed) return;
+    if (!e.ctrlKey) return;                          // plain wheel scrolls; Ctrl+wheel zooms instead of Edge's page zoom
+    e.preventDefault();
+    stepZoom(e.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+  document.addEventListener("keydown", (e) => {
+    if (state.closed) return;
+    if (e.target.matches("input, select, textarea") || e.altKey || e.metaKey) return;   // keys never act inside a text box
+    if (e.ctrlKey && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
+    else if (e.ctrlKey && e.key === "-") { e.preventDefault(); stepZoom(-1); }
+    else if (e.ctrlKey && e.key === "0") { e.preventDefault(); setZoom(1); }
+    else if (e.key === "?" && !e.ctrlKey) {
+      e.preventDefault();
+      if (!$("keys").open) $("keys").showModal();   // a second ? while the sheet is open must not throw
+    }
   });
+  document.addEventListener("calandria:resized", () => { if (state.fit) applyZoom(); });
   window.addEventListener("resize", () => { if (state.fit) applyZoom(); });
   main.addEventListener("scroll", updatePageStatus);
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
   state.timer = setInterval(ping, PING_MS);
+  $("noticeClose").addEventListener("click", hideNotice);
+  wirePopover();
   initChanges();
 }
 

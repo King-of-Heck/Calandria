@@ -31,7 +31,7 @@ export function initSources(h) {
     input.addEventListener("change", (e) => {
       const file = e.target.files[0] || null;
       e.target.value = "";                            // the same file can be picked again after a remove
-      if (file) setFile(slot, file);
+      if (file && !state.closed) setFile(slot, file);
     });
     $(ids.clear).addEventListener("click", (e) => { e.stopPropagation(); if (!state.closed) setFile(slot, null); });
     card.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); if (!state.closed) card.classList.add("over"); });
@@ -99,7 +99,7 @@ export function refreshSources() {
     $(ids.clear).hidden = !f;
   }
   const both = !!(state.files.a && state.files.b);
-  $("swap").disabled = state.closed || !(state.files.a || state.files.b);
+  $("swap").disabled = state.closed || state.busy || !(state.files.a || state.files.b);
   $("compare").disabled = state.closed || state.busy || !both || sameAsCompared();
   $("sources").classList.toggle("compact", !!state.data);
 }

@@ -72,3 +72,10 @@ def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_a_closed_page_does_not_ping():
+    js = _read("app.js")
+    body = js[js.index("function ping()"):]
+    body = body[:body.index("\n}\n")]
+    assert "if (state.closed) return;" in body.splitlines()[1]

@@ -245,6 +245,7 @@ async function quit() {
 }
 
 function ping() {
+  if (state.closed) return;                         // after Quit a visibility change must not revive the pinging
   fetch("/api/ping?hidden=" + (document.visibilityState === "hidden" ? 1 : 0), { method: "POST" })
     .then((r) => { if (!r.ok) throw new Error(); state.misses = 0; })
     .catch(() => {

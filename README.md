@@ -101,8 +101,8 @@ the change bars (a redraw), the compare options and the hide filters (a re-compa
 re-layout), the zoom (a scale of the fixed layout, 50–200 % or fit width) and the report
 placement; "Save PDF" downloads the PDF with the current settings. The left panel has the count
 tiles, category and location filters, the numbered change list (click a row to jump to it;
-First / Previous / Next / Last, a go-to box, and the keys `n`, `p`, `Home`, `End` outside inputs) and
-"Change X of Y". Documents never leave the machine.
+First / Previous / Next / Last, a go-to box, and the keys `n`, `p`, `Home`, `End` outside
+inputs) and "Change X of Y". Documents never leave the machine.
 
 The server keeps one comparison in memory, stops on Quit, and stops by itself a few seconds
 after the window closes (`--idle=SECONDS` after the last request, default 8, 0 = never;

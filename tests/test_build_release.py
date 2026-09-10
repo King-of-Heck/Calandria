@@ -220,12 +220,65 @@ def test_smoke_serve_arguments_cover_the_console_less_launch():
     assert "--grace=1" in br.SMOKE_SERVE and "--idle=1" in br.SMOKE_SERVE and "--no-browser" in br.SMOKE_SERVE
 
 
-def test_the_serve_smoke_starts_from_no_log_and_survives_a_missing_one():
-    import inspect
-    src = inspect.getsource(br.smoke)
-    assert "log.unlink(missing_ok=True)" in src              # a log left by an earlier build never counts
-    # a serve that wrote nothing must fail with the log smoke message, not a FileNotFoundError
-    assert 'log.read_text(encoding="utf-8") if log.exists() else ""' in src
+def _fake_stage(tmp_path):
+    stage = tmp_path / "Calandria-9.9.9"
+    python_dir = br.layout_paths(stage)["python"]
+    python_dir.mkdir(parents=True)
+    (python_dir / "python.exe").write_bytes(b"MZ")
+    (python_dir / "pythonw.exe").write_bytes(b"MZ")
+    return stage
+
+
+def _fake_run(serve_writes_log):
+    """A stand-in for _run that answers the smoke's commands: the version, the imports, the sys.path
+    check, the pdf (a %PDF file) and the serve (the url line, and the log only when asked)."""
+    def run(cmd, cwd, timeout=300):
+        if cmd[1:] == ["-m", "calandria", "version"]:
+            return "calandria 9.9.9\n"
+        if cmd[1] == "-c":
+            return ""
+        if cmd[1:4] == ["-m", "calandria", "pdf"]:
+            Path(cmd[6]).write_bytes(b"%PDF-1.7 fake")
+            return '{"pages": 1, "out": "x"}\n'
+        assert cmd[1:1 + len(br.SMOKE_SERVE)] == br.SMOKE_SERVE
+        log = Path(cmd[-1].removeprefix("--log="))
+        if serve_writes_log:
+            log.write_text('--- 2026-09-09 12:00:00 calandria 9.9.9 serve\n{"url": "http://127.0.0.1:5/"}\n',
+                           encoding="utf-8")
+        return '{"url": "http://127.0.0.1:5/"}\n'
+    return run
+
+
+def test_the_serve_smoke_passes_on_a_fresh_log(tmp_path, monkeypatch):
+    stage = _fake_stage(tmp_path)
+    monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=True))
+    br.smoke(stage, "9.9.9")
+    assert (stage.parent / "smoke" / "calandria.log").read_text(encoding="utf-8").startswith("--- ")
+
+
+def test_the_serve_smoke_fails_when_the_serve_writes_no_log(tmp_path, monkeypatch):
+    stage = _fake_stage(tmp_path)
+    monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=False))
+    with pytest.raises(RuntimeError, match="log smoke"):
+        br.smoke(stage, "9.9.9")
+
+
+def test_the_serve_smoke_ignores_a_log_left_by_an_earlier_build(tmp_path, monkeypatch):
+    stage = _fake_stage(tmp_path)
+    work = stage.parent / "smoke"
+    work.mkdir()
+    (work / "calandria.log").write_text('--- stale\n{"url": "http://127.0.0.1:5/"}\n', encoding="utf-8")
+    monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=False))
+    with pytest.raises(RuntimeError, match="log smoke"):
+        br.smoke(stage, "9.9.9")
+
+
+def test_the_smoke_refuses_a_stage_without_pythonw(tmp_path, monkeypatch):
+    stage = _fake_stage(tmp_path)
+    (br.layout_paths(stage)["python"] / "pythonw.exe").unlink()
+    monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=True))
+    with pytest.raises(RuntimeError, match="pythonw"):
+        br.smoke(stage, "9.9.9")
 
 
 def test_sha256_of(tmp_path):

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import webbrowser
 
 EDGE_RELATIVE = os.path.join("Microsoft", "Edge", "Application", "msedge.exe")
@@ -40,7 +41,7 @@ def open_viewer(url: str, env=None, popen=subprocess.Popen) -> str:
             popen([edge, f"--app={url}"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                   stderr=subprocess.DEVNULL)
             return "edge"
-        except OSError:
-            pass
+        except OSError as e:
+            print("edge did not start:", ascii(str(e)), file=sys.stderr)
     webbrowser.open(url)
     return "browser"

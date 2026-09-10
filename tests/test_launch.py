@@ -43,7 +43,7 @@ def test_open_viewer_falls_back_to_the_browser_without_edge(monkeypatch):
     assert opened == ["http://127.0.0.1:5/"]
 
 
-def test_open_viewer_falls_back_when_edge_cannot_start(tmp_path, monkeypatch):
+def test_open_viewer_falls_back_when_edge_cannot_start(tmp_path, monkeypatch, capsys):
     _install_edge(tmp_path)
     opened = []
     monkeypatch.setattr(launch.webbrowser, "open", lambda url: opened.append(url))
@@ -53,3 +53,4 @@ def test_open_viewer_falls_back_when_edge_cannot_start(tmp_path, monkeypatch):
 
     assert launch.open_viewer("http://127.0.0.1:5/", env={"ProgramFiles": str(tmp_path)}, popen=popen) == "browser"
     assert opened == ["http://127.0.0.1:5/"]
+    assert "edge did not start: 'blocked'" in capsys.readouterr().err      # the log says why

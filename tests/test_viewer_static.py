@@ -138,3 +138,11 @@ def test_progress_and_notice_elements_exist_and_closed_uses_the_card():
     body = js[js.index("function closed("):]
     body = body[:body.index("\n}\n")]
     assert 'notice(text, "closed")' in body
+
+
+def test_tiles_filter_and_the_checkbox_row_is_gone():
+    html = _read("index.html")
+    for id_ in ("fInsertion", "fDeletion", "fAmendment", "fNumbering"):
+        assert f'id="{id_}"' not in html, id_
+    js = _read("changes.js")
+    assert "data-cat" in js and "anchors[String(" in js and "line-clamp" in _read("style.css")

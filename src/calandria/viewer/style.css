@@ -68,18 +68,29 @@ button:disabled { opacity: .5; cursor: default; }
   width: 340px; flex: none; display: flex; flex-direction: column; min-height: 0;
   background: #fff; border-right: 1px solid var(--edge);
 }
-#panel .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; }
-#panel .tile { border: 1px solid var(--edge); border-radius: 4px; padding: 4px 6px; text-align: center; }
+#panel .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; }
+#panel .tile { border: 1px solid var(--edge); border-radius: 4px; padding: 4px 2px; text-align: center; background: #fff; }
+#panel button.tile { cursor: pointer; }
+#panel button.tile:hover { background: var(--bar); }
+#panel .tile.on { background: #fff4c2; border-color: #e5c84a; }
+#panel .tile.dim { opacity: .45; }
 #panel .tile b { display: block; font-size: 18px; }
-#panel .tile span { color: var(--muted); font-size: 11px; }
+#panel .tile span { color: #4b5563; font-size: 12px; }
 #panel .tile.insertion b { color: var(--ins); }
 #panel .tile.deletion b { color: var(--del); }
-#panel .tile.formatting b { color: var(--fmt); }
+#panel .tile.formatting { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; align-items: baseline; padding: 2px 6px; color: var(--muted); border-style: dashed; }
+#panel .tile.formatting b { font-size: 14px; color: var(--fmt); }
 #panel .head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
 #panel .head .count { font-weight: 600; margin-right: auto; }
-#panel .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 8px; border-top: 1px solid var(--edge); }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
-#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3.5em 1fr; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
+#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg text" "x x x text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
+#panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl text" "x x x x text"; }
+#panel .changes li .badge { grid-area: badge; }
+#panel .changes li .no { grid-area: no; }
+#panel .changes li .pg { grid-area: pg; color: var(--muted); font-size: 12px; }
+#panel .changes li .tbl { grid-area: tbl; color: var(--muted); }
+#panel .changes li .text { grid-area: text; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#panel .changes li.current .text { display: block; -webkit-line-clamp: unset; overflow: visible; }
 #panel .changes li:hover { background: var(--bar); }
 #panel .changes li.current { background: #fff4c2; }
 #panel .badge { font-size: 11px; text-align: center; border-radius: 3px; padding: 1px 4px; color: #fff; background: var(--muted); align-self: start; }
@@ -88,8 +99,6 @@ button:disabled { opacity: .5; cursor: default; }
 #panel li.amendment .badge { background: #7c3aed; }
 #panel li.numbering .badge { background: #0f766e; }
 #panel .no { font-weight: 600; }
-#panel .loc { color: var(--muted); }
-#panel .text { overflow-wrap: anywhere; }
 #panel .text s.del { color: var(--del); }
 #panel .text u.ins { color: var(--ins); text-decoration: underline double; }
 #panel .note { margin: 0; padding: 6px 8px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--edge); }

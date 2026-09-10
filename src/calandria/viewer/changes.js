@@ -1,24 +1,36 @@
-// The change list panel: summary tiles, category and location filters, the numbered list with
-// the change text styled like the page, navigation, and the on-page highlight of the selected
-// change (a translucent band over every line and changed table row carrying its number).
+// The change list panel: summary tiles that filter (click to solo a category, again for all),
+// the location select, the numbered list with the change text styled like the page (two lines
+// per row, the selected row in full), navigation from the toolbar and the keys, and the on-page
+// highlight of the selected change (a translucent band over every line and changed table row
+// carrying its number).
 import { pageSize } from "./app.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
-const CONTEXT = 40;                   // characters of unchanged text kept on each side of a change
+const CONTEXT = 40;                   // characters of unchanged text kept on each side of a change (selected row)
+const CONTEXT_SHORT = 24;             // the same for the clamped rows
 const MAX_SEGMENT = 200;              // characters of one inserted / deleted segment shown
 const BADGE = { insertion: "Add", deletion: "Delete", amendment: "Change", numbering: "Number" };
-const FILTER_IDS = { insertion: "fInsertion", deletion: "fDeletion", amendment: "fAmendment", numbering: "fNumbering" };
+const TILES = [["Insertions", "insertions", "insertion"], ["Deletions", "deletions", "deletion"],
+               ["Amendments", "amendments", "amendment"], ["Numbering", "numbering", "numbering"]];
 
 let data = null;
 let entries = [];                     // every numbered change, document order
 let visible = [];                     // after the filters
 let current = -1;                     // index into visible
+let solo = null;                      // the one category shown, or null for all
+let hasTables = false;                // any change inside a table (the table glyph is shown only then)
 
 export function initChanges() {
   document.addEventListener("calandria:loaded", (e) => { data = e.detail; build(); });
   document.addEventListener("calandria:restyled", () => highlight(current));
-  for (const id of [...Object.values(FILTER_IDS), "fLocation"]) $(id).addEventListener("change", refilter);
+  $("fLocation").addEventListener("change", refilter);
+  $("tiles").addEventListener("click", (e) => {
+    const t = e.target.closest("button.tile");
+    if (!t) return;
+    solo = solo === t.dataset.cat ? null : t.dataset.cat;
+    refilter();
+  });
   $("navFirst").addEventListener("click", () => go(0));
   $("navPrev").addEventListener("click", () => go(current - 1));
   $("navNext").addEventListener("click", () => go(current + 1));
@@ -42,6 +54,8 @@ export function initChanges() {
 
 function build() {
   entries = group(data.changes);
+  hasTables = entries.some((en) => en.loc === "table");
+  solo = null;
   tiles();
   refilter();
 }
@@ -50,7 +64,10 @@ function group(rows) {
   const byCid = new Map();
   for (const row of rows) {
     if (row.cid === null || row.cid === undefined) continue;
-    if (!byCid.has(row.cid)) byCid.set(row.cid, { cid: row.cid, category: row.category, loc: row.loc ? "table" : "body", rows: [] });
+    if (!byCid.has(row.cid)) {
+      const a = data.anchors[String(row.cid)];
+      byCid.set(row.cid, { cid: row.cid, category: row.category, loc: row.loc ? "table" : "body", page: a ? a.page : null, rows: [] });
+    }
     byCid.get(row.cid).rows.push(row);
   }
   return [...byCid.values()];
@@ -58,17 +75,27 @@ function group(rows) {
 
 function tiles() {
   const s = data.summary;
-  const cells = [["Insertions", s.insertions, "insertion"], ["Deletions", s.deletions, "deletion"],
-                 ["Amendments", s.amendments, "amendment"], ["Numbering", s.numbering, "numbering"],
-                 ["Total", s.total, "total"], ["Formatting", s.formatting, "formatting"]];
-  $("tiles").innerHTML = cells.map(([label, n, cls]) =>
-    `<div class="tile ${cls}" title="${cls === "formatting" ? "Formatting changes are shown but not counted" : ""}"><b>${n}</b><span>${label}</span></div>`).join("");
+  $("tiles").innerHTML = TILES.map(([label, key, cat]) =>
+    `<button type="button" class="tile ${cat}" data-cat="${cat}" aria-pressed="false" ` +
+    `title="Show only ${label.toLowerCase()}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
+    `<div class="tile formatting" title="Formatting changes are shown on the page but not counted or listed">` +
+    `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>`;
+}
+
+function markTiles() {
+  for (const t of $("tiles").querySelectorAll("button.tile")) {
+    const on = solo === t.dataset.cat;
+    t.setAttribute("aria-pressed", String(on));
+    t.classList.toggle("on", on);
+    t.classList.toggle("dim", solo !== null && !on);
+  }
 }
 
 function refilter() {
   const loc = $("fLocation").value;
-  visible = entries.filter((en) => $(FILTER_IDS[en.category]).checked && (loc === "all" || en.loc === loc));
+  visible = entries.filter((en) => (solo === null || en.category === solo) && (loc === "all" || en.loc === loc));
   current = -1;
+  markTiles();
   renderList();
   highlight(-1);
   status();
@@ -78,10 +105,10 @@ function esc(s) {
   return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
-function keepEnd(t) { return t.length > CONTEXT ? "…" + t.slice(-CONTEXT) : t; }
+function keepEnd(t, n) { return t.length > n ? "…" + t.slice(-n) : t; }
 function keepStart(t, n) { return t.length > n ? t.slice(0, n) + "…" : t; }
 
-function changeText(en) {
+function changeText(en, context) {
   const parts = [];
   for (const row of en.rows) {
     if (row.num_changed && row.old_marker !== null && row.old_marker !== undefined) {
@@ -93,8 +120,8 @@ function changeText(en) {
     segs.forEach((s, i) => {
       let t = s.t;
       if (s.m === "eq") {
-        if (first < 0 || i > last) t = keepStart(t, CONTEXT);
-        else if (i < first) t = keepEnd(t);
+        if (first < 0 || i > last) t = keepStart(t, context);
+        else if (i < first) t = keepEnd(t, context);
       } else {
         t = keepStart(t, MAX_SEGMENT);
       }
@@ -108,16 +135,22 @@ function changeText(en) {
 function renderList() {
   const ol = $("changes");
   ol.innerHTML = "";
+  ol.classList.toggle("tables", hasTables);
   visible.forEach((en, i) => {
     const li = document.createElement("li");
     li.className = en.category;
     li.dataset.i = String(i);
+    li.tabIndex = 0;
     li.innerHTML = `<span class="badge">${BADGE[en.category] || en.category}</span><span class="no">${en.cid}</span>` +
-                   `<span class="loc">${en.loc === "table" ? "Table" : "Body"}</span><span class="text">${changeText(en)}</span>`;
+                   `<span class="pg" title="Page">${en.page === null ? "" : "p. " + en.page}</span>` +
+                   (hasTables ? `<span class="tbl" title="${en.loc === "table" ? "In a table" : ""}">${en.loc === "table" ? "⊞" : ""}</span>` : "") +
+                   `<span class="text">${changeText(en, CONTEXT_SHORT)}</span>`;
     li.addEventListener("click", () => go(i));
+    li.addEventListener("keydown", (e) => { if (e.key === "Enter") go(i); });
     ol.appendChild(li);
   });
-  $("listCount").textContent = entries.length ? `${visible.length} of ${entries.length}` : "";
+  $("listCount").textContent = !entries.length ? "No changes" :
+    visible.length === entries.length ? `${entries.length} changes` : `${visible.length} of ${entries.length} changes`;
 }
 
 function status() {
@@ -130,13 +163,18 @@ function status() {
 function go(i) {
   if (!visible.length) return;
   i = Math.max(0, Math.min(visible.length - 1, i));
+  const ol = $("changes");
+  const was = ol.querySelector("li.current");
+  if (was && Number(was.dataset.i) !== i) was.querySelector(".text").innerHTML = changeText(visible[Number(was.dataset.i)], CONTEXT_SHORT);
   current = i;
   highlight(i);
   status();
-  const ol = $("changes");
   for (const li of ol.querySelectorAll("li")) li.classList.toggle("current", Number(li.dataset.i) === i);
   const li = ol.querySelector(`li[data-i="${i}"]`);
-  if (li) li.scrollIntoView({ block: "nearest" });
+  if (li) {
+    li.querySelector(".text").innerHTML = changeText(visible[i], CONTEXT);   // the selected row shows the full text
+    li.scrollIntoView({ block: li.offsetHeight > ol.clientHeight ? "start" : "nearest" });
+  }
   const a = data.anchors[String(visible[i].cid)];
   if (!a) return;
   const page = document.querySelector(`.page[data-page="${a.page}"]`);

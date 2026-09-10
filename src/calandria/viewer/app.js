@@ -303,12 +303,13 @@ function wire() {
     stepZoom(e.deltaY < 0 ? 1 : -1);
   }, { passive: false });
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
-    else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "-") { e.preventDefault(); stepZoom(-1); }
-    else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "0") { e.preventDefault(); setZoom(1); }
-    else if (e.key === "?" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.target.matches("input, select, textarea")) {
+    if (e.target.matches("input, select, textarea") || e.altKey || e.metaKey) return;   // keys never act inside a text box
+    if (e.ctrlKey && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
+    else if (e.ctrlKey && e.key === "-") { e.preventDefault(); stepZoom(-1); }
+    else if (e.ctrlKey && e.key === "0") { e.preventDefault(); setZoom(1); }
+    else if (e.key === "?" && !e.ctrlKey) {
       e.preventDefault();
-      $("keys").showModal();
+      if (!$("keys").open) $("keys").showModal();   // a second ? while the sheet is open must not throw
     }
   });
   document.addEventListener("calandria:resized", () => { if (state.fit) applyZoom(); });

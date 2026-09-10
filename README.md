@@ -94,15 +94,17 @@ page count and that its text reads back.
 
 `python -m calandria serve` (or a double-click on `Calandria.cmd`) starts a local server on
 127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original
-and the modified `.docx` on the page (or pick them with the two file buttons) and press Compare:
-the pages shown are the same drawing the PDF gets — the server draws every page as SVG from the
-page model, so the screen and the PDF never disagree. The header switches the rendering set and
-the change bars (a redraw), the compare options and the hide filters (a re-compare and
-re-layout), the zoom (a scale of the fixed layout, 50–200 % or fit width) and the report
-placement; "Save PDF" downloads the PDF with the current settings. The left panel has the count
-tiles, category and location filters, the numbered change list (click a row to jump to it;
-First / Previous / Next / Last, a go-to box, and the keys `n`, `p`, `Home`, `End` outside
-inputs) and "Change X of Y". Documents never leave the machine.
+`.docx` on the "Original" card and the modified one on "Modified" (or click a card to choose, or
+drop both files anywhere), then press Compare; Swap exchanges the sides. The pages shown are the
+same drawing the PDF gets — the server draws every page as SVG from the page model, so the screen
+and the PDF never disagree. The toolbar has the change navigation (First / Prev / Next / Last, a
+go-to box, "Change X of Y"; keys `n` / `p`, `j` / `k`, the arrows, `Home`, `End`, and `?` for
+the sheet), the zoom stepper (20–400 % or fit width; Ctrl+wheel), "Save PDF", and an Options
+popover with the comparison options and the page toggles (a re-compare and re-layout), the
+rendering set and change bars (a redraw), the PDF summary placement and Quit. The left panel has
+the count tiles (click one to filter), the location select, and the numbered change list (page
+number per row; click a row to jump to it); it folds to a rail with ‹. Documents never leave
+the machine.
 
 The server keeps one comparison in memory, stops on Quit, and stops by itself a few seconds
 after the window closes (`--idle=SECONDS` after the last request, default 8, 0 = never;

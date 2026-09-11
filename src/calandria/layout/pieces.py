@@ -23,6 +23,7 @@ class LayoutOptions:
     show_deletions: bool = True
     show_formatting: bool = True
     fonts: object | None = None    # a FontResolver (or the test FakeResolver); None = system fonts
+    side: str = "blackline"        # blackline | original | modified (spec §12.1)
 
 
 @dataclass

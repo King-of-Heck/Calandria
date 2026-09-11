@@ -82,7 +82,7 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     fonts = ctx.fonts
     font, size, bold, italic = _base_style(pieces, ctx)
     cid = row.cid if row is not None else None
-    renumbered = row is not None and row.num_changed and bool(row.old_marker)
+    renumbered = row is not None and row.num_changed and bool(row.old_marker) and ctx.opts.side == "blackline"
 
     x = props.ind_left_pt
     first_x = x - props.ind_hanging_pt + props.ind_first_line_pt

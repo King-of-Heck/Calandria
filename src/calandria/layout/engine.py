@@ -13,6 +13,7 @@ from .merged import Item, merged_items
 from .pages import CellBox, FontRef, GlyphRun, Layout, Page, PlacedLine, TableRowBox
 from .pieces import LayoutOptions, visible
 from .planner import BlockSpec, Plan, plan_breaks
+from .sides import side_items, side_options
 from .tables import (MIN_CELL_W, PAD_X, PAD_Y, TableRowBlock, ctx_maps, table_blocks, table_maps,
                      table_runs)
 
@@ -167,16 +168,17 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
     opts = opts or LayoutOptions()
     if cmp.b_doc is None or cmp.a_doc is None:
         raise ValueError("layout needs a Comparison from compare(a, b) (documents attached)")
+    run_opts = side_options(opts)               # raises on an unknown side
     fonts = opts.fonts or default_resolver()
     doc = cmp.b_doc
     sections = doc.sections or [Section()]
-    items = merged_items(cmp)
+    items = side_items(merged_items(cmp), cmp, opts.side)
     pages: list[Page] = []
     faces: dict = {}
     maps = table_maps(cmp)      # one correspondence build for the whole layout
     for leader, group in _section_groups(items, sections):
         sec = sections[min(leader, len(sections) - 1)]
-        ctx = Ctx(cmp, opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
+        ctx = Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
                   sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
                   doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps)
         blocks = build_blocks(group, ctx)

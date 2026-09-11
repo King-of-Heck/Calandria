@@ -319,9 +319,10 @@ class Handler(BaseHTTPRequestHandler):
         rs = query.get("render_set", ["Standard"])[0]
         bars = _flag(query, "change_bars", True)
         report = query.get("report", ["last"])[0]
+        only = _flag(query, "changed_only", False)
         check_render(rs, report)
         with session.lock:
-            data, name = session.pdf(rs, bars, report)
+            data, name = session.pdf(rs, bars, report, only)
         self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})
 
 

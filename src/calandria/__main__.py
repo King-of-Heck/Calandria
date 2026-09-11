@@ -7,7 +7,7 @@
     python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
                             [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
-                            [--report=first|last|none]
+                            [--report=first|last|none] [--changed-only]
     python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
                               [--no-browser] [--verbose]
     python -m calandria version
@@ -38,14 +38,14 @@ USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]\n"
          "                               [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
-         "                               [--report=first|last|none]\n"
+         "                               [--report=first|last|none] [--changed-only]\n"
          "       python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]\n"
          "                                 [--no-browser] [--verbose]\n"
          "       python -m calandria version")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
 _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
-_PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars"}
+_PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars", "--changed-only"}
 _PDF_VALUED = {"--render-set", "--report"}
 _SERVE_FLAGS = {"--no-browser", "--verbose"}
 _SERVE_VALUED = {"--port", "--idle", "--grace", "--log"}
@@ -135,7 +135,8 @@ def main(argv) -> int:
         result = layout(cmp, _layout_options(flags))
         now = datetime.now()          # one clock: the report's time stamp and the PDF creation date
         opts = PdfOptions(render_set=rs_name, change_bars="--no-change-bars" not in flags,
-                          report=values.get("--report", "last"), now=now)
+                          report=values.get("--report", "last"), now=now,
+                          changed_only="--changed-only" in flags)
         info = report_info(cmp, os.path.basename(pa), os.path.basename(pb), rs_name, now)
         data, drawn = render(result, info, opts)
         with open(out_path, "wb") as f:

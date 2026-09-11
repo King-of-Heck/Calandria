@@ -15,8 +15,8 @@ Rules:
 - Zoom is a CSS scale of the fixed layout (the SVG keeps its viewBox; width / height = page size
   x zoom); nothing re-lays-out on zoom. Selecting a change draws a translucent band (a <rect>
   the page script inserts) over every line and changed table row carrying its number.
-- index.html / style.css / app.js / changes.js / sources.js are the page. They talk only to the JSON API in
-  calandria.server (see that package's docstring).
+- index.html / style.css / app.js / changes.js / sources.js / strip.js / copy.js are the page. They talk only
+  to the JSON API in calandria.server (see that package's docstring).
 - Change bars, change numbers and the summary exist only in the viewer and the PDF; nothing is
   written to Word.
 - A density strip beside the pages marks every change at its place in the whole document, coloured

@@ -40,6 +40,7 @@ def test_payload_pages_anchors_and_marks_agree_with_the_layout_and_the_changes(p
         assert 1 <= page <= d["page_count"] and height > 0 and set(mcids) <= cids, (pair["alias"], page, mcids)
     for cid, a in d["anchors"].items():
         assert 1 <= a["page"] <= d["page_count"], (pair["alias"], cid)
+    assert set(d["changed_pages"]) >= {a["page"] for a in d["anchors"].values()}, pair["alias"]
     json.dumps(d)
 
 

@@ -50,8 +50,8 @@ function msg(text, isError) {
 }
 
 // A two-second message in the status line (a copy result); a busy message put there meanwhile wins.
-export function flash(text) {
-  msg(text);
+export function flash(text, isError) {
+  msg(text, isError);
   clearTimeout(state.flashTimer);
   state.flashTimer = setTimeout(() => { if ($("msg").textContent === text) msg(""); }, 2000);
 }
@@ -232,10 +232,12 @@ function renderPages() {
 }
 
 // The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
-// the page numbers stay real (data-page), and the strip keeps mapping the whole document.
+// the page numbers stay real (data-page), and the strip keeps mapping the whole document. When
+// nothing changed, page 1 stays visible (the PDF keeps page 1 too).
 function applyChangedOnly() {
   const main = $("pages");
   const keep = new Set(state.data ? state.data.changed_pages : []);
+  if (state.changedOnly && keep.size === 0) keep.add(1);
   for (const page of main.querySelectorAll(".page")) {
     page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
   }
@@ -328,6 +330,7 @@ function closed(text) {
   document.body.classList.add("closed");
   for (const el of document.querySelectorAll("button, input, select")) el.disabled = true;
   for (const id of ["panelToggle", "keysOpen", "keysClose"]) $(id).disabled = false;   // reading aids, not requests
+  for (const b of document.querySelectorAll("#strip .mark")) b.disabled = false;   // a strip mark only scrolls, no request
   $("options").open = false;
   $("progress").hidden = true;
   msg(text, true);
@@ -380,7 +383,7 @@ function wire() {
     state.changedOnly = e.target.checked;
     try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
     applyChangedOnly();
-    if (state.fit) applyZoom();
+    applyZoom();
     updatePageStatus();
     document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
   });
@@ -414,8 +417,8 @@ function wire() {
   state.timer = setInterval(ping, PING_MS);
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
-  initChanges();
   initStrip();
+  initChanges();
 }
 
 wire();

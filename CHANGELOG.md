@@ -9,7 +9,7 @@
   change (page numbers stay real; the counter says how many pages are shown), and a PDF option
   writes only the first page and the changed pages (`calandria pdf --changed-only`,
   `/api/pdf?changed_only=1`; the file name says "(changed pages)" and the summary block says
-  how many pages were left out).
+  how many of the document's pages are shown).
 - Copy per change: a ⋯ button on the row, or right-click, copies the modified or the original
   text of that change; Copy Final in the change list header copies the whole modified document
   as plain text.

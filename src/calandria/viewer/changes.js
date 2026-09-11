@@ -3,7 +3,7 @@
 // per row, the selected row in full), navigation from the toolbar and the keys, and the on-page
 // highlight of the selected change (a translucent band over every line and changed table row
 // carrying its number).
-import { pageSize, flash } from "./app.js";
+import { pageSize, flash, state } from "./app.js";
 import { textOf } from "./copy.js";
 
 const $ = (id) => document.getElementById(id);
@@ -196,11 +196,16 @@ function renderList() {
     li.addEventListener("click", () => go(i));
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") go(i); });
     li.querySelector(".more").addEventListener("click", (e) => {
+      if (state.closed) return;   // the button is disabled anyway; harmless
       e.stopPropagation();
       const r = e.currentTarget.getBoundingClientRect();
       openMenu(en, li, r.left, r.bottom + 2);
     });
-    li.addEventListener("contextmenu", (e) => { e.preventDefault(); openMenu(en, li, e.clientX, e.clientY); });
+    li.addEventListener("contextmenu", (e) => {
+      if (state.closed) return;
+      e.preventDefault();
+      openMenu(en, li, e.clientX, e.clientY);
+    });
     ol.appendChild(li);
   });
   $("listCount").textContent = !entries.length ? "No changes" :
@@ -246,7 +251,8 @@ function go(i) {
 }
 
 function copyText(text, done) {
-  navigator.clipboard.writeText(text).then(() => flash(done || "Copied"), (e) => flash(`Copy failed: ${e.message}`));
+  if (!navigator.clipboard) { flash("Copy needs a secure page (127.0.0.1 is one)", true); return; }
+  navigator.clipboard.writeText(text).then(() => flash(done || "Copied"), (e) => flash(`Copy failed: ${e && e.message ? e.message : e}`, true));
 }
 
 function openMenu(en, li, x, y) {

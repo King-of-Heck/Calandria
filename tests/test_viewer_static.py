@@ -247,7 +247,7 @@ def _node(script, code):
 def test_the_strip_is_served_and_sits_after_the_pages():
     assert "strip.js" in STATIC
     html = _read("index.html")
-    assert html.index('id="strip"') > html.index("</main>") and html.index('id="strip"') < html.index("</div>\n<dialog")
+    assert html.index('id="strip"') > html.index("</main>") and html.index('id="strip"') < html.index('id="rowMenu"')
     assert 'initStrip()' in _function_body(_read("app.js"), "wire")
     js = _read("changes.js")
     assert "calandria:filtered" in _function_body(js, "refilter")

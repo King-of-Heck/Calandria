@@ -242,6 +242,18 @@ def test_changed_table_row_gets_one_bar_for_the_whole_row():
     assert any(o[0] == "text" and o[3] == "1" and o[5] == NUMBER_SIZE for o in p.ops)
 
 
+def test_changes_starting_on_one_baseline_share_one_gutter_label():
+    # three cells of one row, each with its own change: one "1-3" label, not three overprinted digits
+    a = TBL([["aaaa", "bbbb", "cccc"]], [3120, 3120, 3120])
+    b = TBL([["aaaa x", "bbbb y", "cccc z"]], [3120, 3120, 3120])
+    L = _lay(a, b)
+    p = RecordingPainter()
+    draw_page(L.pages[0], L.fonts, STANDARD, PdfOptions(), p, FR.face(None))
+    labels = [o for o in p.of("text") if o[5] == NUMBER_SIZE]
+    assert [o[3] for o in labels] == ["1-3"]
+    assert labels[0][1] == 72 - NUMBER_GAP - FR.face(None).width("1-3", NUMBER_SIZE)
+
+
 def test_page_draws_grid_then_text_then_gutter():
     body = TBL([["a"]], [9360])
     p = _page(_lay(body, body))

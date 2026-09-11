@@ -127,12 +127,17 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
     for ln in page.lines:
         draw_runs(ln, ln.marker, fonts, rs, painter)
         draw_runs(ln, ln.runs, fonts, rs, painter)
+    # One label per baseline: the cells of a table row are separate lines on one baseline, and each
+    # may start a change of its own, so their numbers merge ("7-9") instead of printing on top of each other.
+    starts: dict[float, list[int]] = {}
     for ln in page.lines:
         if ln.cid_starts:
-            label = cid_label(ln.cid_starts)
-            w = number_face.width(label, NUMBER_SIZE)
-            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK,
-                         width=w, role="gutter")
+            starts.setdefault(round(ln.baseline, 2), []).extend(ln.cid_starts)
+    for baseline, cids in starts.items():
+        label = cid_label(cids)
+        w = number_face.width(label, NUMBER_SIZE)
+        painter.text(page.margin_left - NUMBER_GAP - w, baseline, label, number_face, NUMBER_SIZE, BLACK,
+                     width=w, role="gutter")
     if opts.change_bars:
         x = page.margin_left - BAR_GAP
         for y1, y2 in bar_intervals(page):

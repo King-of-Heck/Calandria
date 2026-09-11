@@ -37,12 +37,14 @@
         <label><input type="checkbox" id="showInsertions" checked> Show insertions</label>
         <label><input type="checkbox" id="showDeletions" checked> Show deletions</label>
         <label><input type="checkbox" id="showFormatting" checked> Show formatting changes</label>
+        <label title="Hide the pages without a change (the page numbers stay)"><input type="checkbox" id="showChangedOnly"> Changed pages only</label>
         <h4>Rendering</h4>
         <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
         <label><input type="checkbox" id="changeBars" checked> Change bars</label>
         <h4>PDF</h4>
         <label>Summary <select id="report">
           <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
+        <label title="Write only the first page and the pages with a change"><input type="checkbox" id="changedOnly"> Changed pages only</label>
         <div class="quitrow"><button id="quit" class="quit" title="Stop Calandria (closing the window does the same)">Quit Calandria</button></div>
       </div>
     </details>
@@ -54,6 +56,7 @@
     <div class="head">
       <button id="panelToggle" aria-controls="panel" aria-expanded="true" title="Hide the change list">‹</button>
       <span id="listCount" class="count">No comparison</span>
+      <button id="copyFinal" title="Copy the modified document as plain text (all changes accepted)" disabled>Copy Final</button>
       <select id="fLocation" title="Body text, tables or both">
         <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
       </select>
@@ -89,6 +92,11 @@
       <p class="hint">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word. Closing this window closes Calandria.</p>
     </section>
   </main>
+  <div id="strip" class="strip" role="navigation" aria-label="Change positions" hidden><div class="view"></div></div>
+</div>
+<div id="rowMenu" role="menu" hidden>
+  <button type="button" role="menuitem" data-side="modified">Copy modified text</button>
+  <button type="button" role="menuitem" data-side="original">Copy original text</button>
 </div>
 <dialog id="keys">
   <h3>Keyboard shortcuts</h3>

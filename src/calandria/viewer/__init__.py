@@ -15,8 +15,16 @@ Rules:
 - Zoom is a CSS scale of the fixed layout (the SVG keeps its viewBox; width / height = page size
   x zoom); nothing re-lays-out on zoom. Selecting a change draws a translucent band (a <rect>
   the page script inserts) over every line and changed table row carrying its number.
-- index.html / style.css / app.js / changes.js / sources.js are the page. They talk only to the JSON API in
-  calandria.server (see that package's docstring).
+- index.html / style.css / app.js / changes.js / sources.js / strip.js / copy.js are the page. They talk only
+  to the JSON API in calandria.server (see that package's docstring).
 - Change bars, change numbers and the summary exist only in the viewer and the PDF; nothing is
   written to Word.
+- A density strip beside the pages marks every change at its place in the whole document, coloured
+  by category, with a band for what is on screen and a click that jumps to a change.
+- "Changed pages only" is a view toggle that hides pages without a change while keeping real page
+  numbers, and a matching PDF option that writes only the first page and the changed pages.
+- Each change row can copy its modified or original text (a ⋯ menu or right-click), and Copy Final
+  in the change list header copies the whole modified document as plain text.
+- The gutter change numbers keep a minimum legible size below 100% zoom on screen, independent of
+  the page's own scale; the PDF numerals are unaffected.
 """

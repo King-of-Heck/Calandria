@@ -119,6 +119,7 @@ def test_payload_of_a_one_line_insertion():
     assert (d["render_set"], d["change_bars"]) == ("Standard", True)
     assert d["report_lines"][0] == "Original: a.docx" and d["report_lines"][2] == "Compared: 2026-09-09 14:05"
     assert d["report_lines"][3] == "Rendering set: Standard"
+    assert d["changed_pages"] == [1]
     json.dumps(d)
 
 
@@ -180,3 +181,14 @@ def test_pdf_bytes_and_file_name():
     assert data2.startswith(b"%PDF") and data2 != data
     with pytest.raises(ValueError):
         s.pdf(report="middle")
+
+
+@pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()), reason="no system font directory")
+def test_pdf_changed_only_changes_the_name_and_the_report():
+    s = Session(clock=lambda: WHEN)
+    s.load("a.docx", make_docx({"word/document.xml": DOC(P("aaaa"))}),
+           "b.docx", make_docx({"word/document.xml": DOC(P("aaaa bbbb"))}))
+    data, name = s.pdf(changed_only=True)
+    assert name == "a vs b redline (changed pages).pdf" and data.startswith(b"%PDF")
+    _, plain = s.pdf()
+    assert plain == "a vs b redline.pdf"

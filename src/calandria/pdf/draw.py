@@ -7,7 +7,7 @@ bar_intervals, content_bottom and report.report_lines are the shared decisions, 
 any of them shows in every surface."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from ..layout.pages import FontRef, GlyphRun, Layout, Page, PlacedLine, TableRowBox
@@ -23,6 +23,7 @@ class PdfOptions:
     render_set: str = "Standard"
     change_bars: bool = True
     report: str = "last"            # first | last | none
+    changed_only: bool = False      # emit page 1 plus the pages with a change mark (V31)
     fonts: object | None = None     # a FontResolver (or the test FakeResolver); None = system fonts
     # the PDF creation date; the report's own time stamp is ReportInfo.when; None = now
     now: datetime | None = None
@@ -94,6 +95,19 @@ def bar_intervals(page: Page) -> list[tuple[float, float]]:
     return merged
 
 
+def changed_pages(layout: Layout) -> list[int]:
+    """The ONLY definition of a changed page: it carries a change mark - a line that is changed,
+    starts a change number or carries one in its runs, or a changed table row."""
+    out = []
+    for page in layout.pages:
+        lines = any(ln.changed or ln.cid_starts or any(g.cid is not None for g in ln.runs + ln.marker)
+                    for ln in page.lines)
+        rows = any(r.changed or r.cids for r in page.table_rows)
+        if lines or rows:
+            out.append(page.number)
+    return out
+
+
 def draw_grid(page: Page, painter) -> None:
     """The uniform table grid (KNOWN_DIVERGENCES (m)): four rules per cell, no top rule on a
     vertically merged continuation."""
@@ -117,7 +131,8 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
         if ln.cid_starts:
             label = cid_label(ln.cid_starts)
             w = number_face.width(label, NUMBER_SIZE)
-            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK)
+            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK,
+                         width=w, role="gutter")
     if opts.change_bars:
         x = page.margin_left - BAR_GAP
         for y1, y2 in bar_intervals(page):
@@ -147,17 +162,23 @@ def draw_layout(layout: Layout, rs: RenderSet, opts: PdfOptions, painter, resolv
                 report: ReportInfo | None) -> DrawResult:
     regular, bold = _report_faces(layout, resolver)      # the document's own face; also the gutter numbers
     where = opts.report if report is not None else "none"
+    pages = layout.pages
+    if opts.changed_only:
+        wanted = set(changed_pages(layout))
+        pages = [p for p in layout.pages if p.number == 1 or p.number in wanted]
+        if report is not None:
+            report = replace(report, changed_only=(len(pages), layout.page_count))
     n, report_page = 0, None
     if where == "first":
-        g = layout.pages[0]
+        g = pages[0]
         painter.page(g.w, g.h)
         draw_report(report, g.margin_left, g.margin_top, g.w - g.margin_left - g.margin_right, regular, bold, painter)
         n, report_page = 1, 1
-    for page in layout.pages:
+    for page in pages:
         draw_page(page, layout.fonts, rs, opts, painter, regular)
         n += 1
     if where == "last":
-        last = layout.pages[-1]
+        last = pages[-1]
         w = last.w - last.margin_left - last.margin_right
         y = content_bottom(last) + GAP
         if y + report_height(report, regular, bold) > last.h - last.margin_bottom + _EPS:

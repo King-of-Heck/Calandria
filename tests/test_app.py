@@ -77,7 +77,7 @@ def _compare_body(a=P("aaaa"), b=P("aaaa bbbb"), options=None):
 
 def test_defaults():
     assert DEFAULT_IDLE == 8.0 and DEFAULT_GRACE == 120.0 and MAX_BODY == 64 * 1024 * 1024
-    assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js", "sources.js"}
+    assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js", "sources.js", "strip.js", "copy.js"}
 
 
 def test_url_is_loopback_with_the_bound_port(srv):
@@ -153,6 +153,7 @@ def test_bad_requests(srv):
     assert _json(srv.url + "api/pages?render_set=Sepia")[0] == 400
     assert _json(srv.url + "api/pages?change_bars=maybe") == (400, {"error": "change_bars must be 0 or 1"})
     assert _json(srv.url + "api/pdf?report=middle")[0] == 400
+    assert _json(srv.url + "api/pdf?changed_only=maybe") == (400, {"error": "changed_only must be 0 or 1"})
 
 
 def _post_with_headers(url, extra):
@@ -576,6 +577,9 @@ def test_pdf_download_with_real_fonts():
         assert status == 200 and headers["Content-Type"] == "application/pdf" and data.startswith(b"%PDF")
         assert headers["Content-Disposition"] == appmod._disposition("Draft v1 vs Draft v2 redline.pdf")
         assert int(headers["Content-Length"]) == len(data)
+        status, headers, data = _req(s.url + "api/pdf?report=none&changed_only=1")
+        assert status == 200 and data.startswith(b"%PDF")
+        assert headers["Content-Disposition"] == appmod._disposition("Draft v1 vs Draft v2 redline (changed pages).pdf")
     finally:
         s.stop()
 

@@ -31,3 +31,10 @@ def test_fake_flags_are_recorded():
 
 def test_rgb():
     assert rgb("0000ff") == (0, 0, 255) and rgb("7c3aed") == (124, 58, 237) and rgb("000000") == (0, 0, 0)
+
+
+def test_role_is_accepted_and_not_recorded():
+    p = RecordingPainter()
+    p.text(1, 2, "3", FACE, 7, "000000", width=5, role="gutter")
+    p.text(1, 2, "3", FACE, 7, "000000")
+    assert p.ops[0] == p.ops[1]

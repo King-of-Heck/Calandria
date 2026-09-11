@@ -163,3 +163,12 @@ def test_recording_painter_accepts_width_without_recording_it():
     face = FakeFace("Fake", False, False, 0.5, 1.2, 0.8)
     p.text(1, 2, "x", face, 10, "000000", width=5)
     assert p.ops == [("text", 1, 2, "x", "<fake:Fake|>", 10, "000000", False, False)]
+
+
+def test_gutter_numerals_carry_the_class_and_anchor_at_their_right_edge():
+    (svg,) = render_pages(_lay(P("aaaa"), P("aaaa") + P("bbbb")), change_bars=False, resolver=FR)
+    (num,) = [t for t in _texts(svg) if t.get("class") == "gutter"]
+    assert num.text == "1" and num.get("text-anchor") == "end" and num.get("textLength") is None
+    assert num.get("x") == "62.00"          # margin_left 72 - NUMBER_GAP 10: the label's right edge
+    assert num.get("font-size") == "7.00"
+    assert all(t.get("class") is None for t in _texts(svg) if t.text != "1")

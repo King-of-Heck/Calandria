@@ -26,6 +26,7 @@ class ReportInfo:
     summary: dict
     ignore_case: bool
     count_numbering: bool
+    changed_only: tuple[int, int] | None = None   # (pages emitted, pages in the layout) for a changed-pages-only PDF
 
 
 def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
@@ -40,7 +41,7 @@ def _onoff(b: bool) -> str:
 
 def report_lines(info: ReportInfo) -> list[str]:
     s = info.summary
-    return [
+    lines = [
         f"Original: {info.original}",
         f"Modified: {info.modified}",
         f"Compared: {info.when:%Y-%m-%d %H:%M}",
@@ -49,6 +50,9 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
         f"amendments {s['amendments']}, numbering {s['numbering']}); formatting {s['formatting']} (not counted)",
     ]
+    if info.changed_only:
+        lines.append(f"Changed pages only: {info.changed_only[0]} of {info.changed_only[1]} pages")
+    return lines
 
 
 def report_height(info: ReportInfo, regular, bold) -> float:

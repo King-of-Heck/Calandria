@@ -21,7 +21,8 @@ from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8",
-          "sources.js": "text/javascript; charset=utf-8"}
+          "sources.js": "text/javascript; charset=utf-8", "strip.js": "text/javascript; charset=utf-8",
+          "copy.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
 DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)
@@ -319,9 +320,10 @@ class Handler(BaseHTTPRequestHandler):
         rs = query.get("render_set", ["Standard"])[0]
         bars = _flag(query, "change_bars", True)
         report = query.get("report", ["last"])[0]
+        only = _flag(query, "changed_only", False)
         check_render(rs, report)
         with session.lock:
-            data, name = session.pdf(rs, bars, report)
+            data, name = session.pdf(rs, bars, report, only)
         self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})
 
 

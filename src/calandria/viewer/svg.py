@@ -28,11 +28,17 @@ class SvgPainter:
                             f'width="{_n(w)}pt" height="{_n(h)}pt">'])
 
     def text(self, x: float, baseline: float, text: str, face, size: float, color: str,
-             fake_bold: bool = False, fake_italic: bool = False, width: float | None = None) -> None:
+             fake_bold: bool = False, fake_italic: bool = False, width: float | None = None,
+             role: str | None = None) -> None:
         if not text:
             return
         attrs = [f'x="{_n(x)}"', f'y="{_n(baseline)}"', f"font-family={quoteattr(face.family)}",
                  f'font-size="{_n(size)}"', f'fill="#{color}"']
+        if role == "gutter":
+            # anchored at its right edge so the viewer can enlarge it leftwards, away from the bar
+            attrs[0] = f'x="{_n(x + (width or 0))}"'
+            attrs += ['class="gutter"', 'text-anchor="end"']
+            width = None
         if face.bold and not face.synthetic:
             attrs.append('font-weight="bold"')
         if face.italic and not face.synthetic:

@@ -5,7 +5,7 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.2.1 (see `CHANGELOG.md`).
+Status: v2.3.0 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
@@ -34,7 +34,7 @@ python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numberi
 python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
                         [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                         [--hide-formatting] [--no-change-bars] [--render-set=NAME]
-                        [--report=first|last|none]
+                        [--report=first|last|none] [--changed-only]
 python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
                           [--no-browser] [--verbose]
 ```
@@ -84,8 +84,10 @@ the default: blue double underline / red strikethrough; `--render-set="Black and
 text, same effects), changed lines get a change bar in the left margin (`--no-change-bars` to
 omit) and a change number in the gutter, tables draw a uniform 0.5 pt grid, and a summary block
 (names, date, rendering set, options, counts) goes on the last page (`--report=first` for its own
-page before the document, `--report=none` to omit). Change bars, change numbers and the summary
-exist only in the PDF and the viewer; nothing is written back to Word.
+page before the document, `--report=none` to omit). `--changed-only` writes only the first page
+and the pages with a change; the summary block says how many of the document's pages are shown.
+Change bars, change numbers and the summary exist only in the PDF and the viewer; nothing is
+written back to Word.
 
 The corpus gate `tests/parity/test_pdf.py` checks that every pair's PDF has exactly the layout's
 page count and that its text reads back.
@@ -105,6 +107,14 @@ rendering set and change bars (a redraw), the PDF summary placement and Quit. Th
 the count tiles (click one to filter), the location select, and the numbered change list (page
 number per row; click a row to jump to it); it folds to a rail with ‹. Documents never leave
 the machine.
+
+A density strip sits beside the pages: one mark per change over the whole document, coloured by
+category, with the current change's mark bigger; clicking a mark jumps to that change. "Changed
+pages only" under Options → On the page hides the pages without a change (page numbers stay
+real; the counter says how many pages are shown), with a matching PDF option. A ⋯ button on a
+change row, or a right-click on it, copies that change's modified or original text; Copy Final
+in the change list header copies the whole modified document as plain text. The gutter change
+numbers stay legible below 100 % zoom on screen.
 
 The server keeps one comparison in memory, stops on Quit, and stops by itself a few seconds
 after the window closes (`--idle=SECONDS` after the last request, default 8, 0 = never;

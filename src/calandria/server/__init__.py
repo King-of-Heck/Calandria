@@ -9,7 +9,7 @@ read: a loopback server is reachable from every page the browser has open.
   POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...},
                               "render_set"?: NAME, "change_bars"?: true|false}
                               -> the full payload (names, options, summary, changes, page_count,
-                              anchors, marks, render_sets, render_set_styles, render_set,
+                              changed_pages, anchors, marks, render_sets, render_set_styles, render_set,
                               change_bars, pages (SVG strings), report_lines)
   POST /api/layout            {"options": {...}, "render_set"?: NAME, "change_bars"?: true|false}
                               -> the full payload after re-compare + re-layout
@@ -19,7 +19,7 @@ read: a loopback server is reachable from every page the browser has open.
                               true when omitted)
   GET  /api/pages?render_set=NAME&change_bars=0|1
                               -> {"render_set", "change_bars", "pages", "report_lines"}
-  GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none
+  GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none&changed_only=0|1
                               -> application/pdf as an attachment
   POST /api/ping?hidden=0|1   {"ok": true}; the page sends one every 2 s and on every change of
                               its visibility, saying whether it is hidden

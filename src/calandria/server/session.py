@@ -16,7 +16,7 @@ from ..layout.engine import layout
 from ..layout.fonts import default_resolver
 from ..layout.pages import Layout
 from ..layout.pieces import LayoutOptions
-from ..pdf.draw import PdfOptions
+from ..pdf.draw import PdfOptions, changed_pages
 from ..pdf.report import report_info, report_lines
 from ..pdf.rendersets import RENDER_SETS
 from ..pdf.writer import REPORTS, render
@@ -175,16 +175,20 @@ class Session:
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name},
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
-                "page_count": self.layout.page_count, "anchors": anchors, "marks": marks,
+                "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),
+                "anchors": anchors, "marks": marks,
                 "render_sets": list(RENDER_SETS),
                 "render_set_styles": {k: v.to_dict() for k, v in RENDER_SETS.items()},
                 **self.pages(render_set, change_bars)}
 
-    def pdf(self, render_set: str = "Standard", change_bars: bool = True, report: str = "last") -> tuple[bytes, str]:
+    def pdf(self, render_set: str = "Standard", change_bars: bool = True, report: str = "last",
+            changed_only: bool = False) -> tuple[bytes, str]:
         """(PDF bytes, a file name for the download)."""
         self._need()
         check_render(render_set, report)
         now = self._clock()
-        opts = PdfOptions(render_set=render_set, change_bars=change_bars, report=report, fonts=self.fonts, now=now)
+        opts = PdfOptions(render_set=render_set, change_bars=change_bars, report=report, fonts=self.fonts, now=now,
+                          changed_only=changed_only)
         data, _ = render(self.layout, self._info(render_set, now), opts)
-        return data, f"{_stem(self.a_name)} vs {_stem(self.b_name)} redline.pdf"
+        tag = " (changed pages)" if changed_only else ""
+        return data, f"{_stem(self.a_name)} vs {_stem(self.b_name)} redline{tag}.pdf"

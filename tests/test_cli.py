@@ -123,6 +123,8 @@ def test_pdf_command_options(tmp_path, capsys):
     assert main(["pdf", "--report=none", a, b, out]) == 0
     assert json.loads(capsys.readouterr().out)["pages"] == 1
     assert "Comparison summary" not in PdfReader(out).pages[0].extract_text()
+    assert main(["pdf", "--changed-only", a, b, out]) == 0
+    assert "Changed pages only:" in PdfReader(out).pages[-1].extract_text()
 
 
 @_needs_fonts
@@ -157,6 +159,7 @@ def test_pdf_command_usage_errors(tmp_path, capsys):
     err = capsys.readouterr().out
     assert "Sepia" in err and "Standard" in err and "Black and White" in err
     assert not os.path.exists(out)
+    assert main(["layout", a, a, "--changed-only"]) == 2   # a pdf-only flag
 
 
 def test_serve_usage_errors(capsys):

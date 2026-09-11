@@ -6,22 +6,24 @@
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
+import { initStrip } from "./strip.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
+const GUTTER_MIN_PX = 9;   // the change numbers never shrink below this on screen
 const ZOOM_MIN = 0.2, ZOOM_MAX = 4, ZOOM_STEP = 0.1;
 const NOTICE_DELAY_MS = 400;                        // Task 4 uses it; declared here so the constants sit together
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
 
 export const state = {
-  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, shown: 1,
+  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, changedOnly: false, shown: 1,
   renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
   // flight) and is dropped, so the page always shows the answer to the LAST request.
-  seq: 0, misses: 0,
+  seq: 0, misses: 0, flashTimer: null,
 };
 
 export async function api(path, body) {
@@ -45,6 +47,13 @@ function msg(text, isError) {
   const m = $("msg");
   m.textContent = text || "";
   m.classList.toggle("error", !!isError);
+}
+
+// A two-second message in the status line (a copy result); a busy message put there meanwhile wins.
+export function flash(text, isError) {
+  msg(text, isError);
+  clearTimeout(state.flashTimer);
+  state.flashTimer = setTimeout(() => { if ($("msg").textContent === text) msg(""); }, 2000);
 }
 
 function busy(on, text) {
@@ -216,14 +225,27 @@ function renderPages() {
     page.appendChild(n);
     main.appendChild(page);
   });
+  applyChangedOnly();
   applyZoom();
   main.scrollTop = keepScroll;
   updatePageStatus();
 }
 
+// The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
+// the page numbers stay real (data-page), and the strip keeps mapping the whole document. When
+// nothing changed, page 1 stays visible (the PDF keeps page 1 too).
+function applyChangedOnly() {
+  const main = $("pages");
+  const keep = new Set(state.data ? state.data.changed_pages : []);
+  if (state.changedOnly && keep.size === 0) keep.add(1);
+  for (const page of main.querySelectorAll(".page")) {
+    page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
+  }
+}
+
 function applyZoom() {
   const main = $("pages");
-  for (const page of main.querySelectorAll(".page")) {
+  for (const page of main.querySelectorAll(".page:not([hidden])")) {
     const svg = page.querySelector("svg");
     const { w, h } = pageSize(svg);
     const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
@@ -231,6 +253,9 @@ function applyZoom() {
     svg.setAttribute("width", `${w * z}pt`);
     svg.setAttribute("height", `${h * z}pt`);
     page.style.width = `${w * z}pt`;
+    // 7 pt at 100 % is 9.33 px; below that the numerals are held at GUTTER_MIN_PX on screen
+    const floor = z < 1 ? `${Math.max(7, GUTTER_MIN_PX / (z * PT)).toFixed(2)}px` : "";
+    for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
   }
   showZoom();
   $("zoomFit").setAttribute("aria-pressed", String(state.fit));
@@ -250,7 +275,7 @@ function currentPage() {
   const main = $("pages");
   const top = main.getBoundingClientRect().top + 8;
   let current = null;
-  for (const p of main.querySelectorAll(".page")) {
+  for (const p of main.querySelectorAll(".page:not([hidden])")) {
     if (current === null || p.getBoundingClientRect().top <= top) current = p;
     else break;
   }
@@ -287,12 +312,14 @@ function updatePageStatus() {
     return;
   }
   const page = currentPage();
-  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}`;
+  const k = state.data.changed_pages.length;
+  const shown = !state.changedOnly ? "" : k === 0 ? " · no changed pages, page 1 shown" : ` · ${k} changed page${k === 1 ? "" : "s"}`;
+  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}${shown}`;
   if (state.fit) showZoom();
 }
 
 function savePdf() {
-  const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&report=${$("report").value}`;
+  const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&report=${$("report").value}&changed_only=${$("changedOnly").checked ? 1 : 0}`;
   window.location.href = `/api/pdf?${q}`;
 }
 
@@ -303,6 +330,7 @@ function closed(text) {
   document.body.classList.add("closed");
   for (const el of document.querySelectorAll("button, input, select")) el.disabled = true;
   for (const id of ["panelToggle", "keysOpen", "keysClose"]) $(id).disabled = false;   // reading aids, not requests
+  for (const b of document.querySelectorAll("#strip .mark")) b.disabled = false;   // a strip mark only scrolls, no request
   $("options").open = false;
   $("progress").hidden = true;
   msg(text, true);
@@ -349,6 +377,16 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
+  try { state.changedOnly = localStorage.getItem("calandria.changedOnly") === "on"; } catch (e) { /* storage off */ }
+  $("showChangedOnly").checked = state.changedOnly;
+  $("showChangedOnly").addEventListener("change", (e) => {
+    state.changedOnly = e.target.checked;
+    try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
+    applyChangedOnly();
+    applyZoom();
+    updatePageStatus();
+    document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
+  });
   $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });
   main.addEventListener("wheel", (e) => {
     if (state.closed) return;
@@ -379,6 +417,7 @@ function wire() {
   state.timer = setInterval(ping, PING_MS);
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
+  initStrip();
   initChanges();
 }
 

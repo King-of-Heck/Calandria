@@ -76,3 +76,10 @@ def test_synthetic_bold_title_is_faked():
     p.page(612, 792)
     draw_report(_info(), 72, 100, 468, FR.face(None), bold, p)
     assert p.ops[2][-2:] == (True, False)
+
+
+def test_changed_only_adds_one_line_at_the_end():
+    s = {"total": 1, "insertions": 1, "deletions": 0, "amendments": 0, "numbering": 0, "formatting": 0}
+    base = ReportInfo("a.docx", "b.docx", datetime(2026, 9, 9, 14, 5), "Standard", s, False, True)
+    on = ReportInfo("a.docx", "b.docx", datetime(2026, 9, 9, 14, 5), "Standard", s, False, True, changed_only=(2, 3))
+    assert report_lines(on) == report_lines(base) + ["Changed pages only: 2 of 3 pages"]

@@ -7,8 +7,8 @@ from calandria.layout.engine import layout
 from calandria.layout.pages import FontRef, Page, PlacedLine
 from calandria.layout.pieces import LayoutOptions
 from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
-                                DrawResult, PdfOptions, bar_intervals, cid_label, content_bottom, draw_grid,
-                                draw_layout, draw_page, draw_runs, run_style)
+                                DrawResult, PdfOptions, bar_intervals, changed_pages, cid_label, content_bottom,
+                                draw_grid, draw_layout, draw_page, draw_runs, run_style)
 from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
 from calandria.pdf.report import GAP, TITLE, ReportInfo, report_height
 from calandria.testing.fakefonts import FakeResolver
@@ -317,3 +317,48 @@ def test_every_page_is_drawn_in_order():
     p, res = _layout(_lay(body, body), None)
     assert p.pages == 2 and res.pages == 2
     assert p.page_ops(1)[0][3] == "p0" and p.page_ops(2)[0][3] == "p54"
+
+
+def _three_pages(changed_last=True):
+    """Page 1 changed on its first line, page 2 untouched, page 3 changed (or not)."""
+    p1 = "".join(P(f"p{i}") for i in range(53))            # 53 + the first line = one page (54 x 12)
+    p2 = "".join(P(f"q{i}") for i in range(54))
+    a = P("aaaa") + p1 + p2 + P("zzzz")
+    b = P("aaaa bbbb") + p1 + p2 + (P("zzzz yyyy") if changed_last else P("zzzz"))
+    return _lay(a, b)
+
+
+def test_changed_pages_are_the_pages_with_a_mark():
+    L = _three_pages()
+    assert L.page_count == 3 and changed_pages(L) == [1, 3]
+    assert changed_pages(_three_pages(changed_last=False)) == [1]
+    assert changed_pages(_lay(P("aaaa"), P("aaaa"))) == []
+    tbl = TBL([["a"]], [9360])
+    assert changed_pages(_lay(tbl, TBL([["ab"]], [9360]))) == [1]        # a changed row counts
+
+
+def test_options_default_changed_only_off():
+    assert PdfOptions().changed_only is False
+
+
+def test_changed_only_emits_the_first_page_and_the_changed_pages():
+    L = _three_pages()
+    p, res = _layout(L, None, report="none", changed_only=True)
+    assert res == DrawResult(2, None) and p.pages == 2
+    assert p.page_ops(1)[0][3] == "aaaa" and p.page_ops(2)[0][3] == "zzzz"
+    p, res = _layout(_three_pages(changed_last=False), None, report="none", changed_only=True)
+    assert res == DrawResult(1, None)
+    p, res = _layout(_lay(P("aaaa"), P("aaaa")), None, report="none", changed_only=True)
+    assert res == DrawResult(1, None) and p.pages == 1                  # page 1 always
+
+
+def test_changed_only_report_placement_and_line():
+    L = _three_pages()
+    p, res = _layout(L, _info(), report="last", changed_only=True)
+    assert res == DrawResult(2, 2)
+    texts = [o[3] for o in p.page_ops(2) if o[0] == "text"]
+    assert TITLE in texts and "Changed pages only: 2 of 3 pages" in texts
+    p, res = _layout(L, _info(), report="first", changed_only=True)
+    assert res == DrawResult(3, 1) and p.page_ops(1)[1][3] == TITLE and p.page_ops(2)[0][3] == "aaaa"
+    p, _ = _layout(L, _info(), report="last")
+    assert "Changed pages only: 2 of 3 pages" not in [o[3] for o in p.of("text")]

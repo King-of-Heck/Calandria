@@ -26,4 +26,6 @@ Rules:
   content when it fits, else on one extra page; or on its own page before page 1; or omitted.
 - Fonts: every face in Layout.fonts is embedded as a TrueType subset from its file (TTC members
   by font number); a synthetic face is drawn with the file the layout resolved and faked.
+- changed_only (V31): page 1 plus the pages changed_pages() names, the report over the emitted
+  pages with a "Changed pages only: N of M pages" line.
 """

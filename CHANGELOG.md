@@ -1,5 +1,11 @@
 # Calandria changelog
 
+## v2.3.2 — Tile filters (2026-09-11)
+
+- The Insertions and Deletions tiles filter the way their counts count: an amendment (deleted
+  and inserted text in one paragraph) counts as an insertion and as a deletion, so those two
+  tiles now include amendments and a tile's list matches its number. The tooltips say so.
+
 ## v2.3.1 — Two fixes (2026-09-11)
 
 - Gutter change numbers: changes that start on one baseline (the cells of a table row) share

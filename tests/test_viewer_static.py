@@ -305,3 +305,14 @@ def test_gutter_numerals_get_a_floor_on_screen():
     body = _function_body(_read("app.js"), "applyZoom")
     assert "text.gutter" in body and "GUTTER_MIN_PX" in body
     assert "const GUTTER_MIN_PX = 9;" in _read("app.js")
+
+
+def test_the_tiles_filter_the_way_the_summary_counts():
+    # the summary counts an amendment as an insertion AND a deletion (SorkWhare parity), so the
+    # Insertions and Deletions tiles must show amendments too, or the tile and its list disagree
+    js = _read("changes.js")
+    assert "function matchesTile(" in js
+    body = _function_body(js, "matchesTile")
+    assert '"insertion"' in body and '"deletion"' in body and '"amendment"' in body
+    assert "matchesTile(" in _function_body(js, "refilter")
+    assert "en.category === solo" not in js

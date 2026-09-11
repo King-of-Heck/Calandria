@@ -5,7 +5,7 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.3.1 (see `CHANGELOG.md`).
+Status: v2.3.2 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 

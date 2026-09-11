@@ -251,13 +251,15 @@ function go(i) {
     li.scrollIntoView({ block: li.offsetHeight > ol.clientHeight ? "start" : "nearest" });
     if (focusInList) li.focus({ preventScroll: true });   // the keys move the focus with the selection
   }
-  const a = data.anchors[String(visible[i].cid)];
-  if (!a) return;
-  const page = $("pages").querySelector(`.page[data-page="${a.page}"]`);
-  if (!page) return;
-  const svg = page.querySelector("svg");
-  const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
   if (state.views.blackline) {
+    // These lookups are blackline-only: a change absent from the blackline pane (hidden there,
+    // say) must not cancel the side-pane jump the else branch runs below.
+    const a = data.anchors[String(visible[i].cid)];
+    if (!a) return;
+    const page = $("pages").querySelector(`.page[data-page="${a.page}"]`);
+    if (!page) return;
+    const svg = page.querySelector("svg");
+    const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
     // The followers track each step of the smooth scroll through the scroll events; the
     // immediate syncFrom aligns them before the first step lands.
     $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
@@ -326,5 +328,5 @@ function highlight(i) {
     r.setAttribute("height", String(height));
     svg.insertBefore(r, svg.firstChild);
   }
-  highlightSides(i < 0 || !visible[i] ? null : visible[i].cid);
+  highlightSides(visible[i].cid);
 }

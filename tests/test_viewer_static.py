@@ -439,3 +439,63 @@ def test_a_jump_to_an_absent_row_lands_after_the_nearest_earlier_one():
 def test_sync_listens_before_the_panes_first_announce_themselves():
     body = _function_body(_read("app.js"), "wire")
     assert body.index("initSync()") < body.index("initPanes()")
+
+
+# Final whole-branch review fixes.
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_follow_searches_by_row_in_any_index_order():
+    # Inside a table, cells of one row start at the same y: a cell with two paragraphs (rows 5, 6)
+    # followed by a one-paragraph cell (row 7) yields index order 5, 7, 6 by top - follow must
+    # still search by row, not assume the top-sorted array is row-sorted too.
+    code = ('const ix = m.buildIndex({"5": {page:1, top:100, height:12}, "6": {page:1, top:112, height:12}, '
+            '"7": {page:1, top:100, height:12}}, () => 0, 1);\n'
+            "console.log(m.follow(ix, 6, 0.5), m.follow(ix, 7, 0), m.follow(ix, 8, 0));")
+    assert _node("sync.js", code) == "118 100 112"
+
+
+def test_the_notice_and_the_drop_zone_cover_the_whole_pane_row():
+    html = _read("index.html")
+    assert html.index('id="notice"') > html.index('id="view"')
+    assert html.index('id="notice"') < html.index('id="paneOriginal"')
+    js = _read("sources.js")
+    assert '$("view")' in _function_body(js, "initSources")
+    assert "home.append(src)" in _function_body(js, "placeSources")
+    css = _read("style.css")
+    assert "#view.over" in css and "#view .notice" in css
+    assert "#pages.over" not in css
+
+
+def test_refresh_sync_builds_its_page_map_in_one_walk():
+    assert '.querySelectorAll(".page")' in _function_body(_read("sync.js"), "refreshSync")
+
+
+def test_resized_no_longer_duplicates_apply_zooms_refresh():
+    js = _read("sync.js")
+    # calandria:resized only re-syncs; app.js's applyZoom already calls refreshSync()
+    body = js[js.index('addEventListener("calandria:resized"'):]
+    body = body[:body.index("});")]
+    lines = [ln for ln in body.splitlines() if not ln.strip().startswith("//")]
+    assert "refreshSync()" not in "\n".join(lines) and "syncFrom(" in body
+
+
+def test_the_stray_left_border_is_gone():
+    css = _read("style.css")
+    assert "#view .pane:not([hidden]) ~ .pane:not([hidden])" in css
+    assert "#view .pane + .pane:not([hidden])" not in css
+
+
+def test_a_hidden_blackline_never_cancels_a_side_pane_jump():
+    body = _function_body(_read("changes.js"), "go")
+    assert body.index("if (state.views.blackline)") < body.index("data.anchors[")
+
+
+def test_highlight_calls_highlight_sides_directly():
+    body = _function_body(_read("changes.js"), "highlight")
+    assert "highlightSides(visible[i].cid);" in body
+
+
+def test_marks_follows_the_busy_rule():
+    assert "viewMarks" in _function_body(_read("app.js"), "enableControls")
+    assert "state.busy" in _function_body(_read("panes.js"), "toggleMarks")

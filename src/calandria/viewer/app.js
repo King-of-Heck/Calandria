@@ -105,6 +105,9 @@ function enableControls(on) {
   $("renderSet").disabled = !on;
   $("changeBars").disabled = !on;
   $("pdf").disabled = !(on && state.data);
+  // Marks stays off while a request is in flight; re-enabling still respects the "neither side
+  // pane on" rule (panes.js's applyPanes disables it too, but a request can finish after that).
+  $("viewMarks").disabled = !on || !(state.views.original || state.views.modified);
   refreshSources();                                  // Compare: both slots filled and not the compared pair
 }
 

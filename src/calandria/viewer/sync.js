@@ -41,14 +41,18 @@ export function rowAt(index, y) {
 // The scrollTop that puts row k at the top, f of its height down. A row this side does not have
 // (an inserted paragraph seen from Original) resolves to the END of the nearest earlier row it
 // has: that boundary is where the missing text would sit. 0 when nothing is at or before k.
+// `index` is sorted by top (row order does not hold inside a table: a cell with two paragraphs
+// followed by a one-paragraph cell puts a later row above an earlier one in top order), so the
+// binary search here runs against a row-sorted view built lazily once and cached on the array.
 export function follow(index, k, f) {
-  let lo = 0, hi = index.length - 1, ans = -1;
+  const byRow = index.byRow || (index.byRow = [...index].sort((a, b) => a.row - b.row));
+  let lo = 0, hi = byRow.length - 1, ans = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    if (index[mid].row <= k) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    if (byRow[mid].row <= k) { ans = mid; lo = mid + 1; } else hi = mid - 1;
   }
   if (ans < 0) return 0;
-  const e = index[ans];
+  const e = byRow[ans];
   return Math.round(e.row === k ? e.top + f * e.height : e.top + e.height);
 }
 
@@ -57,23 +61,21 @@ const lastSet = {};                   // side -> the scrollTop this module last 
 let data = null;
 let views = null;
 
-function pageTopIn(pane) {
-  return (page) => {
-    const el = pane.querySelector(`.page[data-page="${page}"]`);
-    return el && !el.hidden ? el.offsetTop : null;
-  };
-}
-
 export function refreshSync() {
   if (!data) return;
   for (const side of SIDES) {
     const pane = $(PANE[side]);
-    // dataset.scale is a zoom factor per page (Fit gives each its own); pixels per pt = zoom * 4/3
-    const scale = (page) => {
-      const el = pane.querySelector(`.page[data-page="${page}"]`);
-      return (el ? Number(el.dataset.scale) : 1) * (4 / 3);
-    };
-    indexes[side] = buildIndex(data.sides[side].rows, pageTopIn(pane), scale);
+    // One walk of the pane's pages builds page -> {top, scale} (dataset.scale is a zoom factor
+    // per page, Fit gives each its own; pixels per pt = zoom * 4/3), instead of the two
+    // querySelectors per row (pageTop + scale) buildIndex used to run against the live DOM.
+    const map = new Map();
+    for (const el of pane.querySelectorAll(".page")) {
+      if (el.hidden) continue;
+      map.set(Number(el.dataset.page), { top: el.offsetTop, scale: Number(el.dataset.scale) * (4 / 3) });
+    }
+    const pageTop = (page) => (map.has(page) ? map.get(page).top : null);
+    const scale = (page) => (map.has(page) ? map.get(page).scale : 4 / 3);
+    indexes[side] = buildIndex(data.sides[side].rows, pageTop, scale);
   }
 }
 
@@ -121,7 +123,8 @@ export function initSync() {
     if (lead) syncFrom(lead);
   });
   document.addEventListener("calandria:resized", () => {
-    refreshSync();
+    // app.js's applyZoom already calls refreshSync(); this listener only re-syncs the panes to
+    // the lead once the index reflects the new sizes.
     const v = visible();
     const lead = views && views.blackline ? "blackline" : v[0];
     if (lead) syncFrom(lead);

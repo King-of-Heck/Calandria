@@ -50,6 +50,7 @@ function toggleView(side) {
 }
 
 function toggleMarks() {
+  if (state.busy) return;
   if (state.closed || !state.data || $("viewMarks").disabled) return;
   state.marks = !state.marks;
   $("viewMarks").setAttribute("aria-pressed", String(state.marks));
@@ -72,6 +73,11 @@ export function applyPanes() {
   }
   const sides = state.views.original || state.views.modified;
   $("viewMarks").disabled = state.closed || !state.data || !sides;
+  if (!sides) {
+    // A disabled control must not read as pressed.
+    state.marks = false;
+    $("viewMarks").setAttribute("aria-pressed", "false");
+  }
   $("view").classList.toggle("multi", visiblePanes().length > 1);
   if (state.data) applyZoom();
   document.dispatchEvent(new CustomEvent("calandria:panes", { detail: { views: { ...state.views } } }));

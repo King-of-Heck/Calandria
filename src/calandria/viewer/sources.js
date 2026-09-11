@@ -40,16 +40,16 @@ export function initSources(h) {
       e.preventDefault();
       e.stopPropagation();
       card.classList.remove("over");
-      $("pages").classList.remove("over");            // the drag crossed the page area to reach the card
+      $("view").classList.remove("over");             // the drag crossed the pane row to reach the card
       takeDrop(e.dataTransfer.files, slot);
     });
   }
-  const main = $("pages");
-  main.addEventListener("dragover", (e) => { e.preventDefault(); if (!state.closed) main.classList.add("over"); });
-  main.addEventListener("dragleave", (e) => { if (!main.contains(e.relatedTarget)) main.classList.remove("over"); });
-  main.addEventListener("drop", (e) => {
+  const view = $("view");
+  view.addEventListener("dragover", (e) => { e.preventDefault(); if (!state.closed) view.classList.add("over"); });
+  view.addEventListener("dragleave", (e) => { if (!view.contains(e.relatedTarget)) view.classList.remove("over"); });
+  view.addEventListener("drop", (e) => {
     e.preventDefault();
-    main.classList.remove("over");
+    view.classList.remove("over");
     takeDrop(e.dataTransfer.files, null);
   });
   $("swap").addEventListener("click", swap);
@@ -112,6 +112,5 @@ function placeSources(compact) {
   src.classList.toggle("compact", compact);
   const home = compact ? $("bar") : $("pages");
   if (src.parentElement === home) return;
-  if (compact) home.append(src);
-  else home.insertBefore(src, $("notice").nextSibling);
+  home.append(src);
 }

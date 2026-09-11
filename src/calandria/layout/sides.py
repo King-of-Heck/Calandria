@@ -15,7 +15,9 @@ SIDES = ("blackline", "original", "modified")
 
 def side_options(opts: LayoutOptions) -> LayoutOptions:
     """The options the engine runs with for `opts.side`: the blackline's own; for a side, the
-    other side's pieces hidden and no formatting-change ranges (they belong to the blackline)."""
+    other side's pieces hidden and no formatting-change ranges (they belong to the blackline).
+    On the original side the shared text takes the original document's own character formatting
+    (pieces.row_pieces)."""
     if opts.side == "blackline":
         return opts
     if opts.side == "original":

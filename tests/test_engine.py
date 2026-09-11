@@ -10,7 +10,7 @@ from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout, layout_document
 from calandria.layout.pieces import LayoutOptions
 from calandria.layout.sides import SIDES, side_items, side_options
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
 from calandria.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
@@ -284,3 +284,21 @@ def test_side_layouts_lay_out_tables_with_the_side_s_own_text():
     assert _row_texts(mod) == _unit_texts(_parse(b))
     assert orig.pages[0].table_rows and mod.pages[0].table_rows          # the table survives as a table on both sides
     assert len(orig.pages[0].table_rows) == len(mod.pages[0].table_rows) == 2
+
+
+def test_the_original_side_keeps_the_original_documents_character_formatting():
+    # the shared text "bbbb" is bold in the original paragraph, plain in the revised one; the
+    # blackline and the modified side draw the revised formatting, but Original must draw its own
+    a = PR(R("aaaa ") + R("bbbb", "<w:b/>"))
+    b = P("aaaa bbbb")
+    cmp = compare(_parse(a), _parse(b))
+    black = layout(cmp, LayoutOptions(fonts=FR))
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+
+    def bold_of(L, text):
+        return [r.bold for pg in L.pages for ln in pg.lines for r in ln.runs if text in r.text]
+
+    assert not any(bold_of(black, "bbbb"))
+    assert bold_of(orig, "bbbb") and all(bold_of(orig, "bbbb"))
+    assert not any(bold_of(mod, "bbbb"))

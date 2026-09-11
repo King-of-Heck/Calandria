@@ -192,6 +192,7 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
         # the page a reader of an empty document sees in Word.
         _new_page(pages, sections[-1], len(sections) - 1)
     refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic) for k, f in faces.items()}
+    # the options as requested (opts.side names the side); the narrowed run options are not stored
     return Layout(pages, refs, opts)
 
 

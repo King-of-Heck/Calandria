@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -381,3 +381,33 @@ def test_zoom_changed_pages_and_lookups_span_the_panes():
     assert 'document.querySelector(`.page[data-page=' not in ch and '$("pages").querySelector(`.page[data-page=' in ch
     assert "highlightSides(" in _function_body(ch, "highlight")
     assert '$("pages").querySelector(`.page[data-page=' in _read("strip.js")
+
+
+# v2.4.0: the scroll sync (spec §12.5).
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_the_row_index_is_sorted_by_position_and_skips_hidden_pages():
+    code = """
+const rows = {"0": {page: 1, top: 72, height: 12}, "1": {page: 1, top: 84, height: 12}, "5": {page: 2, top: 72, height: 24}, "7": {page: 3, top: 72, height: 12}};
+const pageTop = (p) => ({1: 0, 2: 1000, 3: null})[p];     // page 3 is hidden (changed pages only)
+const ix = m.buildIndex(rows, pageTop, 2);
+console.log(JSON.stringify(ix));
+console.log(m.rowAt(ix, 0), m.rowAt(ix, 167), m.rowAt(ix, 168), m.rowAt(ix, 5000), m.rowAt(ix, -1));
+console.log(m.follow(ix, 5, 0.5), m.follow(ix, 3, 0.25), m.follow(ix, 9, 0), m.follow([], 0, 0));
+"""
+    out = _node("sync.js", code).splitlines()
+    assert out[0] == '[{"row":0,"top":144,"height":24},{"row":1,"top":168,"height":24},{"row":5,"top":1144,"height":48}]'
+    assert out[1] == "-1 0 1 2 -1"                      # index positions: the greatest top <= y; -1 above the first
+    assert out[2] == "1168 192 1192 0"                  # row 5 + half its height; row 3 is absent -> the end of row 1; row 9 -> the end of row 5; nothing -> 0
+
+
+def test_sync_js_is_served_and_hung_on_the_panes():
+    assert "sync.js" in STATIC
+    js = _read("sync.js")
+    for name in ("buildIndex", "rowAt", "follow", "initSync", "refreshSync", "syncFrom"):
+        assert f"export function {name}(" in js, name
+    assert "lastSet" in _function_body(js, "onScroll")     # a follower's own programmatic scroll is not a lead
+    app = _read("app.js")
+    assert "initSync()" in _function_body(app, "wire") and "refreshSync()" in _function_body(app, "applyZoom")
+    assert "syncFrom(" in _function_body(_read("changes.js"), "go")
+    assert "syncFrom(" in _function_body(_read("panes.js"), "applyPanes") or "calandria:panes" in js

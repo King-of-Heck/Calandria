@@ -5,7 +5,8 @@
 // carrying its number).
 import { pageSize, flash, state } from "./app.js";
 import { textOf } from "./copy.js";
-import { highlightSides } from "./panes.js";
+import { highlightSides, leadPane } from "./panes.js";
+import { syncFrom } from "./sync.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -256,7 +257,28 @@ function go(i) {
   if (!page) return;
   const svg = page.querySelector("svg");
   const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
-  $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+  if (state.views.blackline) {
+    // The followers track each step of the smooth scroll through the scroll events; the
+    // immediate syncFrom aligns them before the first step lands.
+    $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+    syncFrom("blackline");
+  } else {
+    // The blackline is off: the jump goes by the change's row in the lead pane.
+    const lead = leadPane();
+    const k = data.changes.findIndex((row) => row.cid === visible[i].cid);
+    if (lead && k >= 0) jumpTo(lead, k);
+  }
+}
+
+function jumpTo(lead, k) {
+  const a = state.data.sides[lead.side].rows[String(k)];
+  if (!a) return;
+  const page = lead.el.querySelector(`.page[data-page="${a.page}"]`);
+  if (!page) return;
+  const svg = page.querySelector("svg");
+  const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
+  lead.el.scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+  syncFrom(lead.side);
 }
 
 function copyText(text, done) {

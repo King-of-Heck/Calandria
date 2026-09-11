@@ -8,6 +8,7 @@ import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
 import { initStrip } from "./strip.js";
 import { SIDE_ORDER, initPanes, leadPane, paneOf, renderPanes, resetPanes, visiblePanes } from "./panes.js";
+import { initSync, refreshSync } from "./sync.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
@@ -232,6 +233,7 @@ function renderPages() {
   applyChangedOnly();
   applyZoom();
   main.scrollTop = keepScroll;
+  refreshSync();
   updatePageStatus();
 }
 
@@ -264,6 +266,7 @@ export function applyZoom() {
       for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
     }
   }
+  refreshSync();
   showZoom();
   $("zoomFit").setAttribute("aria-pressed", String(state.fit));
   $("zoomFit").classList.toggle("on", state.fit);
@@ -428,6 +431,7 @@ function wire() {
   wirePopover();
   initStrip();
   initPanes();
+  initSync();
   initChanges();
 }
 

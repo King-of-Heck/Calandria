@@ -40,6 +40,7 @@ export function initSources(h) {
       e.preventDefault();
       e.stopPropagation();
       card.classList.remove("over");
+      $("pages").classList.remove("over");            // the drag crossed the page area to reach the card
       takeDrop(e.dataTransfer.files, slot);
     });
   }

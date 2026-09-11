@@ -19,7 +19,7 @@ export function initStrip() {
   let marks = new Map();                             // cid -> button
 
   const pageHeight = (page) => {
-    const svg = document.querySelector(`.page[data-page="${page}"] svg`);
+    const svg = $("pages").querySelector(`.page[data-page="${page}"] svg`);
     return svg ? Number(svg.getAttribute("viewBox").split(/\s+/)[3]) : null;
   };
 

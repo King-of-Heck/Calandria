@@ -5,6 +5,7 @@
 // carrying its number).
 import { pageSize, flash, state } from "./app.js";
 import { textOf } from "./copy.js";
+import { highlightSides } from "./panes.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -251,7 +252,7 @@ function go(i) {
   }
   const a = data.anchors[String(visible[i].cid)];
   if (!a) return;
-  const page = document.querySelector(`.page[data-page="${a.page}"]`);
+  const page = $("pages").querySelector(`.page[data-page="${a.page}"]`);
   if (!page) return;
   const svg = page.querySelector("svg");
   const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
@@ -284,12 +285,12 @@ function closeMenu() {
 }
 
 function highlight(i) {
-  for (const r of document.querySelectorAll("rect.hl")) r.remove();
-  if (i < 0 || !visible[i] || !data) return;
+  for (const r of $("pages").querySelectorAll("rect.hl")) r.remove();
+  if (i < 0 || !visible[i] || !data) { highlightSides(null); return; }
   const cid = visible[i].cid;
   for (const [page, top, height, cids] of data.marks) {
     if (!cids.includes(cid)) continue;
-    const svg = document.querySelector(`.page[data-page="${page}"] svg`);
+    const svg = $("pages").querySelector(`.page[data-page="${page}"] svg`);
     if (!svg) continue;
     const r = document.createElementNS(SVG_NS, "rect");
     r.setAttribute("class", "hl");
@@ -299,4 +300,5 @@ function highlight(i) {
     r.setAttribute("height", String(height));
     svg.insertBefore(r, svg.firstChild);
   }
+  highlightSides(i < 0 || !visible[i] ? null : visible[i].cid);
 }

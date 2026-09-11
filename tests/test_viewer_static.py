@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -325,3 +325,59 @@ def test_the_tiles_filter_the_way_the_summary_counts():
     assert '"insertion"' in body and '"deletion"' in body and '"amendment"' in body
     assert "matchesTile(" in _function_body(js, "refilter")
     assert "en.category === solo" not in js
+
+
+# v2.4.0: the side-by-side panes (spec section 12.4).
+
+def test_the_toolbar_holds_the_four_view_toggles_before_the_navigation():
+    html = _read("index.html")
+    header = html[html.index("<header"):html.index("</header>")]
+    views = header[header.index('id="views"'):header.index('class="nav"')]
+    for id_, key in (("viewOriginal", "1"), ("viewBlackline", "2"), ("viewModified", "3"), ("viewMarks", "m")):
+        assert f'id="{id_}"' in views and f"<kbd>{key}</kbd>" in views, id_
+        assert 'aria-pressed=' in views[views.index(f'id="{id_}"'):views.index(f'id="{id_}"') + 160]
+    assert 'id="viewBlackline" aria-pressed="true"' in views.replace("\n", " ")
+    keys = html[html.index('<dialog id="keys"'):html.index("</dialog>")]
+    assert "<kbd>1</kbd>" in keys and "<kbd>m</kbd>" in keys
+
+
+def test_the_page_area_is_a_row_of_three_panes_with_the_blackline_keeping_its_id():
+    html = _read("index.html")
+    body = html[html.index('<div id="body">'):html.index('<div id="strip"')]
+    assert body.index('id="view"') < body.index('id="paneOriginal"') < body.index('id="pages"') < body.index('id="paneModified"')
+    for id_ in ("paneOriginal", "pages", "paneModified"):
+        seg = body[body.index(f'id="{id_}"'):]
+        assert 'class="caption"' in seg[:400], id_          # every pane starts with its caption
+    assert 'id="paneOriginal" class="pane" data-side="original" hidden' in body.replace("\n", " ")
+    assert 'id="pages" class="pane" data-side="blackline"' in body.replace("\n", " ")
+    css = _read("style.css")
+    assert "#view { display: flex;" in css and "#view .pane" in css and "#view.multi .caption" in css
+    assert "#view .page rect.hl" in css                  # the current-change band is drawn in the side panes too
+
+
+def test_panes_js_is_served_wired_and_owns_the_toggles():
+    assert "panes.js" in STATIC
+    js = _read("panes.js")
+    for name in ("initPanes", "applyPanes", "renderPanes", "resetPanes", "visiblePanes", "leadPane", "paneOf", "highlightSides"):
+        assert f"export function {name}(" in js, name
+    assert 'SIDE_ORDER = ["original", "blackline", "modified"]' in js
+    body = _function_body(js, "toggleView")
+    assert "visiblePanes().length === 1" in body           # the last pane on cannot be turned off
+    assert '"calandria:panes"' in _function_body(js, "applyPanes")
+    assert "$(\"viewMarks\").disabled" in _function_body(js, "applyPanes")
+    app = _read("app.js")
+    assert "initPanes()" in _function_body(app, "wire") and "views: { original: false, blackline: true, modified: false }" in app
+    assert "marks: false" in app and "resetPanes()" in _function_body(app, "compareNow")
+    assert "&marks=" in _function_body(app, "restyle") and "marks: state.marks" in _function_body(app, "compareNow")
+    assert "renderPanes()" in _function_body(app, "renderPages")
+
+
+def test_zoom_changed_pages_and_lookups_span_the_panes():
+    app = _read("app.js")
+    assert "visiblePanes()" in _function_body(app, "applyZoom") and "pane.el.clientWidth" in _function_body(app, "applyZoom")
+    assert "state.data.sides[" in _function_body(app, "applyChangedOnly")
+    assert "leadPane()" in _function_body(app, "currentPage")
+    ch = _read("changes.js")
+    assert 'document.querySelector(`.page[data-page=' not in ch and '$("pages").querySelector(`.page[data-page=' in ch
+    assert "highlightSides(" in _function_body(ch, "highlight")
+    assert '$("pages").querySelector(`.page[data-page=' in _read("strip.js")

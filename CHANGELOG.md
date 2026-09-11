@@ -1,5 +1,12 @@
 # Calandria changelog
 
+## v2.3.1 — Two fixes (2026-09-11)
+
+- Gutter change numbers: changes that start on one baseline (the cells of a table row) share
+  one label such as "7-9" instead of printing on top of each other, on screen and in the PDF.
+- Viewer: dropping a file on the Original or Modified card clears the page area's drag
+  highlight, which used to stay as a dashed outline.
+
 ## v2.3.0 — Viewer majors (2026-09-10)
 
 - A change-density strip beside the pages: one mark per change at its place in the whole

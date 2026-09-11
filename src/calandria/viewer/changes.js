@@ -122,7 +122,7 @@ function tiles() {
   const s = data.summary;
   $("tiles").innerHTML = TILES.map(([label, key, cat]) =>
     `<button type="button" class="tile ${cat}" data-cat="${cat}" aria-pressed="false" ` +
-    `title="Show only ${label.toLowerCase()}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
+    `title="Show only ${label.toLowerCase()}${cat === "insertion" || cat === "deletion" ? " (amendments included)" : ""}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
     `<div class="tile formatting" title="Formatting changes are shown on the page but not counted or listed">` +
     `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>`;
 }
@@ -137,9 +137,17 @@ function markTiles() {
   $("tiles").querySelector(".tile.formatting").classList.toggle("dim", solo !== null);
 }
 
+// A tile shows what its count counts: the summary counts an amendment (deleted and inserted text
+// in one paragraph) as an insertion and as a deletion as well, so those two tiles include amendments.
+function matchesTile(en, tile) {
+  if (tile === null) return true;
+  if (tile === "insertion" || tile === "deletion") return en.category === tile || en.category === "amendment";
+  return en.category === tile;
+}
+
 function refilter() {
   const loc = $("fLocation").value;
-  visible = entries.filter((en) => (solo === null || en.category === solo) && (loc === "all" || en.loc === loc));
+  visible = entries.filter((en) => matchesTile(en, solo) && (loc === "all" || en.loc === loc));
   current = -1;
   markTiles();
   renderList();

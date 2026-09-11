@@ -652,3 +652,22 @@ def test_the_client_errors_keep_their_statuses(srv):
     assert status == 400 and "unknown options" in d["error"]
     status, d = _json(srv.url + "api/pages")
     assert status == 409 and d["error"] == "no comparison loaded"
+
+
+# v2.4.0: the sides and the marks flag on the API (spec §12.2).
+
+def test_compare_and_pages_carry_the_sides_and_honour_marks(srv):
+    status, d = _json(srv.url + "api/compare", "POST", _compare_body(P("aaaa") + P("old"), P("aaaa") + P("new")))
+    assert status == 200 and set(d["sides"]) == {"blackline", "original", "modified"} and d["side_marks"] is False
+    assert d["sides"]["original"]["rows"] == {"0": {"page": 1, "top": 72.0, "height": 12.0},
+                                              "1": {"page": 1, "top": 84.0, "height": 12.0}}
+    status, d = _json(srv.url + "api/pages?marks=1")
+    assert status == 200 and d["side_marks"] is True and "<rect" in d["sides"]["modified"]["pages"][0]
+    assert _json(srv.url + "api/pages")[1]["side_marks"] is False
+    assert _json(srv.url + "api/pages?marks=maybe") == (400, {"error": "marks must be 0 or 1"})
+    status, d = _json(srv.url + "api/layout", "POST", {"options": {}, "marks": True})
+    assert status == 200 and d["side_marks"] is True and "<rect" in d["sides"]["original"]["pages"][0]
+    assert _json(srv.url + "api/layout", "POST", {"options": {}, "marks": "yes"}) == (400, {"error": "marks must be true or false"})
+    body = _compare_body(P("aaaa") + P("old"), P("aaaa") + P("new"))
+    body["marks"] = True
+    assert _json(srv.url + "api/compare", "POST", body)[1]["side_marks"] is True

@@ -95,7 +95,7 @@ def _same_origin(headers, port: int) -> bool:
     return site is None or site in ("same-origin", "none")
 
 
-def _style(body: dict) -> tuple[str, bool]:
+def _style(body: dict) -> tuple[str, bool, bool]:
     render_set = body.get("render_set", "Standard")
     if not isinstance(render_set, str):
         raise _Bad(400, "render_set must be a string")
@@ -103,7 +103,10 @@ def _style(body: dict) -> tuple[str, bool]:
     change_bars = body.get("change_bars", True)
     if not isinstance(change_bars, bool):
         raise _Bad(400, "change_bars must be true or false")
-    return render_set, change_bars
+    marks = body.get("marks", False)
+    if not isinstance(marks, bool):
+        raise _Bad(400, "marks must be true or false")
+    return render_set, change_bars, marks
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -291,29 +294,30 @@ class Handler(BaseHTTPRequestHandler):
         body = self._body()
         a_name, a_data = _file(body, "a")
         b_name, b_data = _file(body, "b")
-        render_set, change_bars = _style(body)
+        render_set, change_bars, marks = _style(body)
         with session.lock:
             options = parse_options(body.get("options", {}), session.options)
             session.load(a_name, a_data, b_name, b_data, options)
-            payload = session.payload(render_set, change_bars)
+            payload = session.payload(render_set, change_bars, marks)
         self._json(payload)      # written outside the lock: a slow client must not stall the rest
 
     def _api_layout(self, session, query):
         body = self._body()
         if "options" not in body:
             raise _Bad(400, "options are required")
-        render_set, change_bars = _style(body)
+        render_set, change_bars, marks = _style(body)
         with session.lock:
             options = parse_options(body["options"], session.options)
             session.relayout(options)
-            payload = session.payload(render_set, change_bars)
+            payload = session.payload(render_set, change_bars, marks)
         self._json(payload)
 
     def _api_pages(self, session, query):
         rs = query.get("render_set", ["Standard"])[0]
         bars = _flag(query, "change_bars", True)
+        marks = _flag(query, "marks", False)
         with session.lock:
-            payload = session.pages(rs, bars)
+            payload = session.pages(rs, bars, marks)
         self._json(payload)
 
     def _api_pdf(self, session, query):

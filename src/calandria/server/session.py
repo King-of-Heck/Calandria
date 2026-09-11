@@ -16,6 +16,7 @@ from ..layout.engine import layout
 from ..layout.fonts import default_resolver
 from ..layout.pages import Layout
 from ..layout.pieces import LayoutOptions
+from ..layout.sides import SIDES
 from ..pdf.draw import PdfOptions, changed_pages
 from ..pdf.report import report_info, report_lines
 from ..pdf.rendersets import RENDER_SETS
@@ -103,6 +104,17 @@ def change_marks(lay: Layout) -> tuple[dict[int, dict], list[list]]:
     return anchors, marks
 
 
+def row_map(lay: Layout) -> dict[int, dict]:
+    """rows[k] = {"page", "top", "height"} of the first line of comparison row k on this layout
+    (spec §12.2): the scroll sync's map between the sides."""
+    out: dict[int, dict] = {}
+    for pg in lay.pages:
+        for ln in pg.lines:
+            if ln.row_index is not None and ln.row_index not in out:
+                out[ln.row_index] = {"page": pg.number, "top": round(ln.top, 2), "height": round(ln.height, 2)}
+    return out
+
+
 def _stem(name: str) -> str:
     return os.path.splitext(os.path.basename(name))[0]
 
@@ -118,6 +130,7 @@ class Session:
         self.options = Options()
         self.cmp: Comparison | None = None
         self.layout: Layout | None = None
+        self.layouts: dict[str, Layout] = {}     # side -> Layout; layouts["blackline"] is self.layout
         self.when: datetime | None = None
 
     @property
@@ -150,9 +163,11 @@ class Session:
         when = self._clock()
         cmp = compare(a_doc, b_doc, ignore_case=options.ignore_case,
                       count_numbering=options.count_numbering)
-        lay = layout(cmp, options.layout_options(self.fonts))
+        base = options.layout_options(self.fonts)
+        lays = {side: layout(cmp, replace(base, side=side)) for side in SIDES}
         self.a_name, self.b_name, self.a_doc, self.b_doc = a_name, b_name, a_doc, b_doc
-        self.options, self.when, self.cmp, self.layout = options, when, cmp, lay
+        self.options, self.when, self.cmp = options, when, cmp
+        self.layout, self.layouts = lays["blackline"], lays
 
     def _need(self) -> None:
         if not self.loaded:
@@ -162,24 +177,29 @@ class Session:
         return report_info(self.cmp, self.a_name, self.b_name, render_set, when or self.when)
 
     # -- payloads ---------------------------------------------------------------------------
-    def pages(self, render_set: str = "Standard", change_bars: bool = True) -> dict:
+    def pages(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False) -> dict:
         self._need()
         check_render(render_set)
-        return {"render_set": render_set, "change_bars": change_bars,
-                "pages": render_pages(self.layout, render_set, change_bars, self.fonts),
+        sides = {}
+        for side, lay in self.layouts.items():
+            sides[side] = {"pages": render_pages(lay, render_set, change_bars, self.fonts, marks),
+                           "page_count": lay.page_count, "changed_pages": changed_pages(lay),
+                           "rows": row_map(lay)}
+        return {"render_set": render_set, "change_bars": change_bars, "side_marks": marks,
+                "pages": sides["blackline"]["pages"], "sides": sides,
                 "report_lines": report_lines(self._info(render_set))}
 
-    def payload(self, render_set: str = "Standard", change_bars: bool = True) -> dict:
+    def payload(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False) -> dict:
         self._need()
-        anchors, marks = change_marks(self.layout)
+        anchors, marks_ = change_marks(self.layout)
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name},
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
                 "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),
-                "anchors": anchors, "marks": marks,
+                "anchors": anchors, "marks": marks_,
                 "render_sets": list(RENDER_SETS),
                 "render_set_styles": {k: v.to_dict() for k, v in RENDER_SETS.items()},
-                **self.pages(render_set, change_bars)}
+                **self.pages(render_set, change_bars, marks)}
 
     def pdf(self, render_set: str = "Standard", change_bars: bool = True, report: str = "last",
             changed_only: bool = False) -> tuple[bytes, str]:

@@ -22,7 +22,7 @@ export const state = {
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
   // flight) and is dropped, so the page always shows the answer to the LAST request.
-  seq: 0, misses: 0,
+  seq: 0, misses: 0, flashTimer: null,
 };
 
 export async function api(path, body) {
@@ -46,6 +46,13 @@ function msg(text, isError) {
   const m = $("msg");
   m.textContent = text || "";
   m.classList.toggle("error", !!isError);
+}
+
+// A two-second message in the status line (a copy result); a busy message put there meanwhile wins.
+export function flash(text) {
+  msg(text);
+  clearTimeout(state.flashTimer);
+  state.flashTimer = setTimeout(() => { if ($("msg").textContent === text) msg(""); }, 2000);
 }
 
 function busy(on, text) {

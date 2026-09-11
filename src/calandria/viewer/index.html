@@ -56,6 +56,7 @@
     <div class="head">
       <button id="panelToggle" aria-controls="panel" aria-expanded="true" title="Hide the change list">‹</button>
       <span id="listCount" class="count">No comparison</span>
+      <button id="copyFinal" title="Copy the modified document as plain text (all changes accepted)" disabled>Copy Final</button>
       <select id="fLocation" title="Body text, tables or both">
         <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option>
       </select>
@@ -92,6 +93,10 @@
     </section>
   </main>
   <div id="strip" class="strip" role="navigation" aria-label="Change positions" hidden><div class="view"></div></div>
+</div>
+<div id="rowMenu" role="menu" hidden>
+  <button type="button" role="menuitem" data-side="modified">Copy modified text</button>
+  <button type="button" role="menuitem" data-side="original">Copy original text</button>
 </div>
 <dialog id="keys">
   <h3>Keyboard shortcuts</h3>

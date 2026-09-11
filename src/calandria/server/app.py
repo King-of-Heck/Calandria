@@ -21,7 +21,8 @@ from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8",
-          "sources.js": "text/javascript; charset=utf-8", "strip.js": "text/javascript; charset=utf-8"}
+          "sources.js": "text/javascript; charset=utf-8", "strip.js": "text/javascript; charset=utf-8",
+          "copy.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
 DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)

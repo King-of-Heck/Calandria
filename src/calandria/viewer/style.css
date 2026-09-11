@@ -87,8 +87,8 @@ button:disabled { opacity: .5; cursor: default; }
 #panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes { display: none; }
 #panel .head #panelToggle { padding: 1px 6px; font-size: 15px; line-height: 20px; }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
-#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg ." "text text text text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
-#panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl ." "text text text text text"; }
+#panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg more" "text text text text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
+#panel .changes.tables li { grid-template-columns: 4.5em 2.5em 3em 1.2em 1fr; grid-template-areas: "badge no pg tbl more" "text text text text text"; }
 #panel .changes li .badge { grid-area: badge; }
 #panel .changes li .no { grid-area: no; }
 #panel .changes li .pg { grid-area: pg; color: var(--muted); font-size: 12px; }
@@ -97,6 +97,14 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .changes li.current .text { display: block; -webkit-line-clamp: unset; overflow: visible; }
 #panel .changes li:hover { background: var(--bar); }
 #panel .changes li.current { background: #fff4c2; }
+#panel .changes li .more { grid-area: more; justify-self: end; padding: 0 6px; min-height: 0; line-height: 18px; visibility: hidden; }
+#panel .changes li:hover .more, #panel .changes li.current .more, #panel .changes li .more:focus-visible { visibility: visible; }
+#panel .head #copyFinal { margin-right: 4px; }
+#panel.collapsed .head #copyFinal { display: none; }
+#rowMenu { position: fixed; z-index: 30; display: flex; flex-direction: column; padding: 4px; background: #fff; border: 1px solid var(--edge); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+#rowMenu[hidden] { display: none; }
+#rowMenu button { border: 0; text-align: left; padding: 5px 10px; }
+#rowMenu button:hover, #rowMenu button:focus-visible { background: var(--bar); outline: none; }
 #panel .badge { font-size: 11px; text-align: center; border-radius: 3px; padding: 1px 4px; color: #fff; background: var(--muted); align-self: start; }
 #panel li.insertion .badge { background: var(--ins); }
 #panel li.deletion .badge { background: var(--del); }

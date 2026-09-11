@@ -3,7 +3,8 @@
 // per row, the selected row in full), navigation from the toolbar and the keys, and the on-page
 // highlight of the selected change (a translucent band over every line and changed table row
 // carrying its number).
-import { pageSize } from "./app.js";
+import { pageSize, flash } from "./app.js";
+import { textOf } from "./copy.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -20,6 +21,8 @@ let visible = [];                     // after the filters
 let current = -1;                     // index into visible
 let solo = null;                      // the one category shown, or null for all
 let hasTables = false;                // any change inside a table (the table glyph is shown only then)
+let menuEntry = null;                 // the entry the row menu is open for
+let menuRow = null;                   // the row to give the focus back to
 
 export function initChanges() {
   document.addEventListener("calandria:loaded", (e) => { data = e.detail; build(); });
@@ -46,13 +49,27 @@ export function initChanges() {
     if (i >= 0) go(i);
   });
   document.addEventListener("keydown", (e) => {
-    if (e.target.matches("input, select, textarea") || e.ctrlKey || e.altKey || e.metaKey || $("keys").open) return;
+    if (e.target.matches("input, select, textarea") || e.ctrlKey || e.altKey || e.metaKey || $("keys").open || !$("rowMenu").hidden) return;
     if (e.key === "n" || e.key === "j" || e.key === "ArrowRight") go(current + 1);
     else if (e.key === "p" || e.key === "k" || e.key === "ArrowLeft") go(current - 1);
     else if (e.key === "Home") go(0);
     else if (e.key === "End") go(visible.length - 1);
     else return;
     e.preventDefault();
+  });
+  const menu = $("rowMenu");
+  for (const item of menu.querySelectorAll("[role=menuitem]")) {
+    item.addEventListener("click", () => {
+      const en = menuEntry;
+      closeMenu();
+      if (en) copyText(textOf(en.rows, item.dataset.side));
+    });
+  }
+  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { e.preventDefault(); closeMenu(); } });
+  $("copyFinal").addEventListener("click", () => {
+    if (!data) return;
+    copyText(textOf(data.changes, "modified"), `Copied ${data.changes.filter((r) => r.ni !== null).length} paragraphs`);
   });
   initPanel();
 }
@@ -83,6 +100,7 @@ function build() {
   entries = group(data.changes);
   hasTables = entries.some((en) => en.loc === "table");
   solo = null;
+  $("copyFinal").disabled = false;
   tiles();
   refilter();
 }
@@ -173,9 +191,16 @@ function renderList() {
     li.innerHTML = `<span class="badge">${BADGE[en.category] || en.category}</span><span class="no">${en.cid}</span>` +
                    `<span class="pg" title="Page">${en.page === null ? "" : "p. " + en.page}</span>` +
                    (hasTables ? `<span class="tbl" title="${en.loc === "table" ? "In a table" : ""}">${en.loc === "table" ? "⊞" : ""}</span>` : "") +
+                   `<button type="button" class="more" aria-haspopup="menu" title="Copy this change's text">⋯</button>` +
                    `<span class="text">${changeText(en, CONTEXT_SHORT)}</span>`;
     li.addEventListener("click", () => go(i));
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") go(i); });
+    li.querySelector(".more").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const r = e.currentTarget.getBoundingClientRect();
+      openMenu(en, li, r.left, r.bottom + 2);
+    });
+    li.addEventListener("contextmenu", (e) => { e.preventDefault(); openMenu(en, li, e.clientX, e.clientY); });
     ol.appendChild(li);
   });
   $("listCount").textContent = !entries.length ? "No changes" :
@@ -218,6 +243,30 @@ function go(i) {
   const svg = page.querySelector("svg");
   const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
   $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+}
+
+function copyText(text, done) {
+  navigator.clipboard.writeText(text).then(() => flash(done || "Copied"), (e) => flash(`Copy failed: ${e.message}`));
+}
+
+function openMenu(en, li, x, y) {
+  const menu = $("rowMenu");
+  menuEntry = en;
+  menuRow = li;
+  menu.hidden = false;
+  const r = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - r.width - 4)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - r.height - 4)}px`;
+  menu.querySelector("[role=menuitem]").focus();
+}
+
+function closeMenu() {
+  const menu = $("rowMenu");
+  if (menu.hidden) return;
+  menu.hidden = true;
+  menuEntry = null;
+  if (menuRow) menuRow.focus({ preventScroll: true });
+  menuRow = null;
 }
 
 function highlight(i) {

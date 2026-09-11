@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -275,3 +275,27 @@ def test_changed_pages_only_is_a_view_toggle_and_a_pdf_flag():
     assert ".page:not([hidden])" in _function_body(js, "currentPage")
     assert ".page:not([hidden])" in _function_body(js, "applyZoom")
     assert "changed page" in _function_body(js, "updatePageStatus")
+
+
+def test_copy_controls_exist():
+    assert "copy.js" in STATIC
+    html = _read("index.html")
+    head = html[html.index('<div class="head">'):html.index('id="tiles"')]
+    assert 'id="copyFinal"' in head
+    menu = html[html.index('id="rowMenu"'):]
+    assert 'role="menu"' in html[html.index('<div id="rowMenu"'):html.index('id="rowMenu"') + 60]
+    assert menu.count('role="menuitem"') == 2 and 'data-side="modified"' in menu and 'data-side="original"' in menu
+    js = _read("changes.js")
+    assert 'class="more"' in _function_body(js, "renderList") and "contextmenu" in js
+    assert "navigator.clipboard.writeText" in js and "flash(" in js
+    assert "export function flash(" in _read("app.js")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_text_of_joins_one_side_of_the_rows():
+    rows = ("[{oi:0,ni:0,marker:'1.',old_marker:null,num_changed:false,segments:[{m:'eq',t:'aa '},{m:'del',t:'bb'},{m:'ins',t:'cc'}]},"
+            "{oi:null,ni:1,marker:'',old_marker:null,num_changed:false,segments:[{m:'ins',t:'new para'}]},"
+            "{oi:1,ni:null,marker:'',old_marker:null,num_changed:false,segments:[{m:'del',t:'gone'}]},"
+            "{oi:2,ni:2,marker:'b)',old_marker:'a)',num_changed:true,segments:[{m:'eq',t:'same'}]}]")
+    out = _node("copy.js", f"const r = {rows}; console.log(JSON.stringify([m.textOf(r, 'modified'), m.textOf(r, 'original')]));")
+    assert out == '["1. aa cc\\nnew para\\nb) same","1. aa bb\\ngone\\na) same"]'

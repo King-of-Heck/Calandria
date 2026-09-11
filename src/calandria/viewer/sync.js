@@ -11,15 +11,18 @@ const SIDES = ["original", "blackline", "modified"];
 const PANE = { original: "paneOriginal", blackline: "pages", modified: "paneModified" };
 
 // rows: {row_index: {page, top, height}} (points, from the payload); pageTop(page) -> pane pixel
-// top of that page's element, or null when the page is hidden; scale: CSS px per pt for the pane.
-// Returns [{row, top, height}] in pane pixels, sorted by top (row order).
+// top of that page's element, or null when the page is hidden; scale: CSS px per pt for the pane,
+// either one number for the whole pane or a function (page) => pxPerPt when Fit gives every page
+// its own scale (a landscape page fits smaller). Returns [{row, top, height}] in pane pixels,
+// sorted by top (row order).
 export function buildIndex(rows, pageTop, scale) {
   const out = [];
   for (const k of Object.keys(rows)) {
     const r = rows[k];
     const pt = pageTop(r.page);
     if (pt === null || pt === undefined) continue;
-    out.push({ row: Number(k), top: pt + r.top * scale, height: r.height * scale });
+    const sc = typeof scale === "function" ? scale(r.page) : scale;
+    out.push({ row: Number(k), top: pt + r.top * sc, height: r.height * sc });
   }
   out.sort((a, b) => a.top - b.top || a.row - b.row);
   return out;
@@ -65,8 +68,11 @@ export function refreshSync() {
   if (!data) return;
   for (const side of SIDES) {
     const pane = $(PANE[side]);
-    const first = pane.querySelector(".page:not([hidden])");
-    const scale = first ? Number(first.dataset.scale) * (4 / 3) : 1;      // dataset.scale is a zoom factor; pixels per pt = zoom * 4/3
+    // dataset.scale is a zoom factor per page (Fit gives each its own); pixels per pt = zoom * 4/3
+    const scale = (page) => {
+      const el = pane.querySelector(`.page[data-page="${page}"]`);
+      return (el ? Number(el.dataset.scale) : 1) * (4 / 3);
+    };
     indexes[side] = buildIndex(data.sides[side].rows, pageTopIn(pane), scale);
   }
 }
@@ -87,7 +93,10 @@ export function syncFrom(side) {
     if (other === side) continue;
     const pane = $(PANE[other]);
     const top = k < 0 ? 0 : follow(indexes[other] || [], k, f) - CAPTION;
-    lastSet[other] = Math.max(0, top);
+    // The browser clamps scrollTop to [0, scrollHeight - clientHeight]; if we don't clamp our own
+    // record the same way, an over-long target leaves lastSet different from the real scrollTop
+    // and the pane's own scroll event reads back as if the user had scrolled it (a feedback path).
+    lastSet[other] = Math.max(0, Math.min(top, pane.scrollHeight - pane.clientHeight));
     pane.scrollTop = lastSet[other];
   }
 }

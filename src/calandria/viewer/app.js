@@ -430,8 +430,8 @@ function wire() {
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
   initStrip();
-  initPanes();
   initSync();
+  initPanes();
   initChanges();
 }
 

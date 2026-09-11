@@ -271,13 +271,17 @@ function go(i) {
 }
 
 function jumpTo(lead, k) {
-  const a = state.data.sides[lead.side].rows[String(k)];
-  if (!a) return;
+  const rows = state.data.sides[lead.side].rows;
+  let j = k;
+  while (j >= 0 && !rows[String(j)]) j--;          // an absent row (an insertion seen from Original): the nearest earlier row
+  if (j < 0) return;
+  const a = rows[String(j)];
+  const y = j === k ? a.top : a.top + a.height;      // ...and the place after it, where the missing text would sit
   const page = lead.el.querySelector(`.page[data-page="${a.page}"]`);
   if (!page) return;
   const svg = page.querySelector("svg");
   const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
-  lead.el.scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+  lead.el.scrollTo({ top: page.offsetTop + y * scale - 80, behavior: "smooth" });
   syncFrom(lead.side);
 }
 

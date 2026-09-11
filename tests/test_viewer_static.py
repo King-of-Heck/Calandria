@@ -411,3 +411,31 @@ def test_sync_js_is_served_and_hung_on_the_panes():
     assert "initSync()" in _function_body(app, "wire") and "refreshSync()" in _function_body(app, "applyZoom")
     assert "syncFrom(" in _function_body(_read("changes.js"), "go")
     assert "syncFrom(" in _function_body(_read("panes.js"), "applyPanes") or "calandria:panes" in js
+
+
+# Task 5 review fixes: per-page scale under Fit, a clamped follower write, a jump that lands past
+# an absent row, and initSync registered before initPanes first announces the panes.
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_the_sync_index_scales_each_page_by_its_own_fit():
+    code = """
+const rows = {"0": {page: 1, top: 10, height: 10}, "1": {page: 2, top: 10, height: 10}};
+const pageTop = (p) => ({1: 0, 2: 500})[p];
+const scale = (p) => (p === 1 ? 2 : 4);
+console.log(JSON.stringify(m.buildIndex(rows, pageTop, scale)));
+"""
+    out = _node("sync.js", code)
+    assert out == '[{"row":0,"top":20,"height":20},{"row":1,"top":540,"height":40}]'
+
+
+def test_the_follower_write_is_clamped_to_the_panes_end():
+    assert "pane.scrollHeight - pane.clientHeight" in _function_body(_read("sync.js"), "syncFrom")
+
+
+def test_a_jump_to_an_absent_row_lands_after_the_nearest_earlier_one():
+    assert "while (j >= 0 && !rows[String(j)]) j--;" in _function_body(_read("changes.js"), "jumpTo")
+
+
+def test_sync_listens_before_the_panes_first_announce_themselves():
+    body = _function_body(_read("app.js"), "wire")
+    assert body.index("initSync()") < body.index("initPanes()")

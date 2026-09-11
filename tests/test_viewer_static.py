@@ -299,3 +299,9 @@ def test_text_of_joins_one_side_of_the_rows():
             "{oi:2,ni:2,marker:'b)',old_marker:'a)',num_changed:true,segments:[{m:'eq',t:'same'}]}]")
     out = _node("copy.js", f"const r = {rows}; console.log(JSON.stringify([m.textOf(r, 'modified'), m.textOf(r, 'original')]));")
     assert out == '["1. aa cc\\nnew para\\nb) same","1. aa bb\\ngone\\na) same"]'
+
+
+def test_gutter_numerals_get_a_floor_on_screen():
+    body = _function_body(_read("app.js"), "applyZoom")
+    assert "text.gutter" in body and "GUTTER_MIN_PX" in body
+    assert "const GUTTER_MIN_PX = 9;" in _read("app.js")

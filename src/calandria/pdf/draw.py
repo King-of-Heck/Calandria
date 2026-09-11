@@ -131,7 +131,8 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
         if ln.cid_starts:
             label = cid_label(ln.cid_starts)
             w = number_face.width(label, NUMBER_SIZE)
-            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK)
+            painter.text(page.margin_left - NUMBER_GAP - w, ln.baseline, label, number_face, NUMBER_SIZE, BLACK,
+                         width=w, role="gutter")
     if opts.change_bars:
         x = page.margin_left - BAR_GAP
         for y1, y2 in bar_intervals(page):

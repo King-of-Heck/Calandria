@@ -12,6 +12,7 @@ const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
 const PING_MISSES = 3;                              // a single dropped ping is not a dead server
 const PT = 4 / 3;                                   // CSS px per pt
+const GUTTER_MIN_PX = 9;   // the change numbers never shrink below this on screen
 const ZOOM_MIN = 0.2, ZOOM_MAX = 4, ZOOM_STEP = 0.1;
 const NOTICE_DELAY_MS = 400;                        // Task 4 uses it; declared here so the constants sit together
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
@@ -250,6 +251,9 @@ function applyZoom() {
     svg.setAttribute("width", `${w * z}pt`);
     svg.setAttribute("height", `${h * z}pt`);
     page.style.width = `${w * z}pt`;
+    // 7 pt at 100 % is 9.33 px; below that the numerals are held at GUTTER_MIN_PX on screen
+    const floor = z < 1 ? `${Math.max(7, GUTTER_MIN_PX / (z * PT)).toFixed(2)}px` : "";
+    for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
   }
   showZoom();
   $("zoomFit").setAttribute("aria-pressed", String(state.fit));

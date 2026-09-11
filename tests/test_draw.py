@@ -374,3 +374,45 @@ def test_changed_only_report_placement_and_line():
     assert res == DrawResult(3, 1) and p.page_ops(1)[1][3] == TITLE and p.page_ops(2)[0][3] == "aaaa"
     p, _ = _layout(L, _info(), report="last")
     assert "Changed pages only: 2 of 3 pages" not in [o[3] for o in p.of("text")]
+
+
+# v2.4.0: drawing a side (spec §12.3).
+
+from calandria.pdf.draw import NUMBER_SIZE, tint
+
+SIDE_A = P("aaaa bbbb cccc") + P("gone gone")
+SIDE_B = P("aaaa xxxx cccc") + P("new new")
+
+
+def _side(side, **pdf):
+    L = layout(compare(_parse(SIDE_A), _parse(SIDE_B)), LayoutOptions(fonts=FR, side=side))
+    p = RecordingPainter()
+    draw_layout(L, STANDARD, PdfOptions(report="none", **pdf), p, FR, None)
+    return L, p
+
+
+def test_tint_mixes_the_colour_fifteen_percent_into_white():
+    assert tint("ff0000") == "ffd9d9" and tint("0000ff") == "d9d9ff" and tint("000000") == "d9d9d9"
+
+
+def test_a_side_is_drawn_plain_without_bars_numerals_or_decorations():
+    _, p = _side("original")
+    assert p.of("rule") == [] and p.of("line") == []          # no strike, no underline, no change bar
+    assert all(op[6] == "000000" for op in p.of("text"))       # every run black
+    assert not any(op[5] == NUMBER_SIZE for op in p.of("text"))   # no gutter numerals (they are the only 7 pt text)
+    assert p.of("box") == []
+
+
+def test_marks_tint_the_side_s_own_changed_runs_only():
+    L, p = _side("original", marks=True)
+    dels = [(ln, g) for pg in L.pages for ln in pg.lines for g in ln.runs if g.mode == "del"]
+    assert dels and p.of("box") == [("box", round(g.x, 2), round(ln.top, 2), round(g.w, 2), round(ln.height, 2), "ffd9d9")
+                                    for ln, g in dels]
+    L2, p2 = _side("modified", marks=True)
+    inss = [g for pg in L2.pages for ln in pg.lines for g in ln.runs if g.mode == "ins"]
+    assert inss and [op[5] for op in p2.of("box")] == ["d9d9ff"] * len(inss)
+
+
+def test_marks_never_touch_the_blackline():
+    _, p = _side("blackline", marks=True)
+    assert p.of("box") == [] and p.of("rule")                  # the redline decorations are still drawn

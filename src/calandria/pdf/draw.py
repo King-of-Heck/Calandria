@@ -17,6 +17,13 @@ from .report import GAP, ReportInfo, draw_report, report_height
 
 BLACK = "000000"
 
+TINT = 0.15            # how much of the category colour shows in a side pane's tint box
+
+
+def tint(color: str) -> str:
+    """The category colour mixed TINT into white, 6-hex: the fill behind a side pane's changed text."""
+    return "".join(f"{round(255 - (255 - int(color[i:i + 2], 16)) * TINT):02x}" for i in (0, 2, 4))
+
 
 @dataclass
 class PdfOptions:
@@ -27,6 +34,7 @@ class PdfOptions:
     fonts: object | None = None     # a FontResolver (or the test FakeResolver); None = system fonts
     # the PDF creation date; the report's own time stamp is ReportInfo.when; None = now
     now: datetime | None = None
+    marks: bool = False             # tint the changed runs of a side layout (spec §12.3); no effect on the blackline
 
 
 def cid_label(cids: list[int]) -> str:
@@ -43,22 +51,28 @@ def cid_label(cids: list[int]) -> str:
     return ", ".join(parts)
 
 
-def run_style(g: GlyphRun, face: FontRef, rs: RenderSet) -> tuple[str, frozenset, bool, bool]:
+def run_style(g: GlyphRun, face: FontRef, rs: RenderSet, plain: bool = False) -> tuple[str, frozenset, bool, bool]:
     """How one run is painted: (colour, effects, fake_bold, fake_italic). The colour is the
     category's, else the run's own, else black; a synthetic face is faked in the direction the
-    resolver could not supply, and the bold / italic effects fake it too."""
-    style = rs.category(g.mode, g.fmt)
+    resolver could not supply, and the bold / italic effects fake it too. `plain` (a side
+    layout) ignores the category: the run's own colour and underline only."""
+    style = None if plain else rs.category(g.mode, g.fmt)
     color = style.color if style else (g.color or BLACK)
     eff = run_effects(style.effects if style else (), g.underline)
     return (color, eff, (face.synthetic and face.bold) or "bold" in eff,
             (face.synthetic and face.italic) or "italic" in eff)
 
 
-def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef], rs: RenderSet, painter) -> None:
-    """Text and decorations of one list of glyph runs on one line (the marker or the body runs)."""
+def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef], rs: RenderSet, painter,
+              plain: bool = False, marks_mode: str | None = None) -> None:
+    """Text and decorations of one list of glyph runs on one line (the marker or the body runs).
+    With `marks_mode` ("del" on the original side, "ins" on the modified) every run of that mode
+    gets a tint box behind it first."""
     for g in runs:
         face = fonts[g.face]
-        color, eff, fake_bold, fake_italic = run_style(g, face, rs)
+        color, eff, fake_bold, fake_italic = run_style(g, face, rs, plain)
+        if marks_mode is not None and g.mode == marks_mode:
+            painter.box(g.x, line.top, g.w, line.height, tint(rs.category(g.mode, False).color))
         if g.text.strip():
             painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic, width=g.w)
         for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, line.baseline, g.size):
@@ -121,12 +135,20 @@ def draw_grid(page: Page, painter) -> None:
             painter.line(c.x, c.y, c.x, y2, GRID_WIDTH, BLACK)
 
 
-def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOptions, painter, number_face) -> None:
+MARKS_MODE = {"original": "del", "modified": "ins"}
+
+
+def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOptions, painter, number_face,
+              side: str = "blackline") -> None:
     painter.page(page.w, page.h)
     draw_grid(page, painter)
+    plain = side != "blackline"
+    marks_mode = MARKS_MODE.get(side) if (plain and opts.marks) else None
     for ln in page.lines:
-        draw_runs(ln, ln.marker, fonts, rs, painter)
-        draw_runs(ln, ln.runs, fonts, rs, painter)
+        draw_runs(ln, ln.marker, fonts, rs, painter, plain, marks_mode)
+        draw_runs(ln, ln.runs, fonts, rs, painter, plain, marks_mode)
+    if plain:
+        return                       # a side shows no gutter numbers and no change bars
     # One label per baseline: the cells of a table row are separate lines on one baseline, and each
     # may start a change of its own, so their numbers merge ("7-9") instead of printing on top of each other.
     starts: dict[float, list[int]] = {}
@@ -180,7 +202,7 @@ def draw_layout(layout: Layout, rs: RenderSet, opts: PdfOptions, painter, resolv
         draw_report(report, g.margin_left, g.margin_top, g.w - g.margin_left - g.margin_right, regular, bold, painter)
         n, report_page = 1, 1
     for page in pages:
-        draw_page(page, layout.fonts, rs, opts, painter, regular)
+        draw_page(page, layout.fonts, rs, opts, painter, regular, layout.options.side)
         n += 1
     if where == "last":
         last = pages[-1]

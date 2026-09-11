@@ -62,16 +62,21 @@ class SvgPainter:
         self._pages[-1].append(f'<line x1="{_n(x1)}" y1="{_n(y1)}" x2="{_n(x2)}" y2="{_n(y2)}" '
                                f'stroke="#{color}" stroke-width="{_n(width)}"/>')
 
+    def box(self, x: float, y: float, w: float, h: float, color: str) -> None:
+        self._pages[-1].append(f'<rect class="tint" x="{_n(x)}" y="{_n(y)}" width="{_n(w)}" height="{_n(h)}" '
+                               f'fill="#{color}"/>')
+
     # -- output -----------------------------------------------------------------------------
     def pages(self) -> list[str]:
         return ["".join(p) + "</svg>" for p in self._pages]
 
 
 def render_pages(layout: Layout, render_set_name: str = "Standard", change_bars: bool = True,
-                 resolver=None) -> list[str]:
-    """One SVG per page of the layout, styled by the named rendering set; no report block."""
+                 resolver=None, marks: bool = False) -> list[str]:
+    """One SVG per page of the layout, styled by the named rendering set; no report block.
+    `marks` tints the changed runs of a side layout (spec §12.3); it does nothing on the blackline."""
     rs = render_set(render_set_name)
-    opts = PdfOptions(render_set=render_set_name, change_bars=change_bars, report="none")
+    opts = PdfOptions(render_set=render_set_name, change_bars=change_bars, report="none", marks=marks)
     painter = SvgPainter()
     draw_layout(layout, rs, opts, painter, resolver or default_resolver(), None)
     return painter.pages()

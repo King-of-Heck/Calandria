@@ -72,6 +72,11 @@ class FpdfPainter:
         p.set_line_width(width)
         p.line(x1, y1, x2, y2)
 
+    def box(self, x: float, y: float, w: float, h: float, color: str) -> None:
+        p = self.pdf
+        p.set_fill_color(*rgb(color))
+        p.rect(x, y, w, h, style="F")
+
     # -- output -----------------------------------------------------------------------------
     def output(self) -> bytes:
         return bytes(self.pdf.output())

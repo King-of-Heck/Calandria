@@ -220,6 +220,7 @@ function renderPages() {
   applyChangedOnly();
   applyZoom();
   main.scrollTop = keepScroll;
+  updatePageStatus();
 }
 
 // The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
@@ -230,7 +231,6 @@ function applyChangedOnly() {
   for (const page of main.querySelectorAll(".page")) {
     page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
   }
-  updatePageStatus();
 }
 
 function applyZoom() {
@@ -299,7 +299,8 @@ function updatePageStatus() {
     return;
   }
   const page = currentPage();
-  const shown = state.changedOnly ? ` · ${state.data.changed_pages.length} changed pages` : "";
+  const k = state.data.changed_pages.length;
+  const shown = state.changedOnly ? ` · ${k} changed page${k === 1 ? "" : "s"}` : "";
   $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}${shown}`;
   if (state.fit) showZoom();
 }
@@ -369,6 +370,7 @@ function wire() {
     try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
     applyChangedOnly();
     if (state.fit) applyZoom();
+    updatePageStatus();
     document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
   });
   $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });

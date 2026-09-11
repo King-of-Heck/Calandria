@@ -274,4 +274,4 @@ def test_changed_pages_only_is_a_view_toggle_and_a_pdf_flag():
     assert "changed_only=" in _function_body(js, "savePdf")
     assert ".page:not([hidden])" in _function_body(js, "currentPage")
     assert ".page:not([hidden])" in _function_body(js, "applyZoom")
-    assert "changed pages" in _function_body(js, "updatePageStatus")
+    assert "changed page" in _function_body(js, "updatePageStatus")

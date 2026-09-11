@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -325,3 +325,178 @@ def test_the_tiles_filter_the_way_the_summary_counts():
     assert '"insertion"' in body and '"deletion"' in body and '"amendment"' in body
     assert "matchesTile(" in _function_body(js, "refilter")
     assert "en.category === solo" not in js
+
+
+# v2.4.0: the side-by-side panes (spec section 12.4).
+
+def test_the_toolbar_holds_the_four_view_toggles_before_the_navigation():
+    html = _read("index.html")
+    header = html[html.index("<header"):html.index("</header>")]
+    views = header[header.index('id="views"'):header.index('class="nav"')]
+    for id_, key in (("viewOriginal", "1"), ("viewBlackline", "2"), ("viewModified", "3"), ("viewMarks", "m")):
+        assert f'id="{id_}"' in views and f"<kbd>{key}</kbd>" in views, id_
+        assert 'aria-pressed=' in views[views.index(f'id="{id_}"'):views.index(f'id="{id_}"') + 160]
+    assert 'id="viewBlackline" aria-pressed="true"' in views.replace("\n", " ")
+    keys = html[html.index('<dialog id="keys"'):html.index("</dialog>")]
+    assert "<kbd>1</kbd>" in keys and "<kbd>m</kbd>" in keys
+
+
+def test_the_page_area_is_a_row_of_three_panes_with_the_blackline_keeping_its_id():
+    html = _read("index.html")
+    body = html[html.index('<div id="body">'):html.index('<div id="strip"')]
+    assert body.index('id="view"') < body.index('id="paneOriginal"') < body.index('id="pages"') < body.index('id="paneModified"')
+    for id_ in ("paneOriginal", "pages", "paneModified"):
+        seg = body[body.index(f'id="{id_}"'):]
+        assert 'class="caption"' in seg[:400], id_          # every pane starts with its caption
+    assert 'id="paneOriginal" class="pane" data-side="original" hidden' in body.replace("\n", " ")
+    assert 'id="pages" class="pane" data-side="blackline"' in body.replace("\n", " ")
+    css = _read("style.css")
+    assert "#view { display: flex;" in css and "#view .pane" in css and "#view.multi .caption" in css
+    assert "#view .page rect.hl" in css                  # the current-change band is drawn in the side panes too
+
+
+def test_panes_js_is_served_wired_and_owns_the_toggles():
+    assert "panes.js" in STATIC
+    js = _read("panes.js")
+    for name in ("initPanes", "applyPanes", "renderPanes", "resetPanes", "visiblePanes", "leadPane", "paneOf", "highlightSides"):
+        assert f"export function {name}(" in js, name
+    assert 'SIDE_ORDER = ["original", "blackline", "modified"]' in js
+    body = _function_body(js, "toggleView")
+    assert "visiblePanes().length === 1" in body           # the last pane on cannot be turned off
+    assert '"calandria:panes"' in _function_body(js, "applyPanes")
+    assert "$(\"viewMarks\").disabled" in _function_body(js, "applyPanes")
+    assert "state.data.side_marks !== state.marks" in _function_body(js, "applyPanes")
+    app = _read("app.js")
+    assert "initPanes()" in _function_body(app, "wire") and "views: { original: false, blackline: true, modified: false }" in app
+    assert "marks: false" in app and "resetPanes()" in _function_body(app, "compareNow")
+    assert "&marks=" in _function_body(app, "restyle") and "marks: state.marks" in _function_body(app, "compareNow")
+    assert "renderPanes()" in _function_body(app, "renderPages")
+
+
+def test_zoom_changed_pages_and_lookups_span_the_panes():
+    app = _read("app.js")
+    assert "visiblePanes()" in _function_body(app, "applyZoom") and "pane.el.clientWidth" in _function_body(app, "applyZoom")
+    assert "state.data.sides[" in _function_body(app, "applyChangedOnly")
+    assert "leadPane()" in _function_body(app, "currentPage")
+    ch = _read("changes.js")
+    assert 'document.querySelector(`.page[data-page=' not in ch and '$("pages").querySelector(`.page[data-page=' in ch
+    assert "highlightSides(" in _function_body(ch, "highlight")
+    assert '$("pages").querySelector(`.page[data-page=' in _read("strip.js")
+
+
+# v2.4.0: the scroll sync (spec §12.5).
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_the_row_index_is_sorted_by_position_and_skips_hidden_pages():
+    code = """
+const rows = {"0": {page: 1, top: 72, height: 12}, "1": {page: 1, top: 84, height: 12}, "5": {page: 2, top: 72, height: 24}, "7": {page: 3, top: 72, height: 12}};
+const pageTop = (p) => ({1: 0, 2: 1000, 3: null})[p];     // page 3 is hidden (changed pages only)
+const ix = m.buildIndex(rows, pageTop, 2);
+console.log(JSON.stringify(ix));
+console.log(m.rowAt(ix, 0), m.rowAt(ix, 167), m.rowAt(ix, 168), m.rowAt(ix, 5000), m.rowAt(ix, -1));
+console.log(m.follow(ix, 5, 0.5), m.follow(ix, 3, 0.25), m.follow(ix, 9, 0), m.follow([], 0, 0));
+"""
+    out = _node("sync.js", code).splitlines()
+    assert out[0] == '[{"row":0,"top":144,"height":24},{"row":1,"top":168,"height":24},{"row":5,"top":1144,"height":48}]'
+    assert out[1] == "-1 0 1 2 -1"                      # index positions: the greatest top <= y; -1 above the first
+    assert out[2] == "1168 192 1192 0"                  # row 5 + half its height; row 3 is absent -> the end of row 1; row 9 -> the end of row 5; nothing -> 0
+
+
+def test_sync_js_is_served_and_hung_on_the_panes():
+    assert "sync.js" in STATIC
+    js = _read("sync.js")
+    for name in ("buildIndex", "rowAt", "follow", "initSync", "refreshSync", "syncFrom"):
+        assert f"export function {name}(" in js, name
+    assert "lastSet" in _function_body(js, "onScroll")     # a follower's own programmatic scroll is not a lead
+    app = _read("app.js")
+    assert "initSync()" in _function_body(app, "wire") and "refreshSync()" in _function_body(app, "applyZoom")
+    assert "syncFrom(" in _function_body(_read("changes.js"), "go")
+    assert "syncFrom(" in _function_body(_read("panes.js"), "applyPanes") or "calandria:panes" in js
+
+
+# Task 5 review fixes: per-page scale under Fit, a clamped follower write, a jump that lands past
+# an absent row, and initSync registered before initPanes first announces the panes.
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_the_sync_index_scales_each_page_by_its_own_fit():
+    code = """
+const rows = {"0": {page: 1, top: 10, height: 10}, "1": {page: 2, top: 10, height: 10}};
+const pageTop = (p) => ({1: 0, 2: 500})[p];
+const scale = (p) => (p === 1 ? 2 : 4);
+console.log(JSON.stringify(m.buildIndex(rows, pageTop, scale)));
+"""
+    out = _node("sync.js", code)
+    assert out == '[{"row":0,"top":20,"height":20},{"row":1,"top":540,"height":40}]'
+
+
+def test_the_follower_write_is_clamped_to_the_panes_end():
+    assert "pane.scrollHeight - pane.clientHeight" in _function_body(_read("sync.js"), "syncFrom")
+
+
+def test_a_jump_to_an_absent_row_lands_after_the_nearest_earlier_one():
+    assert "while (j >= 0 && !rows[String(j)]) j--;" in _function_body(_read("changes.js"), "jumpTo")
+
+
+def test_sync_listens_before_the_panes_first_announce_themselves():
+    body = _function_body(_read("app.js"), "wire")
+    assert body.index("initSync()") < body.index("initPanes()")
+
+
+# Final whole-branch review fixes.
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_follow_searches_by_row_in_any_index_order():
+    # Inside a table, cells of one row start at the same y: a cell with two paragraphs (rows 5, 6)
+    # followed by a one-paragraph cell (row 7) yields index order 5, 7, 6 by top - follow must
+    # still search by row, not assume the top-sorted array is row-sorted too.
+    code = ('const ix = m.buildIndex({"5": {page:1, top:100, height:12}, "6": {page:1, top:112, height:12}, '
+            '"7": {page:1, top:100, height:12}}, () => 0, 1);\n'
+            "console.log(m.follow(ix, 6, 0.5), m.follow(ix, 7, 0), m.follow(ix, 8, 0));")
+    assert _node("sync.js", code) == "118 100 112"
+
+
+def test_the_notice_and_the_drop_zone_cover_the_whole_pane_row():
+    html = _read("index.html")
+    assert html.index('id="notice"') > html.index('id="view"')
+    assert html.index('id="notice"') < html.index('id="paneOriginal"')
+    js = _read("sources.js")
+    assert '$("view")' in _function_body(js, "initSources")
+    assert "home.append(src)" in _function_body(js, "placeSources")
+    css = _read("style.css")
+    assert "#view.over" in css and "#view .notice" in css
+    assert "#pages.over" not in css
+
+
+def test_refresh_sync_builds_its_page_map_in_one_walk():
+    assert '.querySelectorAll(".page")' in _function_body(_read("sync.js"), "refreshSync")
+
+
+def test_resized_no_longer_duplicates_apply_zooms_refresh():
+    js = _read("sync.js")
+    # calandria:resized only re-syncs; app.js's applyZoom already calls refreshSync()
+    body = js[js.index('addEventListener("calandria:resized"'):]
+    body = body[:body.index("});")]
+    lines = [ln for ln in body.splitlines() if not ln.strip().startswith("//")]
+    assert "refreshSync()" not in "\n".join(lines) and "syncFrom(" in body
+
+
+def test_the_stray_left_border_is_gone():
+    css = _read("style.css")
+    assert "#view .pane:not([hidden]) ~ .pane:not([hidden])" in css
+    assert "#view .pane + .pane:not([hidden])" not in css
+
+
+def test_a_hidden_blackline_never_cancels_a_side_pane_jump():
+    body = _function_body(_read("changes.js"), "go")
+    assert body.index("if (state.views.blackline)") < body.index("data.anchors[")
+
+
+def test_highlight_calls_highlight_sides_directly():
+    body = _function_body(_read("changes.js"), "highlight")
+    assert "highlightSides(visible[i].cid);" in body
+
+
+def test_marks_follows_the_busy_rule():
+    assert "viewMarks" in _function_body(_read("app.js"), "enableControls")
+    assert "state.busy" in _function_body(_read("panes.js"), "toggleMarks")

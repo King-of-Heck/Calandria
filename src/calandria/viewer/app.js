@@ -7,6 +7,8 @@
 import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
 import { initStrip } from "./strip.js";
+import { SIDE_ORDER, initPanes, leadPane, paneOf, renderPanes, resetPanes, visiblePanes } from "./panes.js";
+import { initSync, refreshSync } from "./sync.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
@@ -19,6 +21,7 @@ const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "show
 
 export const state = {
   data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, changedOnly: false, shown: 1,
+  views: { original: false, blackline: true, modified: false }, marks: false,
   renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -102,6 +105,9 @@ function enableControls(on) {
   $("renderSet").disabled = !on;
   $("changeBars").disabled = !on;
   $("pdf").disabled = !(on && state.data);
+  // Marks stays off while a request is in flight; re-enabling still respects the "neither side
+  // pane on" rule (panes.js's applyPanes disables it too, but a request can finish after that).
+  $("viewMarks").disabled = !on || !(state.views.original || state.views.modified);
   refreshSources();                                  // Compare: both slots filled and not the compared pair
 }
 
@@ -138,11 +144,12 @@ async function compareNow() {
   busy(true, `Comparing ${a.name} with ${b.name}…`);
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
-                   options: options(), render_set: state.renderSet, change_bars: state.changeBars };
+                   options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks };
     const d = await api("/api/compare", body);
     if (state.seq !== seq) return;
     if (state.closed) return;
     state.compared = { a, b };
+    resetPanes();
     show(d);
   } catch (e) {
     if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
@@ -156,7 +163,7 @@ export async function relayout() {
   const seq = ++state.seq;
   busy(true, "Laying out…");
   try {
-    const d = await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars });
+    const d = await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks });
     if (state.seq !== seq) return;
     show(d);
   } catch (e) {
@@ -166,15 +173,15 @@ export async function relayout() {
   }
 }
 
-async function restyle() {
+export async function restyle() {
   if (!state.data || state.closed) return;
   const seq = ++state.seq;
   busy(true, "Redrawing…");
   try {
-    const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}`;
+    const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&marks=${state.marks ? 1 : 0}`;
     const d = await api(`/api/pages?${q}`);
     if (state.seq !== seq) return;
-    Object.assign(state.data, { pages: d.pages, report_lines: d.report_lines, render_set: d.render_set, change_bars: d.change_bars });
+    Object.assign(state.data, { pages: d.pages, report_lines: d.report_lines, render_set: d.render_set, change_bars: d.change_bars, sides: d.sides, side_marks: d.side_marks });
     renderPages();
     applyStyles();
     document.dispatchEvent(new CustomEvent("calandria:restyled"));
@@ -225,9 +232,11 @@ function renderPages() {
     page.appendChild(n);
     main.appendChild(page);
   });
+  renderPanes();
   applyChangedOnly();
   applyZoom();
   main.scrollTop = keepScroll;
+  refreshSync();
   updatePageStatus();
 }
 
@@ -235,28 +244,32 @@ function renderPages() {
 // the page numbers stay real (data-page), and the strip keeps mapping the whole document. When
 // nothing changed, page 1 stays visible (the PDF keeps page 1 too).
 function applyChangedOnly() {
-  const main = $("pages");
-  const keep = new Set(state.data ? state.data.changed_pages : []);
-  if (state.changedOnly && keep.size === 0) keep.add(1);
-  for (const page of main.querySelectorAll(".page")) {
-    page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
+  for (const side of SIDE_ORDER) {
+    const blk = state.data ? state.data.sides[side] : null;
+    const keep = new Set(blk ? blk.changed_pages : []);
+    if (state.changedOnly && keep.size === 0) keep.add(1);
+    for (const page of paneOf(side).querySelectorAll(".page")) {
+      page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
+    }
   }
 }
 
-function applyZoom() {
-  const main = $("pages");
-  for (const page of main.querySelectorAll(".page:not([hidden])")) {
-    const svg = page.querySelector("svg");
-    const { w, h } = pageSize(svg);
-    const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
-    page.dataset.scale = String(z);
-    svg.setAttribute("width", `${w * z}pt`);
-    svg.setAttribute("height", `${h * z}pt`);
-    page.style.width = `${w * z}pt`;
-    // 7 pt at 100 % is 9.33 px; below that the numerals are held at GUTTER_MIN_PX on screen
-    const floor = z < 1 ? `${Math.max(7, GUTTER_MIN_PX / (z * PT)).toFixed(2)}px` : "";
-    for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
+export function applyZoom() {
+  for (const pane of visiblePanes()) {
+    for (const page of pane.el.querySelectorAll(".page:not([hidden])")) {
+      const svg = page.querySelector("svg");
+      const { w, h } = pageSize(svg);
+      const z = state.fit ? Math.max(ZOOM_MIN, (pane.el.clientWidth - 48) / (w * PT)) : state.zoom;
+      page.dataset.scale = String(z);
+      svg.setAttribute("width", `${w * z}pt`);
+      svg.setAttribute("height", `${h * z}pt`);
+      page.style.width = `${w * z}pt`;
+      // 7 pt at 100 % is 9.33 px; below that the numerals are held at GUTTER_MIN_PX on screen
+      const floor = z < 1 ? `${Math.max(7, GUTTER_MIN_PX / (z * PT)).toFixed(2)}px` : "";
+      for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
+    }
   }
+  refreshSync();
   showZoom();
   $("zoomFit").setAttribute("aria-pressed", String(state.fit));
   $("zoomFit").classList.toggle("on", state.fit);
@@ -272,7 +285,8 @@ function showZoom() {
 
 // The page whose top is at or above the top of the view (the first page before any scroll).
 function currentPage() {
-  const main = $("pages");
+  const lead = leadPane();
+  const main = lead ? lead.el : $("pages");
   const top = main.getBoundingClientRect().top + 8;
   let current = null;
   for (const p of main.querySelectorAll(".page:not([hidden])")) {
@@ -312,9 +326,11 @@ function updatePageStatus() {
     return;
   }
   const page = currentPage();
-  const k = state.data.changed_pages.length;
+  const lead = leadPane();
+  const count = lead ? state.data.sides[lead.side].page_count : state.data.page_count;
+  const k = (lead ? state.data.sides[lead.side].changed_pages : state.data.changed_pages).length;
   const shown = !state.changedOnly ? "" : k === 0 ? " · no changed pages, page 1 shown" : ` · ${k} changed page${k === 1 ? "" : "s"}`;
-  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}${shown}`;
+  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${count}${shown}`;
   if (state.fit) showZoom();
 }
 
@@ -369,7 +385,6 @@ function wirePopover() {
 
 function wire() {
   initSources({ compare: compareNow, swap: compareNow });   // the slots are already exchanged when swap fires
-  const main = $("pages");
   for (const id of OPTION_IDS) $(id).addEventListener("change", relayout);
   $("renderSet").addEventListener("change", (e) => { state.renderSet = e.target.value; restyle(); });
   $("changeBars").addEventListener("change", (e) => { state.changeBars = e.target.checked; restyle(); });
@@ -388,7 +403,7 @@ function wire() {
     document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
   });
   $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });
-  main.addEventListener("wheel", (e) => {
+  for (const el of [$("paneOriginal"), $("pages"), $("paneModified")]) el.addEventListener("wheel", (e) => {
     if (state.closed) return;
     if (!e.ctrlKey) return;                          // plain wheel scrolls; Ctrl+wheel zooms instead of Edge's page zoom
     e.preventDefault();
@@ -407,7 +422,7 @@ function wire() {
   });
   document.addEventListener("calandria:resized", () => { if (state.fit) applyZoom(); });
   window.addEventListener("resize", () => { if (state.fit) applyZoom(); });
-  main.addEventListener("scroll", updatePageStatus);
+  for (const el of [$("paneOriginal"), $("pages"), $("paneModified")]) el.addEventListener("scroll", updatePageStatus);
   $("pdf").addEventListener("click", savePdf);
   $("quit").addEventListener("click", quit);
   document.addEventListener("visibilitychange", ping);   // tell the server at once, either way
@@ -418,6 +433,8 @@ function wire() {
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
   initStrip();
+  initSync();
+  initPanes();
   initChanges();
 }
 

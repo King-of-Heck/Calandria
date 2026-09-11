@@ -38,3 +38,10 @@ def test_role_is_accepted_and_not_recorded():
     p.text(1, 2, "3", FACE, 7, "000000", width=5, role="gutter")
     p.text(1, 2, "3", FACE, 7, "000000")
     assert p.ops[0] == p.ops[1]
+
+
+def test_box_is_recorded():
+    p = RecordingPainter()
+    p.page(612, 792)
+    p.box(10.004, 20, 30, 12.5, "ffd9d9")
+    assert p.of("box") == [("box", 10.0, 20, 30, 12.5, "ffd9d9")]

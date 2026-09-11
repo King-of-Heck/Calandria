@@ -126,7 +126,7 @@ def test_payload_of_a_one_line_insertion():
 def test_pages_follow_the_render_set_and_the_bars_toggle():
     s = _session()
     d = s.pages("Black and White", change_bars=False)
-    assert set(d) == {"render_set", "change_bars", "pages", "report_lines"}
+    assert set(d) == {"render_set", "change_bars", "side_marks", "pages", "sides", "report_lines"}
     assert d["render_set"] == "Black and White" and d["change_bars"] is False
     assert "#0000ff" not in d["pages"][0] and 'stroke-width="1.50"' not in d["pages"][0]
     assert d["report_lines"][3] == "Rendering set: Black and White"
@@ -192,3 +192,43 @@ def test_pdf_changed_only_changes_the_name_and_the_report():
     assert name == "a vs b redline (changed pages).pdf" and data.startswith(b"%PDF")
     _, plain = s.pdf()
     assert plain == "a vs b redline.pdf"
+
+
+# v2.4.0: three sides per comparison (spec §12.2).
+
+from calandria.server.session import row_map
+
+
+def test_row_map_names_the_first_line_of_every_row():
+    s = _session(P("aaaa") + P("bbbb"), P("aaaa") + P("bbbb") + P("cccc"))
+    assert row_map(s.layout) == {0: {"page": 1, "top": 72.0, "height": 12.0},
+                                 1: {"page": 1, "top": 84.0, "height": 12.0},
+                                 2: {"page": 1, "top": 96.0, "height": 12.0}}
+    assert row_map(s.layouts["original"]) == {0: {"page": 1, "top": 72.0, "height": 12.0},
+                                              1: {"page": 1, "top": 84.0, "height": 12.0}}
+
+
+def test_the_session_lays_out_three_sides_and_ships_them():
+    s = _session(P("aaaa") + P("old old"), P("aaaa") + P("new new"))
+    assert set(s.layouts) == {"blackline", "original", "modified"} and s.layouts["blackline"] is s.layout
+    d = s.payload()
+    assert d["side_marks"] is False and set(d["sides"]) == {"blackline", "original", "modified"}
+    for side in ("blackline", "original", "modified"):
+        blk = d["sides"][side]
+        assert set(blk) == {"pages", "page_count", "changed_pages", "rows"} and blk["page_count"] == len(blk["pages"]) == 1
+    assert d["sides"]["blackline"]["pages"] == d["pages"] and d["sides"]["blackline"]["changed_pages"] == d["changed_pages"]
+    assert "old" in d["sides"]["original"]["pages"][0] and "new" not in d["sides"]["original"]["pages"][0]
+    assert "new" in d["sides"]["modified"]["pages"][0] and "old" not in d["sides"]["modified"]["pages"][0]
+    assert d["sides"]["original"]["rows"] == {0: {"page": 1, "top": 72.0, "height": 12.0},
+                                              1: {"page": 1, "top": 84.0, "height": 12.0}}
+    assert d["sides"]["original"]["changed_pages"] == [1]
+
+
+def test_marks_tint_the_side_pages_and_a_relayout_rebuilds_every_side():
+    s = _session(P("aaaa") + P("old old"), P("aaaa") + P("new new"))
+    plain, marked = s.pages(), s.pages(marks=True)
+    assert "<rect" not in plain["sides"]["original"]["pages"][0]
+    assert "<rect" in marked["sides"]["original"]["pages"][0] and marked["side_marks"] is True
+    assert marked["pages"] == plain["pages"]                     # the blackline never changes with marks
+    s.relayout(Options(show_equal=False))
+    assert "aaaa" not in s.payload()["sides"]["modified"]["pages"][0]

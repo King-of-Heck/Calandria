@@ -1,13 +1,16 @@
 import io
 import json
+import re
 
 import pytest
 
 from calandria.diff.compare import compare
+from calandria.diff.units import units
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout, layout_document
 from calandria.layout.pieces import LayoutOptions
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from calandria.layout.sides import SIDES, side_items, side_options
+from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
 from calandria.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
@@ -189,3 +192,113 @@ def test_empty_layout_falls_back_to_the_body_section():
     body = P("", ppr='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>') + P("") + LETTER
     L = _lay(body, body, show_equal=False)
     assert L.page_count == 1 and L.pages[0].lines == [] and round(L.pages[0].w) == 612
+
+
+# v2.4.0: side layouts (spec §12.1).
+
+
+def _row_texts(L):
+    """The text of every comparison row on the layout, in row order, whitespace collapsed."""
+    by_row = {}
+    for pg in L.pages:
+        for ln in pg.lines:
+            if ln.row_index is None:
+                continue
+            by_row.setdefault(ln.row_index, []).append("".join(r.text for r in ln.runs))
+    return [re.sub(r"\s+", " ", " ".join(v)).strip() for _, v in sorted(by_row.items())]
+
+
+def _unit_texts(doc):
+    return [re.sub(r"\s+", " ", u.text).strip() for u in units(doc)]
+
+
+A_SIDE = P("aaaa bbbb cccc") + P("gone gone gone") + P("dddd eeee")
+B_SIDE = P("aaaa xxxx cccc") + P("dddd eeee") + P("new new new")
+
+
+def test_side_layouts_carry_each_documents_own_text():
+    a, b = _parse(A_SIDE), _parse(B_SIDE)
+    cmp = compare(a, b)
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+    assert _row_texts(orig) == _unit_texts(a)
+    assert _row_texts(mod) == _unit_texts(b)
+
+
+def test_side_layouts_carry_no_runs_of_the_other_side_and_no_formatting_marks():
+    cmp = compare(_parse(A_SIDE), _parse(B_SIDE))
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+    orig_modes = {r.mode for pg in orig.pages for ln in pg.lines for r in ln.runs}
+    mod_modes = {r.mode for pg in mod.pages for ln in pg.lines for r in ln.runs}
+    assert "ins" not in orig_modes and "del" in orig_modes        # the deleted text is there, plain
+    assert "del" not in mod_modes and "ins" in mod_modes
+    assert not any(r.fmt for pg in orig.pages for ln in pg.lines for r in ln.runs)
+    assert orig.options.side == "original" and orig.to_dict()["options"]["side"] == "original"
+
+
+def test_the_blackline_side_is_the_default_and_unchanged():
+    cmp = compare(_parse(A_SIDE), _parse(B_SIDE))
+    plain = layout(cmp, LayoutOptions(fonts=FR))
+    named = layout(cmp, LayoutOptions(fonts=FR, side="blackline"))
+    assert plain.options.side == "blackline"
+    assert plain.to_dict()["pages"] == named.to_dict()["pages"]
+    assert SIDES == ("blackline", "original", "modified")
+
+
+def test_the_original_side_uses_the_original_paragraphs_properties():
+    a = P("x") + P("y", ppr='<w:spacing w:before="200"/>')
+    b = P("x") + P("y")
+    cmp = compare(_parse(a), _parse(b))
+    assert [ln.top for ln in layout(cmp, LayoutOptions(fonts=FR)).pages[0].lines] == [72, 84]
+    assert [ln.top for ln in layout(cmp, LayoutOptions(fonts=FR, side="original")).pages[0].lines] == [72, 94]
+
+
+def test_side_options_and_side_items():
+    o = LayoutOptions(fonts=FR, show_formatting=True)
+    assert side_options(o) is o
+    so = side_options(LayoutOptions(fonts=FR, side="original"))
+    assert (so.show_insertions, so.show_deletions, so.show_formatting) == (False, True, False)
+    sm = side_options(LayoutOptions(fonts=FR, side="modified"))
+    assert (sm.show_insertions, sm.show_deletions, sm.show_formatting) == (True, False, False)
+    from calandria.layout.merged import merged_items
+    cmp = compare(_parse(P("keep") + P("old")), _parse(P("keep") + "<w:p/>" + P("brand new")))
+    items = merged_items(cmp)
+    orig = side_items(items, cmp, "original")
+    mod = side_items(items, cmp, "modified")
+    assert [it.row.oi for it in orig] == [0, 1] and orig[1].para is cmp.a_units[1].para   # the original's own paragraph
+    assert [it.row is None for it in mod] == [False, True, False]        # keep, the empty paragraph, brand new
+    assert mod[0].row.ni == 0 and mod[-1].row.ni == 1 and all(it.row is None or it.row.ni is not None for it in mod)
+    assert side_items(items, cmp, "blackline") is items
+    with pytest.raises(ValueError, match="side"):
+        layout(cmp, LayoutOptions(fonts=FR, side="sideways"))
+
+
+def test_side_layouts_lay_out_tables_with_the_side_s_own_text():
+    a = P("Intro") + TBL([["one", "two"], ["three", "old cell"]])
+    b = P("Intro") + TBL([["one", "two"], ["three", "new cell"]])
+    cmp = compare(_parse(a), _parse(b))
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+    assert _row_texts(orig) == _unit_texts(_parse(a))
+    assert _row_texts(mod) == _unit_texts(_parse(b))
+    assert orig.pages[0].table_rows and mod.pages[0].table_rows          # the table survives as a table on both sides
+    assert len(orig.pages[0].table_rows) == len(mod.pages[0].table_rows) == 2
+
+
+def test_the_original_side_keeps_the_original_documents_character_formatting():
+    # the shared text "bbbb" is bold in the original paragraph, plain in the revised one; the
+    # blackline and the modified side draw the revised formatting, but Original must draw its own
+    a = PR(R("aaaa ") + R("bbbb", "<w:b/>"))
+    b = P("aaaa bbbb")
+    cmp = compare(_parse(a), _parse(b))
+    black = layout(cmp, LayoutOptions(fonts=FR))
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+
+    def bold_of(L, text):
+        return [r.bold for pg in L.pages for ln in pg.lines for r in ln.runs if text in r.text]
+
+    assert not any(bold_of(black, "bbbb"))
+    assert bold_of(orig, "bbbb") and all(bold_of(orig, "bbbb"))
+    assert not any(bold_of(mod, "bbbb"))

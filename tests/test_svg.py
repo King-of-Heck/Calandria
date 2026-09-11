@@ -172,3 +172,14 @@ def test_gutter_numerals_carry_the_class_and_anchor_at_their_right_edge():
     assert num.get("x") == "62.00"          # margin_left 72 - NUMBER_GAP 10: the label's right edge
     assert num.get("font-size") == "7.00"
     assert all(t.get("class") is None for t in _texts(svg) if t.text != "1")
+
+
+def test_side_pages_carry_tint_rects_only_with_marks():
+    L = layout(compare(_parse(P("aaaa bbbb") + P("gone")), _parse(P("aaaa cccc") + P("new"))),
+               LayoutOptions(fonts=FR, side="original"))
+    plain = render_pages(L, resolver=FR)[0]
+    marked = render_pages(L, resolver=FR, marks=True)[0]
+    assert "<rect" not in plain and "<line" not in plain
+    rects = ET.fromstring(marked).findall(f"{{{SVG_NS}}}rect")
+    assert rects and all(r.get("fill") == "#ffd9d9" and r.get("class") == "tint" for r in rects)
+    assert "<line" not in marked

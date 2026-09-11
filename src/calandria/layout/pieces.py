@@ -23,6 +23,7 @@ class LayoutOptions:
     show_deletions: bool = True
     show_formatting: bool = True
     fonts: object | None = None    # a FontResolver (or the test FakeResolver); None = system fonts
+    side: str = "blackline"        # blackline | original | modified (spec §12.1)
 
 
 @dataclass
@@ -103,7 +104,9 @@ def row_pieces(cmp: Comparison, row: Row, opts: LayoutOptions) -> list[Piece]:
         elif seg.m == "ins":
             unit, start, ob = ru, ob, ob + n
         else:
-            unit, start, oa, ob = ru, ob, oa + n, ob + n
+            unit, start = (ou, oa) if opts.side == "original" else (ru, ob)
+            oa += n
+            ob += n
         if seg.m == "del" and not opts.show_deletions:
             continue
         if seg.m == "ins" and not opts.show_insertions:

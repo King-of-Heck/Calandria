@@ -113,7 +113,7 @@ class Layout:
         return {
             "page_count": self.page_count,
             "options": {k: getattr(self.options, k) for k in
-                        ("show_equal", "show_insertions", "show_deletions", "show_formatting")},
+                        ("show_equal", "show_insertions", "show_deletions", "show_formatting", "side")},
             "fonts": {k: asdict(f) for k, f in self.fonts.items()},
             "pages": [{"number": p.number, "w": r(p.w), "h": r(p.h),
                        "margins": [r(p.margin_left), r(p.margin_top), r(p.margin_right), r(p.margin_bottom)],

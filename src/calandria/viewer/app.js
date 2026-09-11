@@ -6,6 +6,7 @@
 // in changes.js and listens for the events dispatched here.
 import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
+import { initStrip } from "./strip.js";
 
 const $ = (id) => document.getElementById(id);
 const PING_MS = 2000;
@@ -380,6 +381,7 @@ function wire() {
   $("noticeClose").addEventListener("click", hideNotice);
   wirePopover();
   initChanges();
+  initStrip();
 }
 
 wire();

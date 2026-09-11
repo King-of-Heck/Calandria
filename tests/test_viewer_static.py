@@ -37,7 +37,7 @@ def test_index_declares_a_module_script_charset_and_title():
     assert '<script type="module" src="/static/app.js">' in html
 
 
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js"])
 def test_every_id_the_script_looks_up_exists(script):
     wanted = set(re.findall(r'\$\("([A-Za-z0-9_-]+)"\)', _read(script)))
     assert wanted, script
@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -228,3 +228,34 @@ def test_the_page_tells_the_server_it_is_going_when_it_unloads():
     # the last ping before a close says hidden=1 (visibilitychange), which would give the server
     # 90 s of patience; a beacon on pagehide takes that back so the stop takes the normal 8 s
     assert '"pagehide"' in js and 'navigator.sendBeacon("/api/ping?hidden=0")' in js
+
+
+# v2.3.0: the majors.
+from pathlib import Path
+
+
+def _node(script, code):
+    """Runs `code` under node with the viewer module imported as `m` (modules whose top level
+    never touches the DOM: strip.js, copy.js)."""
+    uri = Path(str(VIEWER.joinpath(script))).as_uri()
+    r = subprocess.run([shutil.which("node"), "--input-type=module", "-e", f'import * as m from "{uri}";\n{code}'],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return r.stdout.strip()
+
+
+def test_the_strip_is_served_and_sits_after_the_pages():
+    assert "strip.js" in STATIC
+    html = _read("index.html")
+    assert html.index('id="strip"') > html.index("</main>") and html.index('id="strip"') < html.index("</div>\n<dialog")
+    assert 'initStrip()' in _function_body(_read("app.js"), "wire")
+    js = _read("changes.js")
+    assert "calandria:filtered" in _function_body(js, "refilter")
+    assert "calandria:selected" in _function_body(js, "go")
+    assert "calandria:goto" in _function_body(js, "initChanges")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_mark_position_is_page_index_plus_top_over_the_whole_document():
+    out = _node("strip.js", "console.log(m.markTop({page: 1, top: 0}, 792, 4), m.markTop({page: 3, top: 396}, 792, 4));")
+    assert out == "0 0.625"

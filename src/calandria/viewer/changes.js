@@ -41,6 +41,10 @@ export function initChanges() {
     if (i >= 0) go(i);
     e.target.value = "";
   });
+  document.addEventListener("calandria:goto", (e) => {
+    const i = visible.findIndex((en) => en.cid === e.detail.cid);
+    if (i >= 0) go(i);
+  });
   document.addEventListener("keydown", (e) => {
     if (e.target.matches("input, select, textarea") || e.ctrlKey || e.altKey || e.metaKey || $("keys").open) return;
     if (e.key === "n" || e.key === "j" || e.key === "ArrowRight") go(current + 1);
@@ -123,6 +127,7 @@ function refilter() {
   renderList();
   highlight(-1);
   status();
+  document.dispatchEvent(new CustomEvent("calandria:filtered", { detail: { visible: visible.map((en) => en.cid) } }));
 }
 
 function esc(s) {
@@ -194,6 +199,7 @@ function go(i) {
   current = i;
   highlight(i);
   status();
+  document.dispatchEvent(new CustomEvent("calandria:selected", { detail: { cid: visible[i].cid } }));
   for (const li of ol.querySelectorAll("li")) {
     const on = Number(li.dataset.i) === i;
     li.classList.toggle("current", on);

@@ -150,6 +150,16 @@ button:disabled { opacity: .5; cursor: default; }
 #pages .page rect.hl { fill: var(--hl); fill-opacity: .35; }
 #pages .pagenum { position: absolute; right: 0; bottom: -17px; font-size: 12px; color: #1f2937; background: rgba(255,255,255,.7); padding: 0 4px; border-radius: 3px; }
 
+#strip { width: 14px; flex: none; position: relative; background: var(--bar); border-left: 1px solid var(--edge); }
+#strip .mark { position: absolute; left: 2px; right: 2px; height: 2px; padding: 0; min-height: 0; border: 0; border-radius: 0; background: var(--muted); cursor: pointer; }
+#strip .mark.insertion { background: var(--ins); }
+#strip .mark.deletion { background: var(--del); }
+#strip .mark.amendment { background: var(--fmt); }
+#strip .mark.numbering { background: #0f766e; }
+#strip .mark.dim { opacity: .25; }
+#strip .mark.current { height: 4px; left: 0; right: 0; outline: 1px solid var(--ink); z-index: 2; }
+#strip .view { position: absolute; left: 0; right: 0; background: rgba(37,99,235,.18); pointer-events: none; }
+
 #status { display: flex; gap: 16px; padding: 4px 10px; background: var(--bar); border-top: 1px solid var(--edge); }
 #status .msg { margin-left: auto; color: var(--muted); }
 #status .msg.error { color: var(--del); }

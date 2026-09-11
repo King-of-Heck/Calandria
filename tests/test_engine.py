@@ -272,3 +272,15 @@ def test_side_options_and_side_items():
     assert side_items(items, cmp, "blackline") is items
     with pytest.raises(ValueError, match="side"):
         layout(cmp, LayoutOptions(fonts=FR, side="sideways"))
+
+
+def test_side_layouts_lay_out_tables_with_the_side_s_own_text():
+    a = P("Intro") + TBL([["one", "two"], ["three", "old cell"]])
+    b = P("Intro") + TBL([["one", "two"], ["three", "new cell"]])
+    cmp = compare(_parse(a), _parse(b))
+    orig = layout(cmp, LayoutOptions(fonts=FR, side="original"))
+    mod = layout(cmp, LayoutOptions(fonts=FR, side="modified"))
+    assert _row_texts(orig) == _unit_texts(_parse(a))
+    assert _row_texts(mod) == _unit_texts(_parse(b))
+    assert orig.pages[0].table_rows and mod.pages[0].table_rows          # the table survives as a table on both sides
+    assert len(orig.pages[0].table_rows) == len(mod.pages[0].table_rows) == 2

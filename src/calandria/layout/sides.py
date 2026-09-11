@@ -29,7 +29,9 @@ def side_items(items: list[Item], cmp: Comparison, side: str) -> list[Item]:
     """The merged items that exist on `side`. Original: the rows with an original paragraph,
     each carrying the original paragraph itself (its own indents, spacing and list marker); the
     revised document's empty paragraphs and inserted rows are not part of it. Modified: the
-    revised document's paragraphs (empty ones included) minus the deleted rows."""
+    revised document's paragraphs (empty ones included) minus the deleted rows. Table items keep
+    their table location, so a shared table takes the revised-side table's geometry on every
+    side, exactly as the blackline does (see tables.py); only the text is the side's own."""
     if side == "blackline":
         return items
     if side == "original":

@@ -19,13 +19,13 @@ body.busy { cursor: progress; }
 body.closed #bar, body.closed #panel { opacity: .5; }
 
 #bar {
-  display: flex; align-items: center; gap: 10px; padding: 6px 10px; min-height: 40px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; min-height: 40px;
   background: var(--bar); border-bottom: 1px solid var(--edge);
 }
 #bar .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
-#bar .nav { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+#bar .nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 #bar .nav input { width: 4.5em; }
-#bar .nav .count { color: var(--muted); margin-left: 6px; min-width: 9em; }
+#bar .nav .count { color: var(--muted); margin: 0 6px; white-space: nowrap; }
 #bar kbd { font: 11px/1 "Segoe UI", system-ui, sans-serif; color: var(--muted); border: 1px solid var(--edge); border-radius: 3px; padding: 1px 3px; margin-left: 2px; background: var(--bar); }
 #bar .tools { display: flex; align-items: center; gap: 8px; }
 #bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -117,30 +117,31 @@ button:disabled { opacity: .5; cursor: default; }
 #pages { flex: 1; overflow: auto; position: relative; padding: 16px; }
 #pages.over { outline: 3px dashed #2563eb; outline-offset: -6px; }
 #pages .sources { margin: 10vh auto 0; max-width: 46em; text-align: center; }
-#pages .sources .intro { color: #fff; font-size: 15px; margin: 0 0 20px; }
-#pages .sources .cards { display: flex; align-items: stretch; gap: 12px; }
-#pages .sources .card {
+.sources .intro { color: #fff; font-size: 15px; margin: 0 0 20px; }
+.sources .cards { display: flex; align-items: stretch; gap: 12px; }
+.sources .card {
   flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 9em;
   padding: 18px 28px; background: #fff; border: 2px dashed var(--edge); border-radius: 8px; cursor: pointer; position: relative;
 }
-#pages .sources .card.over { border-color: #2563eb; background: #eff6ff; }
-#pages .sources .card.filled { border-style: solid; }
-#pages .sources .card .side { font-weight: 600; font-size: 15px; }
-#pages .sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-#pages .sources .card.filled .name { color: var(--ink); }
-#pages .sources .card .clear { position: absolute; top: 6px; right: 6px; padding: 0 6px; line-height: 18px; }
-#pages .sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
-#pages .sources .go { margin-top: 16px; padding: 8px 28px; font-size: 15px; font-weight: 600; }
-#pages .sources .hint { color: #fff; font-size: 12px; margin: 20px 0 0; }
-#pages .sources.compact { max-width: none; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
-#pages .sources.compact .intro, #pages .sources.compact .hint { display: none; }
-#pages .sources.compact .cards { flex: 1; gap: 8px; }
-#pages .sources.compact .card { flex-direction: row; align-items: center; min-height: 0; padding: 4px 26px 4px 8px; border-radius: 4px; gap: 8px; }
-#pages .sources.compact .card .side { font-size: 13px; flex: none; }
-#pages .sources.compact .card .name { white-space: nowrap; }
-#pages .sources.compact .card .clear { top: 3px; right: 4px; }
-#pages .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
-#pages .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }
+.sources .card.over { border-color: #2563eb; background: #eff6ff; }
+.sources .card.filled { border-style: solid; }
+.sources .card .side { font-weight: 600; font-size: 15px; }
+.sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.sources .card.filled .name { color: var(--ink); }
+.sources .card .clear { position: absolute; top: 6px; right: 6px; padding: 0 6px; line-height: 18px; }
+.sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
+.sources .go { margin-top: 16px; padding: 8px 28px; font-size: 15px; font-weight: 600; }
+.sources .hint { color: #fff; font-size: 12px; margin: 20px 0 0; }
+/* the compact strip: a second toolbar row once a comparison exists */
+#bar .sources.compact { flex: 1 0 100%; margin: 0; max-width: none; display: flex; align-items: center; gap: 10px; text-align: left; }
+#bar .sources.compact .intro, #bar .sources.compact .hint { display: none; }
+#bar .sources.compact .cards { flex: 1; gap: 8px; }
+#bar .sources.compact .card { flex-direction: row; align-items: center; min-height: 0; padding: 3px 4px 3px 8px; border-radius: 4px; gap: 8px; }
+#bar .sources.compact .card .side { font-size: 13px; flex: none; }
+#bar .sources.compact .card .name { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+#bar .sources.compact .card .clear { position: static; flex: none; margin-left: auto; }
+#bar .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
+#bar .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }
 #pages .notice { position: sticky; top: 30vh; z-index: 5; height: 0; overflow: visible; }
 #pages .notice .box {
   margin: 0 auto; max-width: 28em; padding: 16px 20px;

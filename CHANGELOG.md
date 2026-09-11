@@ -1,5 +1,18 @@
 # Calandria changelog
 
+## v2.4.0 — Side-by-side panes (2026-09-11)
+
+- Three toggles in the toolbar, Original, Blackline and Modified, show any combination of the
+  three views side by side in that order (keys 1, 2, 3). Blackline alone is the default for
+  every new comparison; the last pane on cannot be turned off.
+- The Original and Modified panes are clean pages laid out by the same engine as the blackline,
+  with no change marks. Marks (key m) tints the deleted text in Original and the inserted text
+  in Modified.
+- The panes scroll together by content: the paragraph at the top of the pane you scroll is put
+  at the top of the others. Next, Prev, the change list, the density strip, zoom, Fit and Changed
+  pages only act on every pane; the current change is highlighted in each.
+- The PDF is unchanged: it is the blackline.
+
 ## v2.3.3 — Toolbar layout (2026-09-11)
 
 - Once a comparison exists, the Original and Modified fields, Swap and Compare sit in the

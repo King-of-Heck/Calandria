@@ -2,4 +2,4 @@ import calandria
 
 
 def test_version():
-    assert calandria.__version__ == "2.3.0"
+    assert calandria.__version__ == "2.3.1"

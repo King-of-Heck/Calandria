@@ -1,5 +1,20 @@
 # Calandria changelog
 
+## v2.3.0 — Viewer majors (2026-09-10)
+
+- A change-density strip beside the pages: one mark per change at its place in the whole
+  document, coloured by category; the current change's mark is bigger, filtered-out ones dim; a
+  band shows the part of the document on screen; a click jumps to the change.
+- "Changed pages only": a view toggle under Options → On the page hides the pages without a
+  change (page numbers stay real; the counter says how many pages are shown), and a PDF option
+  writes only the first page and the changed pages (`calandria pdf --changed-only`,
+  `/api/pdf?changed_only=1`; the file name says "(changed pages)" and the summary block says
+  how many pages were left out).
+- Copy per change: a ⋯ button on the row, or right-click, copies the modified or the original
+  text of that change; Copy Final in the change list header copies the whole modified document
+  as plain text.
+- The change numbers in the margin stay legible below 100 % zoom on screen; the PDF is unchanged.
+
 ## v2.2.1 — Small fixes (2026-09-10)
 
 - Viewer: the panel's footer note is gone; the caveat stays on the empty-state card.

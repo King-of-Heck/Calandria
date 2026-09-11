@@ -78,6 +78,7 @@ export function applyPanes() {
     state.marks = false;
     $("viewMarks").setAttribute("aria-pressed", "false");
   }
+  if (state.data && (state.views.original || state.views.modified) && state.data.side_marks !== state.marks) restyle();
   $("view").classList.toggle("multi", visiblePanes().length > 1);
   if (state.data) applyZoom();
   document.dispatchEvent(new CustomEvent("calandria:panes", { detail: { views: { ...state.views } } }));

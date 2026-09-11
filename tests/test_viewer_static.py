@@ -365,6 +365,7 @@ def test_panes_js_is_served_wired_and_owns_the_toggles():
     assert "visiblePanes().length === 1" in body           # the last pane on cannot be turned off
     assert '"calandria:panes"' in _function_body(js, "applyPanes")
     assert "$(\"viewMarks\").disabled" in _function_body(js, "applyPanes")
+    assert "state.data.side_marks !== state.marks" in _function_body(js, "applyPanes")
     app = _read("app.js")
     assert "initPanes()" in _function_body(app, "wire") and "views: { original: false, blackline: true, modified: false }" in app
     assert "marks: false" in app and "resetPanes()" in _function_body(app, "compareNow")

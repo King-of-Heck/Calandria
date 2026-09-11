@@ -86,11 +86,20 @@ def _main_html():
     return html[:html.index("<main")], html[html.index("<main"):]
 
 
-def test_the_source_cards_are_in_the_page_area_not_the_toolbar():
+def test_the_source_cards_start_in_the_page_area_and_move_to_the_toolbar():
     head, main = _main_html()
     for id_ in ("cardA", "cardB", "fileA", "fileB", "nameA", "nameB", "clearA", "clearB", "swap", "compare", "sources"):
         assert f'id="{id_}"' in main, id_
         assert f'id="{id_}"' not in head, id_
+    # once a comparison exists the strip is a second toolbar row, and it comes back for a fresh start
+    js = _read("sources.js")
+    body = js[js.index("function placeSources("):]
+    assert 'compact ? $("bar") : $("pages")' in body and "home.append(src)" in body
+    css = _read("style.css")
+    assert "#bar {\n  display: flex; flex-wrap: wrap;" in css
+    assert "#bar .sources.compact { flex: 1 0 100%;" in css
+    # the remove button sits in the row with the name, not pinned to a corner
+    assert "#bar .sources.compact .card .clear { position: static;" in css
 
 
 def test_the_empty_state_teaches():

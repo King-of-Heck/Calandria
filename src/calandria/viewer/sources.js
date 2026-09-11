@@ -1,4 +1,4 @@
-// The two source cards (empty state) that become the compact source strip above the pages once
+// The two source cards (empty state) that become the compact source strip in the toolbar once
 // a comparison exists: pick by click, drop one file onto a card, drop two onto anything, remove,
 // swap, and the one Compare button. The rule for Compare: enabled when both slots hold files and
 // they are not exactly the pair of the current comparison. A two-file drop before any comparison
@@ -102,5 +102,16 @@ export function refreshSources() {
   const both = !!(state.files.a && state.files.b);
   $("swap").disabled = state.closed || state.busy || !(state.files.a || state.files.b);
   $("compare").disabled = state.closed || state.busy || !both || sameAsCompared();
-  $("sources").classList.toggle("compact", !!state.data);
+  placeSources(!!state.data);
+}
+
+// The cards start in the page area (the empty state) and move into the toolbar as a second row
+// once a comparison exists, so the page area holds pages only; the listeners travel with the nodes.
+function placeSources(compact) {
+  const src = $("sources");
+  src.classList.toggle("compact", compact);
+  const home = compact ? $("bar") : $("pages");
+  if (src.parentElement === home) return;
+  if (compact) home.append(src);
+  else home.insertBefore(src, $("notice").nextSibling);
 }

@@ -313,7 +313,7 @@ function updatePageStatus() {
   }
   const page = currentPage();
   const k = state.data.changed_pages.length;
-  const shown = state.changedOnly ? ` · ${k} changed page${k === 1 ? "" : "s"}` : "";
+  const shown = !state.changedOnly ? "" : k === 0 ? " · no changed pages, page 1 shown" : ` · ${k} changed page${k === 1 ? "" : "s"}`;
   $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}${shown}`;
   if (state.fit) showZoom();
 }

@@ -37,12 +37,14 @@
         <label><input type="checkbox" id="showInsertions" checked> Show insertions</label>
         <label><input type="checkbox" id="showDeletions" checked> Show deletions</label>
         <label><input type="checkbox" id="showFormatting" checked> Show formatting changes</label>
+        <label title="Hide the pages without a change (the page numbers stay)"><input type="checkbox" id="showChangedOnly"> Changed pages only</label>
         <h4>Rendering</h4>
         <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
         <label><input type="checkbox" id="changeBars" checked> Change bars</label>
         <h4>PDF</h4>
         <label>Summary <select id="report">
           <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
+        <label title="Write only the first page and the pages with a change"><input type="checkbox" id="changedOnly"> Changed pages only</label>
         <div class="quitrow"><button id="quit" class="quit" title="Stop Calandria (closing the window does the same)">Quit Calandria</button></div>
       </div>
     </details>

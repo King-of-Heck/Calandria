@@ -17,7 +17,7 @@ const NOTICE_DELAY_MS = 400;                        // Task 4 uses it; declared 
 const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "showInsertions", "showDeletions", "showFormatting"];
 
 export const state = {
-  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, shown: 1,
+  data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, changedOnly: false, shown: 1,
   renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -217,14 +217,25 @@ function renderPages() {
     page.appendChild(n);
     main.appendChild(page);
   });
+  applyChangedOnly();
   applyZoom();
   main.scrollTop = keepScroll;
+}
+
+// The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
+// the page numbers stay real (data-page), and the strip keeps mapping the whole document.
+function applyChangedOnly() {
+  const main = $("pages");
+  const keep = new Set(state.data ? state.data.changed_pages : []);
+  for (const page of main.querySelectorAll(".page")) {
+    page.hidden = state.changedOnly && !keep.has(Number(page.dataset.page));
+  }
   updatePageStatus();
 }
 
 function applyZoom() {
   const main = $("pages");
-  for (const page of main.querySelectorAll(".page")) {
+  for (const page of main.querySelectorAll(".page:not([hidden])")) {
     const svg = page.querySelector("svg");
     const { w, h } = pageSize(svg);
     const z = state.fit ? Math.max(ZOOM_MIN, (main.clientWidth - 48) / (w * PT)) : state.zoom;
@@ -251,7 +262,7 @@ function currentPage() {
   const main = $("pages");
   const top = main.getBoundingClientRect().top + 8;
   let current = null;
-  for (const p of main.querySelectorAll(".page")) {
+  for (const p of main.querySelectorAll(".page:not([hidden])")) {
     if (current === null || p.getBoundingClientRect().top <= top) current = p;
     else break;
   }
@@ -288,12 +299,13 @@ function updatePageStatus() {
     return;
   }
   const page = currentPage();
-  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}`;
+  const shown = state.changedOnly ? ` · ${state.data.changed_pages.length} changed pages` : "";
+  $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${state.data.page_count}${shown}`;
   if (state.fit) showZoom();
 }
 
 function savePdf() {
-  const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&report=${$("report").value}`;
+  const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&report=${$("report").value}&changed_only=${$("changedOnly").checked ? 1 : 0}`;
   window.location.href = `/api/pdf?${q}`;
 }
 
@@ -350,6 +362,15 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
+  try { state.changedOnly = localStorage.getItem("calandria.changedOnly") === "on"; } catch (e) { /* storage off */ }
+  $("showChangedOnly").checked = state.changedOnly;
+  $("showChangedOnly").addEventListener("change", (e) => {
+    state.changedOnly = e.target.checked;
+    try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
+    applyChangedOnly();
+    if (state.fit) applyZoom();
+    document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
+  });
   $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });
   main.addEventListener("wheel", (e) => {
     if (state.closed) return;

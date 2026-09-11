@@ -259,3 +259,19 @@ def test_the_strip_is_served_and_sits_after_the_pages():
 def test_mark_position_is_page_index_plus_top_over_the_whole_document():
     out = _node("strip.js", "console.log(m.markTop({page: 1, top: 0}, 792, 4), m.markTop({page: 3, top: 396}, 792, 4));")
     assert out == "0 0.625"
+
+
+def test_changed_pages_only_is_a_view_toggle_and_a_pdf_flag():
+    html = _read("index.html")
+    popover = html[html.index('id="options"'):html.index("</details>")]
+    on_page = popover[popover.index("On the page"):popover.index("<h4>Rendering")]
+    pdf = popover[popover.index("<h4>PDF"):]
+    assert 'id="showChangedOnly"' in on_page and 'id="changedOnly"' in pdf
+    js = _read("app.js")
+    option_ids = re.search(r"const OPTION_IDS = \[(.*?)\];", js).group(1)
+    assert "showChangedOnly" not in option_ids and "changedOnly" not in option_ids
+    assert '"calandria.changedOnly"' in js
+    assert "changed_only=" in _function_body(js, "savePdf")
+    assert ".page:not([hidden])" in _function_body(js, "currentPage")
+    assert ".page:not([hidden])" in _function_body(js, "applyZoom")
+    assert "changed pages" in _function_body(js, "updatePageStatus")

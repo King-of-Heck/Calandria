@@ -1,5 +1,13 @@
 # Calandria changelog
 
+## v2.3.3 — Toolbar layout (2026-09-11)
+
+- Once a comparison exists, the Original and Modified fields, Swap and Compare sit in the
+  toolbar as a second row instead of above the pages; the remove buttons sit in line with
+  the file names. The empty state's drop cards are unchanged.
+- The change navigation (First, Prev, Next, Last, the number box and the count) sits at the
+  right of the toolbar, beside the zoom controls and Save PDF.
+
 ## v2.3.2 — Tile filters (2026-09-11)
 
 - The Insertions and Deletions tiles filter the way their counts count: an amendment (deleted

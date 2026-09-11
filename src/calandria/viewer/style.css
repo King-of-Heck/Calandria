@@ -25,7 +25,7 @@ body.closed #bar, body.closed #panel { opacity: .5; }
 #bar .brand { font-weight: 600; font-size: 15px; margin-right: 6px; }
 #bar .nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 #bar .nav input { width: 4.5em; }
-#bar .nav .count { color: var(--muted); margin-left: 6px; min-width: 9em; }
+#bar .nav .count { color: var(--muted); margin: 0 6px; white-space: nowrap; }
 #bar kbd { font: 11px/1 "Segoe UI", system-ui, sans-serif; color: var(--muted); border: 1px solid var(--edge); border-radius: 3px; padding: 1px 3px; margin-left: 2px; background: var(--bar); }
 #bar .tools { display: flex; align-items: center; gap: 8px; }
 #bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

@@ -1,5 +1,15 @@
 # Calandria changelog
 
+## v2.4.5 — Shortcut without PowerShell (2026-09-12)
+
+- The `Calandria` shortcut beside the launcher is written by Calandria itself, in the Windows
+  shortcut file format, instead of through a PowerShell command: a machine that runs PowerShell
+  in Constrained Language Mode refused that command, so no shortcut appeared and its errors
+  filled the log. The shortcut is rewritten only when its contents change, so a synced folder
+  is left alone. The log carries one `shortcut` line per start.
+- "Defer page rendering" is on by default and has moved from the main display to
+  Options > Rendering, where it can still be turned off. It is remembered.
+
 ## v2.4.4 — Compare on request (2026-09-12)
 
 - Dropping documents fills the two slots and waits for the Compare button; a first drop of two

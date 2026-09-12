@@ -1,5 +1,10 @@
 # Calandria changelog
 
+## v2.4.1 — Icon (2026-09-11)
+
+- Calandria has an icon: a delta with a red and a blue bar. It is embedded in the page, so the
+  app window's title bar and taskbar entry show it with no file to fetch and nothing new to install.
+
 ## v2.4.0 — Side-by-side panes (2026-09-11)
 
 - Three toggles in the toolbar, Original, Blackline and Modified, show any combination of the

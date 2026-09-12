@@ -500,3 +500,19 @@ def test_highlight_calls_highlight_sides_directly():
 def test_marks_follows_the_busy_rule():
     assert "viewMarks" in _function_body(_read("app.js"), "enableControls")
     assert "state.busy" in _function_body(_read("panes.js"), "toggleMarks")
+
+
+def test_index_carries_an_inline_svg_icon():
+    """The app window's icon is the page's favicon: an inline data URI (no fetch, works offline)
+    holding the delta mark — a stroked triangle with a red and a blue bar."""
+    from urllib.parse import unquote
+
+    html = _read("index.html")
+    href = re.search(r'<link rel="icon" type="image/svg\+xml" href="([^"]+)">', html).group(1)
+    assert href.startswith("data:image/svg+xml,")
+    svg = unquote(href[len("data:image/svg+xml,"):])
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+    assert "<metadata" not in svg and "http" not in svg.replace("http://www.w3.org/2000/svg", "")
+    assert svg.count("<rect") == 2 and svg.count("<path") == 1
+    assert "#FF0000" in svg.upper() and "#0000FF" in svg.upper()
+    assert len(href) < 600

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Iterator
 
 from ..model import Document, Paragraph, Table, iter_paragraphs
-from .chars import FmtSpan, bold_runs, fmt_spans
+from .chars import FmtSpan, char_fmt
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,8 @@ def units(doc: Document) -> list[Unit]:
     for p, loc in walk(doc):
         if p.is_empty:
             continue
-        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold_runs(p), fmt_spans(p), loc, p))
+        bold, spans = char_fmt(p)
+        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold, spans, loc, p))
     return out
 
 

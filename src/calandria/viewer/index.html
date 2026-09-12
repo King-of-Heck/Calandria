@@ -48,6 +48,7 @@
         <h4>Rendering</h4>
         <label>Rendering set <select id="renderSet"><option>Standard</option></select></label>
         <label><input type="checkbox" id="changeBars" checked> Change bars</label>
+        <label title="Lay out the pages as they come into view instead of all at once (faster on a slow machine)"><input type="checkbox" id="deferPages" checked> Defer page rendering</label>
         <h4>PDF</h4>
         <label>Summary <select id="report">
           <option value="last" selected>Last page</option><option value="first">First page</option><option value="none">None</option></select></label>
@@ -101,7 +102,6 @@
           </div>
         </div>
         <button id="compare" class="go" disabled>Compare</button>
-        <label class="test" title="Lay out the pages as they come into view instead of all at once (a test of the page rendering)"><input type="checkbox" id="deferPages"> Defer page rendering</label>
         <p class="hint">Change bars, change numbers and the summary exist only in this view and in the PDF; nothing is written to Word. Closing this window closes Calandria.</p>
       </section>
     </main>

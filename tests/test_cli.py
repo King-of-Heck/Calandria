@@ -203,6 +203,26 @@ def test_version_subcommand_takes_no_arguments(capsys):
     assert "usage" in capsys.readouterr().out.lower()
 
 
+def test_serve_writes_the_launchers_shortcut_and_logs_it(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    cmd = tmp_path / "Calandria.cmd"
+    cmd.write_text("@echo off\r\n")
+    (tmp_path / "Calandria.ico").write_bytes(b"\0\0\1\0")
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", f"--shortcut={cmd}"]) == 0
+    out = capsys.readouterr().out
+    assert "shortcut written" in out and (tmp_path / "Calandria.lnk").stat().st_size > 0x4C
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", f"--shortcut={cmd}"]) == 0
+    assert "shortcut unchanged" in capsys.readouterr().out
+
+
+def test_a_failed_shortcut_is_one_line_and_the_app_still_serves(capsys, monkeypatch):
+    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    monkeypatch.setattr("calandria.__main__.write_shortcut", lambda p: (_ for _ in ()).throw(PermissionError("read only")))
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", "--shortcut=x.cmd"]) == 0
+    out = capsys.readouterr().out
+    assert "shortcut failed 'read only'" in out and '"url"' in out
+
+
 def test_serve_grace_usage_errors(capsys):
     assert main(["serve", "--grace=-1"]) == 2
     assert main(["serve", "--grace=soon"]) == 2

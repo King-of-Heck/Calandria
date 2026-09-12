@@ -9,7 +9,7 @@
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                             [--report=first|last|none] [--changed-only]
     python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
-                              [--no-browser] [--verbose]
+                              [--shortcut=LAUNCHER.cmd] [--no-browser] [--verbose]
     python -m calandria version
 """
 import json
@@ -29,6 +29,7 @@ from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
 from .pdf.writer import REPORTS, render
 from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
+from .server.shortcut import write_shortcut
 
 USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
@@ -40,7 +41,7 @@ USAGE = ("usage: python -m calandria dump <file.docx>\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
          "                               [--report=first|last|none] [--changed-only]\n"
          "       python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]\n"
-         "                                 [--no-browser] [--verbose]\n"
+         "                                 [--shortcut=LAUNCHER.cmd] [--no-browser] [--verbose]\n"
          "       python -m calandria version")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
@@ -48,7 +49,7 @@ _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
 _PDF_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--no-change-bars", "--changed-only"}
 _PDF_VALUED = {"--render-set", "--report"}
 _SERVE_FLAGS = {"--no-browser", "--verbose"}
-_SERVE_VALUED = {"--port", "--idle", "--grace", "--log"}
+_SERVE_VALUED = {"--port", "--idle", "--grace", "--log", "--shortcut"}
 LOG_ROTATE_BYTES = 1_000_000
 
 
@@ -176,6 +177,14 @@ def main(argv) -> int:
 
         def ready(url):
             emit(json.dumps({"url": url}))
+
+        if values.get("--shortcut"):
+            # the launcher's shortcut with the icon, refreshed on every start so a moved folder is
+            # followed; a failure is one log line, never a stopped app
+            try:
+                emit("shortcut " + write_shortcut(values["--shortcut"]))
+            except Exception as e:                                          # noqa: BLE001
+                emit("shortcut failed " + ascii(str(e)))
 
         # under pythonw.exe without --log there is no stderr for the access log to go to
         verbose = "--verbose" in flags and sys.stderr is not None

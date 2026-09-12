@@ -392,19 +392,26 @@ def test_requests_name_the_visible_sides_and_a_shown_pane_fetches_its_pages():
     assert "blk ? buildIndex(blk.rows, pageTop, scale) : []" in _function_body(_read("sync.js"), "refreshSync")
 
 
-def test_a_drop_never_compares_by_itself_and_the_defer_toggle_exists():
-    # v2.4.4: every fill waits for the Compare button; the "Defer page rendering" test toggle
-    # puts content-visibility on the pages and warms the rest up in idle time.
+def test_a_drop_never_compares_by_itself_and_the_defer_toggle_lives_under_options():
+    # v2.4.4: every fill waits for the Compare button; the "Defer page rendering" toggle puts
+    # content-visibility on the pages and warms the rest up in idle time. v2.4.5: it is on by
+    # default and sits under Options > Rendering, not on the main display.
     src = _read("sources.js")
     assert "handlers.compare()" not in _function_body(src, "takeDrop")
-    assert 'id="deferPages"' in _read("index.html")
+    html = _read("index.html")
+    popover = html[html.index('<div class="popover">'):html.index("</details>")]
+    assert 'id="deferPages" checked' in popover
+    assert popover.index("<h4>Rendering</h4>") < popover.index('id="deferPages"') < popover.index("<h4>PDF</h4>")
+    assert html.count('id="deferPages"') == 1 and 'class="test"' not in html
     app = _read("app.js")
+    assert "deferPages: true," in _read("app.js")
+    assert 'localStorage.getItem("calandria.deferPages") !== "off"' in app       # absent = on
     assert "export function deferPage(" in app and "export function warmPages(" in app
     assert 'contentVisibility = state.deferPages ? "auto" : ""' in _function_body(app, "deferPage")
     assert "deferPage(page)" in _function_body(app, "renderPages") and "warmPages()" in _function_body(app, "renderPages")
     assert "deferPage(page)" in _function_body(_read("panes.js"), "renderPanes")
     assert "containIntrinsicSize" in _function_body(app, "applyZoom")
-    assert 'localStorage.getItem("calandria.deferPages")' in app
+    assert ".test" not in _read("style.css")
 
 
 def test_zoom_changed_pages_and_lookups_span_the_panes():

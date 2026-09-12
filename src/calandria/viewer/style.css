@@ -141,8 +141,6 @@ button:disabled { opacity: .5; cursor: default; }
 .sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
 .sources .go { margin-top: 16px; padding: 8px 28px; font-size: 15px; font-weight: 600; }
 .sources .hint { color: #fff; font-size: 12px; margin: 20px 0 0; }
-.sources .test { color: #fff; font-size: 12px; margin-top: 10px; display: inline-flex; align-items: center; gap: 4px; }
-#bar .sources.compact .test { color: inherit; margin: 0 0 0 8px; }
 /* the compact strip: a second toolbar row once a comparison exists */
 #bar .sources.compact { flex: 1 0 100%; margin: 0; max-width: none; display: flex; align-items: center; gap: 10px; text-align: left; }
 #bar .sources.compact .intro, #bar .sources.compact .hint { display: none; }

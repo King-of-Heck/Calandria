@@ -22,7 +22,7 @@ const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "show
 export const state = {
   data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, changedOnly: false, shown: 1,
   views: { original: false, blackline: true, modified: false }, marks: false,
-  deferPages: false,                               // v2.4.4 test: off-screen pages skip layout until scrolled to
+  deferPages: true,                                // off-screen pages skip layout until scrolled to (Options)
   renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -47,7 +47,7 @@ export function pageSize(svg) {
   return { w, h };
 }
 
-// Deferred page rendering (the "Defer page rendering" test toggle): a page carries
+// Deferred page rendering ("Defer page rendering" under Options, on by default): a page carries
 // content-visibility: auto with its size reserved, so the browser lays out and paints only the
 // pages near the view, and the rest as they scroll in. After the comparison is on screen the
 // remaining pages are laid out in idle time, a few per slice, so a later scroll finds them ready.
@@ -435,7 +435,7 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
-  try { state.deferPages = localStorage.getItem("calandria.deferPages") === "on"; } catch (e) { /* storage off */ }
+  try { state.deferPages = localStorage.getItem("calandria.deferPages") !== "off"; } catch (e) { /* storage off */ }
   $("deferPages").checked = state.deferPages;
   $("deferPages").addEventListener("change", (e) => {
     state.deferPages = e.target.checked;

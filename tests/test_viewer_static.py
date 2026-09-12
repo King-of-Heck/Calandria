@@ -392,6 +392,21 @@ def test_requests_name_the_visible_sides_and_a_shown_pane_fetches_its_pages():
     assert "blk ? buildIndex(blk.rows, pageTop, scale) : []" in _function_body(_read("sync.js"), "refreshSync")
 
 
+def test_a_drop_never_compares_by_itself_and_the_defer_toggle_exists():
+    # v2.4.4: every fill waits for the Compare button; the "Defer page rendering" test toggle
+    # puts content-visibility on the pages and warms the rest up in idle time.
+    src = _read("sources.js")
+    assert "handlers.compare()" not in _function_body(src, "takeDrop")
+    assert 'id="deferPages"' in _read("index.html")
+    app = _read("app.js")
+    assert "export function deferPage(" in app and "export function warmPages(" in app
+    assert 'contentVisibility = state.deferPages ? "auto" : ""' in _function_body(app, "deferPage")
+    assert "deferPage(page)" in _function_body(app, "renderPages") and "warmPages()" in _function_body(app, "renderPages")
+    assert "deferPage(page)" in _function_body(_read("panes.js"), "renderPanes")
+    assert "containIntrinsicSize" in _function_body(app, "applyZoom")
+    assert 'localStorage.getItem("calandria.deferPages")' in app
+
+
 def test_zoom_changed_pages_and_lookups_span_the_panes():
     app = _read("app.js")
     assert "visiblePanes()" in _function_body(app, "applyZoom") and "pane.el.clientWidth" in _function_body(app, "applyZoom")

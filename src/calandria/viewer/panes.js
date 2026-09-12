@@ -3,7 +3,7 @@
 // cannot be turned off. Marks tints the changed text of the side panes (a redraw request). The
 // side panes hold pages drawn by the server exactly like the blackline's, without change marks;
 // the blackline pane is #pages, unchanged. Nothing here scrolls: sync.js does that.
-import { applyZoom, restyle, state } from "./app.js";
+import { applyZoom, deferPage, restyle, state } from "./app.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -118,6 +118,7 @@ export function renderPanes() {
       n.className = "pagenum";
       n.textContent = `Page ${i + 1} of ${blk.page_count}`;
       page.appendChild(n);
+      deferPage(page);
       pane.appendChild(page);
     });
     pane.scrollTop = keepScroll;

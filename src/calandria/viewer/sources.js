@@ -1,9 +1,9 @@
 // The two source cards (empty state) that become the compact source strip in the toolbar once
 // a comparison exists: pick by click, drop one file onto a card, drop two onto anything, remove,
 // swap, and the one Compare button. The rule for Compare: enabled when both slots hold files and
-// they are not exactly the pair of the current comparison. A two-file drop before any comparison
-// compares at once (the first-use path); every other fill waits for Compare. Swap re-runs at
-// once when a comparison exists, because the sides only make sense together.
+// they are not exactly the pair of the current comparison. Every fill waits for Compare, a
+// two-file drop included (v2.4.4: a drop never compares by itself). Swap re-runs at once when a
+// comparison exists, because the sides only make sense together.
 import { state } from "./app.js";
 
 const $ = (id) => document.getElementById(id);
@@ -66,11 +66,9 @@ function takeDrop(list, slot) {
   if (state.closed || state.busy) return;    // no drop while a request is in flight: a second compare could finish first
   const files = docxOnly(list);
   if (!files.length) return;
-  const before = !state.data;
   if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
   else if (slot) setFile(slot, files[0]);
   else setFile(state.files.a ? "b" : "a", files[0]);
-  if (before && files.length >= 2 && state.files.a && state.files.b) handlers.compare();
 }
 
 function setFile(slot, file) {

@@ -22,6 +22,7 @@ const OPTION_IDS = ["optIgnoreCase", "optCountNumbering", "showUnchanged", "show
 export const state = {
   data: null, files: { a: null, b: null }, compared: null, busy: false, zoom: 1, fit: false, changedOnly: false, shown: 1,
   views: { original: false, blackline: true, modified: false }, marks: false,
+  deferPages: false,                               // v2.4.4 test: off-screen pages skip layout until scrolled to
   renderSet: "Standard", changeBars: true, closed: false, timer: null, noticeTimer: null,
   // Every server round trip that changes what is on screen takes a ticket; a reply whose ticket
   // is no longer the current one lost the race (a second option toggled while the first was in
@@ -44,6 +45,43 @@ export async function api(path, body) {
 export function pageSize(svg) {
   const [, , w, h] = svg.getAttribute("viewBox").split(/\s+/).map(Number);
   return { w, h };
+}
+
+// Deferred page rendering (the "Defer page rendering" test toggle): a page carries
+// content-visibility: auto with its size reserved, so the browser lays out and paints only the
+// pages near the view, and the rest as they scroll in. After the comparison is on screen the
+// remaining pages are laid out in idle time, a few per slice, so a later scroll finds them ready.
+export function deferPage(page) {
+  const svg = page.querySelector("svg");
+  if (!svg) return;
+  const { w, h } = pageSize(svg);
+  const z = Number(page.dataset.scale) || state.zoom;
+  page.style.contentVisibility = state.deferPages ? "auto" : "";
+  page.style.containIntrinsicSize = state.deferPages ? `auto ${w * z}pt ${h * z}pt` : "";
+}
+
+let warmGen = 0;
+export function warmPages() {
+  const gen = ++warmGen;
+  if (!state.deferPages || !state.data) return;
+  const pages = [];
+  for (const pane of visiblePanes()) pages.push(...pane.el.querySelectorAll(".page[style*='content-visibility: auto']"));
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(() => fn({ timeRemaining: () => 8 }), 16));
+  let i = 0;
+  const slice = (deadline) => {
+    if (gen !== warmGen) return;
+    do {
+      if (i >= pages.length) return;
+      pages[i++].style.contentVisibility = "visible";        // laid out now, in the background
+    } while (deadline.timeRemaining() > 4);
+    idle(slice);
+  };
+  idle(slice);
+}
+
+function applyDefer() {
+  for (const side of SIDE_ORDER) for (const page of paneOf(side).querySelectorAll(".page")) deferPage(page);
+  warmPages();
 }
 
 function msg(text, isError) {
@@ -231,6 +269,7 @@ function renderPages() {
     n.className = "pagenum";
     n.textContent = `Page ${i + 1} of ${state.data.page_count}`;
     page.appendChild(n);
+    deferPage(page);
     main.appendChild(page);
   });
   renderPanes();
@@ -239,6 +278,7 @@ function renderPages() {
   main.scrollTop = keepScroll;
   refreshSync();
   updatePageStatus();
+  warmPages();
 }
 
 // The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
@@ -265,6 +305,7 @@ export function applyZoom() {
       svg.setAttribute("width", `${w * z}pt`);
       svg.setAttribute("height", `${h * z}pt`);
       page.style.width = `${w * z}pt`;
+      if (page.style.contentVisibility === "auto") page.style.containIntrinsicSize = `auto ${w * z}pt ${h * z}pt`;
       // 7 pt at 100 % is 9.33 px; below that the numerals are held at GUTTER_MIN_PX on screen
       const floor = z < 1 ? `${Math.max(7, GUTTER_MIN_PX / (z * PT)).toFixed(2)}px` : "";
       for (const t of svg.querySelectorAll("text.gutter")) t.style.fontSize = floor;
@@ -394,6 +435,13 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
+  try { state.deferPages = localStorage.getItem("calandria.deferPages") === "on"; } catch (e) { /* storage off */ }
+  $("deferPages").checked = state.deferPages;
+  $("deferPages").addEventListener("change", (e) => {
+    state.deferPages = e.target.checked;
+    try { localStorage.setItem("calandria.deferPages", state.deferPages ? "on" : "off"); } catch (e2) { /* storage off */ }
+    if (state.data) applyDefer();
+  });
   try { state.changedOnly = localStorage.getItem("calandria.changedOnly") === "on"; } catch (e) { /* storage off */ }
   $("showChangedOnly").checked = state.changedOnly;
   $("showChangedOnly").addEventListener("change", (e) => {

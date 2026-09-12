@@ -1,5 +1,16 @@
 # Calandria changelog
 
+## v2.4.3 — Faster compare (2026-09-11)
+
+- The compare runs about three times faster: the formatting of a paragraph is worked out run by
+  run instead of character by character. The result is the same to the character (the old walk
+  stays in the tests as the reference).
+- The Original and Modified pages are laid out and drawn the first time their pane is turned on,
+  and kept for the rest of the comparison; a new comparison draws the blackline alone. A pane
+  turned on while a request is still running waits for it.
+- The log (`%LOCALAPPDATA%\Calandria\calandria.log`) carries one `timing` line per compare,
+  relayout and redraw, with the page count and the seconds of every stage.
+
 ## v2.4.2 — Shortcut with the icon (2026-09-11)
 
 - `Calandria.ico` ships in the zip and the launcher writes a `Calandria` shortcut beside itself with

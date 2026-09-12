@@ -1,5 +1,13 @@
 # Calandria changelog
 
+## v2.4.4 — Compare on request (2026-09-12)
+
+- Dropping documents fills the two slots and waits for the Compare button; a first drop of two
+  files no longer compares by itself.
+- A test toggle, "Defer page rendering", lays out the pages as they come into view instead of all
+  at once, and finishes the rest in the background once the comparison is on screen. It is off
+  by default and remembered.
+
 ## v2.4.3 — Faster compare (2026-09-11)
 
 - The compare runs about three times faster: the formatting of a paragraph is worked out run by

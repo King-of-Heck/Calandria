@@ -5,7 +5,7 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.4.1 (see `CHANGELOG.md`).
+Status: v2.4.2 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
@@ -18,7 +18,11 @@ new zip and delete the old folder. If nothing appears, look at
 `%LOCALAPPDATA%\Calandria\calandria.log`. Its first line is written by `Calandria.cmd` itself,
 so a missing or empty log means the launcher never ran.
 
-Inside the folder: `Calandria.cmd`, this file, the changelog and `_internal\` (`python\`, the
+The first launch also writes a `Calandria` shortcut beside `Calandria.cmd`, carrying the icon (a
+`.cmd` cannot). Double-click the shortcut, or drag it to the Desktop or pin it, to start Calandria from
+then on; every launch refreshes it, so it follows the folder if you move it.
+
+Inside the folder: `Calandria.cmd`, `Calandria.ico`, this file, the changelog and `_internal\` (`python\`, the
 official embeddable Python with the libraries extracted into `Lib\site-packages`, and
 `app\calandria\`, the program). `_internal\python\python.exe -m calandria <command>` runs the
 command line from the folder.

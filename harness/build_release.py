@@ -8,7 +8,7 @@ extracted next to it, the app and the launcher, in one folder.
 Layout of the zip (one top folder; one thing to double-click):
 
     Calandria-<version>/
-      Calandria.cmd  README.md  CHANGELOG.md
+      Calandria.cmd  Calandria.ico  README.md  CHANGELOG.md
       _internal/python/   python.exe, pythonw.exe, python314.zip, python314._pth
                           (python314.zip / . / Lib\\site-packages / ..\\app), the DLLs,
                           Lib/site-packages/<wheels extracted>
@@ -32,6 +32,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+TOP_FILES = ("Calandria.cmd", "Calandria.ico", "README.md", "CHANGELOG.md")   # beside _internal
 PY_VERSION = "3.14.7"
 EMBED_URL = f"https://www.python.org/ftp/python/{PY_VERSION}/python-{PY_VERSION}-embed-amd64.zip"
 EMBED_SHA256 = "d297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15"
@@ -234,7 +235,7 @@ def stage(version: str) -> Path:
         raise RuntimeError(f"unexpected native extension(s): {', '.join(p.name for p in bad)}")
     print("app")
     stage_app(ROOT / "src" / "calandria", paths["app"])
-    for name in ("Calandria.cmd", "README.md", "CHANGELOG.md"):
+    for name in TOP_FILES:
         shutil.copyfile(ROOT / name, stage_dir / name)
     return stage_dir
 

@@ -1,5 +1,11 @@
 # Calandria changelog
 
+## v2.4.2 — Shortcut with the icon (2026-09-11)
+
+- `Calandria.ico` ships in the zip and the launcher writes a `Calandria` shortcut beside itself with
+  that icon, refreshed on every launch: a `.cmd` cannot carry an icon, a shortcut can. Start
+  Calandria from the shortcut, or drag it to the Desktop or pin it.
+
 ## v2.4.1 — Icon (2026-09-11)
 
 - Calandria has an icon: a delta with a red and a blue bar. It is embedded in the page, so the

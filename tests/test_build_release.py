@@ -484,3 +484,7 @@ def test_notes_and_notes_out_together_write_the_file_and_print(tmp_path, capfdbi
     assert br.main(["--notes", "--notes-out", str(out)]) == 0
     printed = capfdbinary.readouterr().out
     assert printed.startswith(b"**Calandria**") and out.read_bytes() == printed
+
+
+def test_top_files_include_the_launcher_its_icon_and_the_docs():
+    assert br.TOP_FILES == ("Calandria.cmd", "Calandria.ico", "README.md", "CHANGELOG.md")

@@ -273,7 +273,9 @@ function go(i) {
 }
 
 function jumpTo(lead, k) {
-  const rows = state.data.sides[lead.side].rows;
+  const blk = state.data.sides[lead.side];
+  if (!blk) return;                                  // the pane's pages have not arrived yet
+  const rows = blk.rows;
   let j = k;
   while (j >= 0 && !rows[String(j)]) j--;          // an absent row (an insertion seen from Original): the nearest earlier row
   if (j < 0) return;

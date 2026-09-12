@@ -7,7 +7,7 @@
 import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
 import { initStrip } from "./strip.js";
-import { SIDE_ORDER, initPanes, leadPane, paneOf, renderPanes, resetPanes, visiblePanes } from "./panes.js";
+import { SIDE_ORDER, initPanes, leadPane, paneOf, renderPanes, requestedSides, resetPanes, visiblePanes } from "./panes.js";
 import { initSync, refreshSync } from "./sync.js";
 
 const $ = (id) => document.getElementById(id);
@@ -144,7 +144,8 @@ async function compareNow() {
   busy(true, `Comparing ${a.name} with ${b.name}…`);
   try {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
-                   options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks };
+                   options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks,
+                   sides: ["blackline"] };              // a new comparison opens with the blackline alone (resetPanes)
     const d = await api("/api/compare", body);
     if (state.seq !== seq) return;
     if (state.closed) return;
@@ -163,7 +164,7 @@ export async function relayout() {
   const seq = ++state.seq;
   busy(true, "Laying out…");
   try {
-    const d = await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks });
+    const d = await api("/api/layout", { options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks, sides: requestedSides() });
     if (state.seq !== seq) return;
     show(d);
   } catch (e) {
@@ -178,7 +179,7 @@ export async function restyle() {
   const seq = ++state.seq;
   busy(true, "Redrawing…");
   try {
-    const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&marks=${state.marks ? 1 : 0}`;
+    const q = `render_set=${encodeURIComponent(state.renderSet)}&change_bars=${state.changeBars ? 1 : 0}&marks=${state.marks ? 1 : 0}&sides=${requestedSides().join(",")}`;
     const d = await api(`/api/pages?${q}`);
     if (state.seq !== seq) return;
     Object.assign(state.data, { pages: d.pages, report_lines: d.report_lines, render_set: d.render_set, change_bars: d.change_bars, sides: d.sides, side_marks: d.side_marks });
@@ -327,8 +328,9 @@ function updatePageStatus() {
   }
   const page = currentPage();
   const lead = leadPane();
-  const count = lead ? state.data.sides[lead.side].page_count : state.data.page_count;
-  const k = (lead ? state.data.sides[lead.side].changed_pages : state.data.changed_pages).length;
+  const blk = lead ? state.data.sides[lead.side] : null;       // absent until a newly shown pane's pages arrive
+  const count = blk ? blk.page_count : state.data.page_count;
+  const k = (blk ? blk.changed_pages : state.data.changed_pages).length;
   const shown = !state.changedOnly ? "" : k === 0 ? " · no changed pages, page 1 shown" : ` · ${k} changed page${k === 1 ? "" : "s"}`;
   $("pageStatus").textContent = `Page ${page ? page.dataset.page : 1} of ${count}${shown}`;
   if (state.fit) showZoom();

@@ -373,6 +373,25 @@ def test_panes_js_is_served_wired_and_owns_the_toggles():
     assert "renderPanes()" in _function_body(app, "renderPages")
 
 
+def test_requests_name_the_visible_sides_and_a_shown_pane_fetches_its_pages():
+    # v2.4.3: the server lays out and draws a side on its first request; the viewer asks only for
+    # the panes on screen, a new comparison for the blackline alone, and a pane turned on whose
+    # pages the data lacks brings a redraw request. Toggles wait for the request in flight.
+    js = _read("panes.js")
+    assert "export function requestedSides(" in js and "state.views[s]" in _function_body(js, "requestedSides")
+    assert "missingSide()" in _function_body(js, "applyPanes") and "!state.busy" in _function_body(js, "applyPanes")
+    assert "if (state.busy) return;" in _function_body(js, "toggleView")
+    assert "if (!blk) continue;" in _function_body(js, "renderPanes")
+    assert "!state.data.sides[side]" in _function_body(js, "highlightSides")
+    app = _read("app.js")
+    assert 'sides: ["blackline"]' in _function_body(app, "compareNow")
+    assert "sides: requestedSides()" in _function_body(app, "relayout")
+    assert '&sides=${requestedSides().join(",")}' in _function_body(app, "restyle")
+    assert "blk ? blk.page_count : state.data.page_count" in _function_body(app, "updatePageStatus")
+    assert "if (!blk) return;" in _function_body(_read("changes.js"), "jumpTo")
+    assert "blk ? buildIndex(blk.rows, pageTop, scale) : []" in _function_body(_read("sync.js"), "refreshSync")
+
+
 def test_zoom_changed_pages_and_lookups_span_the_panes():
     app = _read("app.js")
     assert "visiblePanes()" in _function_body(app, "applyZoom") and "pane.el.clientWidth" in _function_body(app, "applyZoom")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from time import perf_counter
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 
@@ -119,10 +120,26 @@ def _stem(name: str) -> str:
     return os.path.splitext(os.path.basename(name))[0]
 
 
+def parse_sides(value) -> list[str]:
+    """The sides a pages request wants, in SIDES order without duplicates; None or empty = all
+    three. Takes a list (a JSON body) or a comma-separated string (a query); an unknown name is a
+    BadRequest."""
+    if value is None or value == "" or value == []:
+        return list(SIDES)
+    names = value.split(",") if isinstance(value, str) else value
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise BadRequest("sides must be a list of side names")
+    bad = sorted(set(names) - set(SIDES))
+    if bad:
+        raise BadRequest("unknown sides: " + ", ".join(bad) + "; expected " + ", ".join(SIDES))
+    return [s for s in SIDES if s in names]
+
+
 class Session:
-    def __init__(self, fonts=None, clock=None):
+    def __init__(self, fonts=None, clock=None, log=None):
         self.fonts = fonts                      # a FontResolver / FakeResolver; None = system fonts, resolved once
         self._clock = clock or datetime.now
+        self._log = log                         # a callable taking one ASCII line (the timing line), or None
         self.lock = threading.Lock()            # the app serializes every API call through it
         self.last_seen = time.monotonic()
         self.a_name = self.b_name = None
@@ -130,8 +147,14 @@ class Session:
         self.options = Options()
         self.cmp: Comparison | None = None
         self.layout: Layout | None = None
-        self.layouts: dict[str, Layout] = {}     # side -> Layout; layouts["blackline"] is self.layout
+        # side -> Layout; layouts["blackline"] is self.layout, laid out with the comparison. Original
+        # and Modified are laid out on their first request (v2.4.3) and kept until the next commit,
+        # as is the drawing of every (side, rendering set, change bars, marks) asked for.
+        self.layouts: dict[str, Layout] = {}
+        self._base: LayoutOptions | None = None
+        self._drawn: dict[tuple, list[str]] = {}
         self.when: datetime | None = None
+        self.timings: list[tuple[str, float]] = []   # (stage, seconds) since begin(): the timing line
 
     @property
     def loaded(self) -> bool:
@@ -139,6 +162,30 @@ class Session:
 
     def touch(self) -> None:
         self.last_seen = time.monotonic()
+
+    # -- timings ------------------------------------------------------------------------------
+    def begin(self) -> None:
+        """Start the timings of one API call (the handlers call it under the lock)."""
+        self.timings = []
+
+    def _timed(self, stage: str, t0: float) -> None:
+        self.timings.append((stage, perf_counter() - t0))
+
+    def timing_line(self, what: str) -> str:
+        """One ASCII line: the call, the blackline page count, the seconds of every stage the call
+        ran (parse, compare, layout.<side>, render.<side>) and their sum."""
+        parts = [f"{stage}={secs:.3f}" for stage, secs in self.timings]
+        pages = self.layout.page_count if self.layout is not None else 0
+        total = sum(secs for _stage, secs in self.timings)
+        return " ".join(["timing", what, f"pages={pages}", *parts, f"total={total:.3f}"])
+
+    def log_timings(self, what: str) -> str:
+        """Emit the timing line of the call just made (to the log sink, when there is one)."""
+        line = self.timing_line(what)
+        if self._log is not None:
+            self._log(line)
+        self.timings = []
+        return line
 
     def state(self) -> dict:
         names = {"original": self.a_name, "modified": self.b_name} if self.loaded else None
@@ -149,7 +196,9 @@ class Session:
              options: Options | None = None) -> None:
         """Nothing is committed until the new pair has compared AND laid out, so a bad file or a
         failure part way leaves the session showing exactly what it was showing before."""
+        t0 = perf_counter()
         a, b = _parse(a_name, a_bytes), _parse(b_name, b_bytes)
+        self._timed("parse", t0)
         self._commit(a_name, b_name, a, b, options or self.options)
 
     def relayout(self, options: Options) -> None:
@@ -161,13 +210,39 @@ class Session:
         if self.fonts is None:
             self.fonts = default_resolver()
         when = self._clock()
+        t0 = perf_counter()
         cmp = compare(a_doc, b_doc, ignore_case=options.ignore_case,
                       count_numbering=options.count_numbering)
+        self._timed("compare", t0)
         base = options.layout_options(self.fonts)
-        lays = {side: layout(cmp, replace(base, side=side)) for side in SIDES}
+        t0 = perf_counter()
+        lay = layout(cmp, replace(base, side="blackline"))
+        self._timed("layout.blackline", t0)
         self.a_name, self.b_name, self.a_doc, self.b_doc = a_name, b_name, a_doc, b_doc
         self.options, self.when, self.cmp = options, when, cmp
-        self.layout, self.layouts = lays["blackline"], lays
+        self.layout, self.layouts, self._base, self._drawn = lay, {"blackline": lay}, base, {}
+
+    def side_layout(self, side: str) -> Layout:
+        """The layout of one side, laid out on its first request. A side that fails to lay out
+        raises and changes nothing: the comparison and the sides already laid out stay as shown."""
+        self._need()
+        if side not in SIDES:
+            raise BadRequest(f"unknown side {side!r}; expected " + ", ".join(SIDES))
+        if side not in self.layouts:
+            t0 = perf_counter()
+            lay = layout(self.cmp, replace(self._base, side=side))
+            self._timed("layout." + side, t0)
+            self.layouts[side] = lay
+        return self.layouts[side]
+
+    def _draw(self, side: str, render_set: str, change_bars: bool, marks: bool) -> list[str]:
+        key = (side, render_set, change_bars, marks)
+        if key not in self._drawn:
+            lay = self.side_layout(side)
+            t0 = perf_counter()
+            self._drawn[key] = render_pages(lay, render_set, change_bars, self.fonts, marks)
+            self._timed("render." + side, t0)
+        return self._drawn[key]
 
     def _need(self) -> None:
         if not self.loaded:
@@ -177,19 +252,24 @@ class Session:
         return report_info(self.cmp, self.a_name, self.b_name, render_set, when or self.when)
 
     # -- payloads ---------------------------------------------------------------------------
-    def pages(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False) -> dict:
+    def pages(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False,
+              sides: list[str] | None = None) -> dict:
+        """The drawn pages of the sides asked for (all three by default); "pages" is the
+        blackline's when it is among them, else empty."""
         self._need()
         check_render(render_set)
-        sides = {}
-        for side, lay in self.layouts.items():
-            sides[side] = {"pages": render_pages(lay, render_set, change_bars, self.fonts, marks),
-                           "page_count": lay.page_count, "changed_pages": changed_pages(lay),
-                           "rows": row_map(lay)}
+        out = {}
+        for side in parse_sides(sides):
+            lay = self.side_layout(side)
+            out[side] = {"pages": self._draw(side, render_set, change_bars, marks),
+                         "page_count": lay.page_count, "changed_pages": changed_pages(lay),
+                         "rows": row_map(lay)}
         return {"render_set": render_set, "change_bars": change_bars, "side_marks": marks,
-                "pages": sides["blackline"]["pages"], "sides": sides,
+                "pages": out["blackline"]["pages"] if "blackline" in out else [], "sides": out,
                 "report_lines": report_lines(self._info(render_set))}
 
-    def payload(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False) -> dict:
+    def payload(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False,
+                sides: list[str] | None = None) -> dict:
         self._need()
         anchors, marks_ = change_marks(self.layout)
         d = self.cmp.to_dict()
@@ -199,7 +279,7 @@ class Session:
                 "anchors": anchors, "marks": marks_,
                 "render_sets": list(RENDER_SETS),
                 "render_set_styles": {k: v.to_dict() for k, v in RENDER_SETS.items()},
-                **self.pages(render_set, change_bars, marks)}
+                **self.pages(render_set, change_bars, marks, sides)}
 
     def pdf(self, render_set: str = "Standard", change_bars: bool = True, report: str = "last",
             changed_only: bool = False) -> tuple[bytes, str]:

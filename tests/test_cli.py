@@ -220,6 +220,24 @@ def test_serve_writes_the_url_line_to_the_log_file(tmp_path, capsys, monkeypatch
     assert json.loads(capsys.readouterr().out.splitlines()[0])["url"] == json.loads(lines[1])["url"]
 
 
+def test_serve_hands_the_timing_sink_to_the_server_and_it_writes_console_and_log(tmp_path, capsys, monkeypatch):
+    seen = {}
+
+    def fake_serve(**kw):
+        seen.update(kw)
+        kw["ready"]("http://127.0.0.1:1/")
+        kw["log"]("timing compare pages=1 total=0.010")
+    monkeypatch.setattr("calandria.__main__.serve", fake_serve)
+    log = tmp_path / "calandria.log"
+    assert main(["serve", "--no-browser", f"--log={log}"]) == 0
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[-1] == "timing compare pages=1 total=0.010" and json.loads(lines[-2])["url"] == "http://127.0.0.1:1/"
+    out = capsys.readouterr().out.splitlines()
+    assert out[-1] == "timing compare pages=1 total=0.010"
+    assert main(["serve", "--no-browser"]) == 0                  # no log file: the console alone
+    assert capsys.readouterr().out.splitlines()[-1] == "timing compare pages=1 total=0.010"
+
+
 def test_open_log_binds_missing_streams_and_rotates(tmp_path, monkeypatch):
     log = tmp_path / "c.log"
     log.write_bytes(b"x" * 1_000_001)

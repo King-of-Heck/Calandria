@@ -75,7 +75,8 @@ export function refreshSync() {
     }
     const pageTop = (page) => (map.has(page) ? map.get(page).top : null);
     const scale = (page) => (map.has(page) ? map.get(page).scale : 4 / 3);
-    indexes[side] = buildIndex(data.sides[side].rows, pageTop, scale);
+    const blk = data.sides[side];                    // absent for a side the data was not asked for
+    indexes[side] = blk ? buildIndex(blk.rows, pageTop, scale) : [];
   }
 }
 

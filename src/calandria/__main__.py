@@ -168,17 +168,20 @@ def main(argv) -> int:
                 # is visible); say so where a console exists and carry on without one
                 print("cannot open the log file", ascii(values["--log"]), ascii(str(e)), file=sys.stderr)
 
-        def ready(url):
-            line = json.dumps({"url": url})
+        def emit(line):
+            """One line to the console (when there is one) and to the log (when there is one)."""
             print(line, flush=True)
             if logf is not None and logf is not sys.stdout:
                 print(line, file=logf, flush=True)
+
+        def ready(url):
+            emit(json.dumps({"url": url}))
 
         # under pythonw.exe without --log there is no stderr for the access log to go to
         verbose = "--verbose" in flags and sys.stderr is not None
         try:
             serve(port=port, open_browser="--no-browser" not in flags, idle=idle, grace=grace,
-                  verbose=verbose, ready=ready)
+                  verbose=verbose, ready=ready, log=emit)
         finally:
             if logf is not None and logf is not sys.stdout and logf is not sys.stderr:
                 logf.close()

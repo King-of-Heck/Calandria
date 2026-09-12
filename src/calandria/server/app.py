@@ -16,7 +16,7 @@ from importlib import resources
 from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
-from .session import BadRequest, NoComparison, Session, check_render, parse_options
+from .session import BadRequest, NoComparison, Session, check_render, parse_options, parse_sides
 from .launch import open_viewer
 
 STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8",
@@ -96,7 +96,7 @@ def _same_origin(headers, port: int) -> bool:
     return site is None or site in ("same-origin", "none")
 
 
-def _style(body: dict) -> tuple[str, bool, bool]:
+def _style(body: dict) -> tuple[str, bool, bool, list[str]]:
     render_set = body.get("render_set", "Standard")
     if not isinstance(render_set, str):
         raise _Bad(400, "render_set must be a string")
@@ -107,7 +107,7 @@ def _style(body: dict) -> tuple[str, bool, bool]:
     marks = body.get("marks", False)
     if not isinstance(marks, bool):
         raise _Bad(400, "marks must be true or false")
-    return render_set, change_bars, marks
+    return render_set, change_bars, marks, parse_sides(body.get("sides"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -295,30 +295,37 @@ class Handler(BaseHTTPRequestHandler):
         body = self._body()
         a_name, a_data = _file(body, "a")
         b_name, b_data = _file(body, "b")
-        render_set, change_bars, marks = _style(body)
+        render_set, change_bars, marks, sides = _style(body)
         with session.lock:
+            session.begin()
             options = parse_options(body.get("options", {}), session.options)
             session.load(a_name, a_data, b_name, b_data, options)
-            payload = session.payload(render_set, change_bars, marks)
+            payload = session.payload(render_set, change_bars, marks, sides)
+            session.log_timings("compare")
         self._json(payload)      # written outside the lock: a slow client must not stall the rest
 
     def _api_layout(self, session, query):
         body = self._body()
         if "options" not in body:
             raise _Bad(400, "options are required")
-        render_set, change_bars, marks = _style(body)
+        render_set, change_bars, marks, sides = _style(body)
         with session.lock:
+            session.begin()
             options = parse_options(body["options"], session.options)
             session.relayout(options)
-            payload = session.payload(render_set, change_bars, marks)
+            payload = session.payload(render_set, change_bars, marks, sides)
+            session.log_timings("layout")
         self._json(payload)
 
     def _api_pages(self, session, query):
         rs = query.get("render_set", ["Standard"])[0]
         bars = _flag(query, "change_bars", True)
         marks = _flag(query, "marks", False)
+        sides = parse_sides(query.get("sides", [""])[0])
         with session.lock:
-            payload = session.pages(rs, bars, marks)
+            session.begin()
+            payload = session.pages(rs, bars, marks, sides)
+            session.log_timings("pages")
         self._json(payload)
 
     def _api_pdf(self, session, query):
@@ -393,9 +400,10 @@ def run(server, idle: float = 0.0, grace: float = 0.0) -> None:
 
 
 def serve(port: int = 0, open_browser: bool = True, idle: float = DEFAULT_IDLE, grace: float = DEFAULT_GRACE,
-          verbose: bool = False, fonts=None, ready=None) -> None:
+          verbose: bool = False, fonts=None, ready=None, log=None) -> None:
+    """`log`, when given, takes the one-line timing report of every compare / layout / pages call."""
     logging.getLogger("fontTools").setLevel(logging.ERROR)     # "'created' timestamp seems very low"
-    session = Session(fonts=fonts)
+    session = Session(fonts=fonts, log=log)
     server = make_server(session, port=port, verbose=verbose)
     url = url_of(server)
     if ready is not None:

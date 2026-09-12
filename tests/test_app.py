@@ -668,6 +668,38 @@ def test_compare_and_pages_carry_the_sides_and_honour_marks(srv):
     status, d = _json(srv.url + "api/layout", "POST", {"options": {}, "marks": True})
     assert status == 200 and d["side_marks"] is True and "<rect" in d["sides"]["original"]["pages"][0]
     assert _json(srv.url + "api/layout", "POST", {"options": {}, "marks": "yes"}) == (400, {"error": "marks must be true or false"})
+    # v2.4.3: a request names the sides it wants; the others are laid out and drawn only when asked for.
+    status, d = _json(srv.url + "api/pages?sides=modified")
+    assert status == 200 and set(d["sides"]) == {"modified"} and d["pages"] == []
+    status, d = _json(srv.url + "api/pages?sides=blackline,original")
+    assert status == 200 and set(d["sides"]) == {"blackline", "original"} and d["pages"] == d["sides"]["blackline"]["pages"]
+    assert _json(srv.url + "api/pages?sides=left") == (400, {"error": "unknown sides: left; expected blackline, original, modified"})
+    status, d = _json(srv.url + "api/layout", "POST", {"options": {}, "sides": ["blackline"]})
+    assert status == 200 and set(d["sides"]) == {"blackline"} and set(srv.session.layouts) == {"blackline"}
+    assert _json(srv.url + "api/layout", "POST", {"options": {}, "sides": "blackline"})[1]["sides"].keys() == {"blackline"}
+    assert _json(srv.url + "api/layout", "POST", {"options": {}, "sides": [2]}) == (400, {"error": "sides must be a list of side names"})
+    body = _compare_body(P("aaaa") + P("old"), P("aaaa") + P("new"))
+    body["sides"] = ["blackline"]
+    status, d = _json(srv.url + "api/compare", "POST", body)
+    assert status == 200 and set(d["sides"]) == {"blackline"} and set(srv.session.layouts) == {"blackline"}
     body = _compare_body(P("aaaa") + P("old"), P("aaaa") + P("new"))
     body["marks"] = True
     assert _json(srv.url + "api/compare", "POST", body)[1]["side_marks"] is True
+
+
+
+def test_every_compare_layout_and_pages_call_logs_one_timing_line():
+    lines = []
+    served = Served(Session(fonts=FakeResolver(), clock=lambda: WHEN, log=lines.append))
+    try:
+        assert _json(served.url + "api/compare", "POST", _compare_body())[0] == 200
+        assert _json(served.url + "api/layout", "POST", {"options": {}, "sides": ["blackline"]})[0] == 200
+        assert _json(served.url + "api/pages?sides=original")[0] == 200
+        assert _json(served.url + "api/pages?sides=left")[0] == 400        # a refused call logs nothing
+        assert _json(served.url + "api/state")[0] == 200
+    finally:
+        served.stop()
+    assert [ln.split()[:2] for ln in lines] == [["timing", "compare"], ["timing", "layout"], ["timing", "pages"]]
+    assert "parse=" in lines[0] and "compare=" in lines[0] and "render.blackline=" in lines[0]
+    assert "layout.original=" in lines[2] and "compare=" not in lines[2]
+    assert all(ln.isascii() for ln in lines)

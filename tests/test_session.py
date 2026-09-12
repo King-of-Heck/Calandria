@@ -204,14 +204,15 @@ def test_row_map_names_the_first_line_of_every_row():
     assert row_map(s.layout) == {0: {"page": 1, "top": 72.0, "height": 12.0},
                                  1: {"page": 1, "top": 84.0, "height": 12.0},
                                  2: {"page": 1, "top": 96.0, "height": 12.0}}
-    assert row_map(s.layouts["original"]) == {0: {"page": 1, "top": 72.0, "height": 12.0},
-                                              1: {"page": 1, "top": 84.0, "height": 12.0}}
+    assert row_map(s.side_layout("original")) == {0: {"page": 1, "top": 72.0, "height": 12.0},
+                                                  1: {"page": 1, "top": 84.0, "height": 12.0}}
 
 
 def test_the_session_lays_out_three_sides_and_ships_them():
     s = _session(P("aaaa") + P("old old"), P("aaaa") + P("new new"))
-    assert set(s.layouts) == {"blackline", "original", "modified"} and s.layouts["blackline"] is s.layout
+    assert set(s.layouts) == {"blackline"} and s.layouts["blackline"] is s.layout   # v2.4.3: the sides wait
     d = s.payload()
+    assert set(s.layouts) == {"blackline", "original", "modified"}
     assert d["side_marks"] is False and set(d["sides"]) == {"blackline", "original", "modified"}
     for side in ("blackline", "original", "modified"):
         blk = d["sides"][side]
@@ -232,3 +233,89 @@ def test_marks_tint_the_side_pages_and_a_relayout_rebuilds_every_side():
     assert marked["pages"] == plain["pages"]                     # the blackline never changes with marks
     s.relayout(Options(show_equal=False))
     assert "aaaa" not in s.payload()["sides"]["modified"]["pages"][0]
+
+
+# v2.4.3: the sides are laid out and drawn on request and kept until the next commit.
+
+from calandria.server.session import BadRequest, parse_sides
+
+
+def test_parse_sides_takes_a_list_or_a_query_string_in_side_order():
+    assert parse_sides(None) == parse_sides("") == parse_sides([]) == ["blackline", "original", "modified"]
+    assert parse_sides("modified,original") == ["original", "modified"]
+    assert parse_sides(["blackline", "blackline"]) == ["blackline"]
+    with pytest.raises(BadRequest, match="unknown sides: left"):
+        parse_sides("left,blackline")
+    with pytest.raises(BadRequest, match="list of side names"):
+        parse_sides([1])
+    with pytest.raises(BadRequest, match="unknown side"):
+        _session().side_layout("left")
+
+
+def test_pages_lays_out_only_the_sides_asked_for():
+    s = _session(P("aaaa") + P("old"), P("aaaa") + P("new"))
+    d = s.pages(sides=["blackline"])
+    assert set(d["sides"]) == {"blackline"} and set(s.layouts) == {"blackline"} and d["pages"] == d["sides"]["blackline"]["pages"]
+    d = s.pages(sides=["original"])
+    assert set(d["sides"]) == {"original"} and set(s.layouts) == {"blackline", "original"}
+    assert d["pages"] == [] and "old" in d["sides"]["original"]["pages"][0]
+    assert set(s.payload(sides=["modified", "blackline"])["sides"]) == {"blackline", "modified"}
+
+
+def test_side_layouts_and_drawings_are_kept_until_the_next_commit(monkeypatch):
+    import calandria.server.session as mod
+    s = _session(P("aaaa") + P("old"), P("aaaa") + P("new"))
+    calls = []
+    real_layout, real_render = mod.layout, mod.render_pages
+    monkeypatch.setattr(mod, "layout", lambda *a, **k: (calls.append("layout"), real_layout(*a, **k))[1])
+    monkeypatch.setattr(mod, "render_pages", lambda *a, **k: (calls.append("render"), real_render(*a, **k))[1])
+    first = s.pages(sides=["original"])
+    assert calls == ["layout", "render"]
+    again = s.pages(sides=["original"])
+    assert calls == ["layout", "render"] and again == first                 # nothing recomputed
+    s.pages(marks=True, sides=["original"])
+    assert calls == ["layout", "render", "render"]                        # a new style draws again, no relayout
+    s.pages(marks=True, sides=["original"])
+    assert calls == ["layout", "render", "render"]
+    s.relayout(Options(show_equal=False))                                 # a commit drops every side and drawing
+    assert set(s.layouts) == {"blackline"} and calls[-1] == "layout"
+    n = len(calls)
+    s.pages(sides=["original"])
+    assert calls[n:] == ["layout", "render"]
+
+
+def test_a_side_that_fails_to_lay_out_leaves_the_comparison_shown(monkeypatch):
+    import calandria.server.session as mod
+    s = _session(P("aaaa") + P("old"), P("aaaa") + P("new"))
+    before = s.pages(sides=["blackline"])
+
+    def boom(*a, **k):
+        raise RuntimeError("no")
+    monkeypatch.setattr(mod, "layout", boom)
+    with pytest.raises(RuntimeError):
+        s.pages(sides=["original"])
+    assert s.loaded and set(s.layouts) == {"blackline"} and s.pages(sides=["blackline"]) == before
+
+
+def test_the_timing_line_names_the_stages_of_the_call():
+    lines = []
+    s = Session(fonts=FR, clock=lambda: WHEN, log=lines.append)
+    s.begin()
+    s.load("a.docx", _docx(P("aaaa")), "b.docx", _docx(P("aaaa bbbb")))
+    s.payload(sides=["blackline"])
+    line = s.log_timings("compare")
+    assert lines == [line] and line.isascii()
+    words = line.split()
+    assert words[:3] == ["timing", "compare", "pages=1"]
+    assert [w.split("=")[0] for w in words[3:]] == ["parse", "compare", "layout.blackline", "render.blackline", "total"]
+    assert all(float(w.split("=")[1]) >= 0 for w in words[3:])
+    assert s.timings == []
+    s.begin()
+    s.pages(sides=["original", "modified"])
+    words = s.log_timings("pages").split()
+    assert [w.split("=")[0] for w in words[3:]] == ["layout.original", "render.original", "layout.modified",
+                                                    "render.modified", "total"]
+    s.begin()
+    s.pages(sides=["original"])
+    assert s.log_timings("pages").split()[3:] == ["total=0.000"]           # everything was kept
+    assert Session(fonts=FR).timing_line("pages") == "timing pages pages=0 total=0.000"   # no sink, nothing loaded

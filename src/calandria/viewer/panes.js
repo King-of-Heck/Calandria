@@ -26,6 +26,18 @@ export function leadPane() {
   return v.find((p) => p.side === "blackline") || v[0];
 }
 
+// The sides a request asks the server to draw: the visible panes only (v2.4.3). A side is laid
+// out and drawn on the server the first time a request names it, so a hidden pane costs nothing.
+export function requestedSides() {
+  return SIDE_ORDER.filter((s) => state.views[s]);
+}
+
+// A visible pane whose pages the current data does not carry (its side was hidden when the data
+// was requested): the reason for a redraw request.
+function missingSide() {
+  return !!state.data && visiblePanes().some((p) => !state.data.sides[p.side]);
+}
+
 export function initPanes() {
   for (const side of SIDE_ORDER) $(BUTTON[side]).addEventListener("click", () => toggleView(side));
   $("viewMarks").addEventListener("click", toggleMarks);
@@ -43,6 +55,7 @@ export function initPanes() {
 }
 
 function toggleView(side) {
+  if (state.busy) return;                          // a pane may need a request; one at a time
   if (state.closed || !state.data) return;
   if (state.views[side] && visiblePanes().length === 1) return;   // the last pane on stays on
   state.views[side] = !state.views[side];
@@ -78,20 +91,24 @@ export function applyPanes() {
     state.marks = false;
     $("viewMarks").setAttribute("aria-pressed", "false");
   }
-  if (state.data && (state.views.original || state.views.modified) && state.data.side_marks !== state.marks) restyle();
+  // A redraw request when a visible pane has no pages yet, or the side panes are tinted the wrong
+  // way; never while a request is in flight (a new comparison resets the panes before it shows).
+  if (state.data && !state.busy && (missingSide() || (sides && state.data.side_marks !== state.marks))) restyle();
   $("view").classList.toggle("multi", visiblePanes().length > 1);
   if (state.data) applyZoom();
   document.dispatchEvent(new CustomEvent("calandria:panes", { detail: { views: { ...state.views } } }));
   document.dispatchEvent(new CustomEvent("calandria:resized"));
 }
 
-// The side panes' pages, from data.sides; the blackline's are app.js's renderPages.
+// The side panes' pages, from data.sides; the blackline's are app.js's renderPages. A side the
+// data does not carry (hidden when it was requested) leaves its pane empty.
 export function renderPanes() {
   for (const side of ["original", "modified"]) {
     const pane = paneOf(side);
     const keepScroll = pane.scrollTop;
     for (const p of pane.querySelectorAll(".page")) p.remove();
     const blk = state.data.sides[side];
+    if (!blk) continue;
     blk.pages.forEach((svg, i) => {
       const page = document.createElement("div");
       page.className = "page";
@@ -113,7 +130,7 @@ export function highlightSides(cid) {
   for (const side of ["original", "modified"]) {
     const pane = paneOf(side);
     for (const r of pane.querySelectorAll("rect.hl")) r.remove();
-    if (cid === null || !state.data) continue;
+    if (cid === null || !state.data || !state.data.sides[side]) continue;
     const rows = state.data.sides[side].rows;
     const k = state.data.changes.findIndex((row, i) => row.cid === cid && rows[String(i)]);
     if (k < 0) continue;

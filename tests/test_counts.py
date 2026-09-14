@@ -65,7 +65,9 @@ def test_summary_counts_numbered_rows_per_category_and_tallies_runs():
     assert cats.count("insertion") == c.summary["insertions"]
     assert cats.count("deletion") == c.summary["deletions"]
     assert cats.count("amendment") == c.summary["amendments"]
-    assert c.summary["insertions"] + c.summary["deletions"] + c.summary["amendments"] == c.summary["total"]
+    numbering_only = cats.count("numbering")
+    assert (c.summary["insertions"] + c.summary["deletions"] + c.summary["amendments"] + numbering_only
+            == c.summary["total"])
     ins = sum(run_counts(r.segments)[0] for r in by_cid)
     dele = sum(run_counts(r.segments)[1] for r in by_cid)
     assert (c.summary["inserted_runs"], c.summary["deleted_runs"]) == (ins, dele)
@@ -79,5 +81,6 @@ def test_summary_counts_numbered_rows_per_category_and_tallies_runs():
 def test_tiles_sum_to_total_on_every_corpus_pair(pair):
     c = compare(parse_docx((CORPUS / pair["a"]).read_bytes()), parse_docx((CORPUS / pair["b"]).read_bytes()))
     s = c.summary
-    assert s["insertions"] + s["deletions"] + s["amendments"] == s["total"]
+    numbering_only = sum(1 for r in c.rows if r.cid is not None and r.category == "numbering")
+    assert s["insertions"] + s["deletions"] + s["amendments"] + numbering_only == s["total"]
     assert s["inserted_runs"] >= s["insertions"] and s["deleted_runs"] >= s["deletions"]

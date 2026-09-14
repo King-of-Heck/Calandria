@@ -49,7 +49,7 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Options: ignore case {_onoff(info.ignore_case)}; count numbering changes {_onoff(info.count_numbering)}",
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
         f"amendments {s['amendments']}, numbering {s['numbering']}); "
-        f"inserted passages {s.get('inserted_runs', 0)}, deleted passages {s.get('deleted_runs', 0)}; "
+        f"inserted passages {s['inserted_runs']}, deleted passages {s['deleted_runs']}; "
         f"formatting {s['formatting']} (not counted)",
     ]
     if info.changed_only:

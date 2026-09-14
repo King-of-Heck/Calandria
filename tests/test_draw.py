@@ -1,6 +1,7 @@
 import io
 from datetime import datetime
 
+from calandria.diff.changes import empty_summary
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
@@ -273,7 +274,8 @@ def test_content_bottom():
 
 
 def _info():
-    s = {"total": 1, "insertions": 1, "deletions": 0, "amendments": 0, "numbering": 0, "formatting": 0}
+    s = empty_summary()
+    s.update({"total": 1, "insertions": 1})
     return ReportInfo("a.docx", "b.docx", WHEN, "Standard", s, False, True)
 
 

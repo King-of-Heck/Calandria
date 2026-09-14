@@ -4,7 +4,7 @@ from datetime import datetime
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
-from calandria.layout.pages import FontRef, Page, PlacedLine
+from calandria.layout.pages import FontRef, Layout, Page, PlacedLine
 from calandria.layout.pieces import LayoutOptions
 from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
                                 DrawResult, PdfOptions, bar_intervals, changed_pages, cid_label, content_bottom,
@@ -362,6 +362,16 @@ def test_changed_only_emits_the_first_page_and_the_changed_pages():
     assert res == DrawResult(1, None)
     p, res = _layout(_lay(P("aaaa"), P("aaaa")), None, report="none", changed_only=True)
     assert res == DrawResult(1, None) and p.pages == 1                  # page 1 always
+
+
+def test_an_empty_layout_draws_nothing_and_places_no_report():
+    L = _lay(P("aaaa"), P("aaaa"))
+    empty = Layout(pages=[], fonts=L.fonts, options=L.options)
+    for where in ("first", "last", "none"):
+        p, res = _layout(empty, _info(), report=where)
+        assert res == DrawResult(0, None) and p.pages == 0
+    p, res = _layout(empty, None, report="last", changed_only=True)
+    assert res == DrawResult(0, None) and p.pages == 0
 
 
 def test_changed_only_report_placement_and_line():

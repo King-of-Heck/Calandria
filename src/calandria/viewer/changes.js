@@ -4,7 +4,7 @@
 // highlight of the selected change (a translucent band over every line and changed table row
 // carrying its number).
 import { pageSize, flash, state } from "./app.js";
-import { textOf } from "./copy.js";
+import { linesOf, textOf } from "./copy.js";
 import { highlightSides, leadPane } from "./panes.js";
 import { syncFrom } from "./sync.js";
 
@@ -69,9 +69,19 @@ export function initChanges() {
   }
   document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { e.preventDefault(); closeMenu(); } });
+  // The focus stays in the open menu: Tab, Shift+Tab and the arrows cycle through its items.
+  menu.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const items = [...menu.querySelectorAll("[role=menuitem]")];
+    const back = e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey);
+    const i = items.indexOf(document.activeElement);
+    items[(i + (back ? -1 : 1) + items.length) % items.length].focus();
+    e.preventDefault();
+  });
   $("copyFinal").addEventListener("click", () => {
     if (!data) return;
-    copyText(textOf(data.changes, "modified"), `Copied ${data.changes.filter((r) => r.ni !== null).length} paragraphs`);
+    const lines = linesOf(data.changes, "modified");
+    copyText(lines.join("\n"), `Copied ${lines.length} paragraphs`);
   });
   initPanel();
 }
@@ -201,15 +211,23 @@ function renderList() {
     li.innerHTML = `<span class="badge">${BADGE[en.category] || en.category}</span><span class="no">${en.cid}</span>` +
                    `<span class="pg" title="Page">${en.page === null ? "" : "p. " + en.page}</span>` +
                    (hasTables ? `<span class="tbl" title="${en.loc === "table" ? "In a table" : ""}">${en.loc === "table" ? "⊞" : ""}</span>` : "") +
-                   `<button type="button" class="more" aria-haspopup="menu" title="Copy this change's text">⋯</button>` +
+                   `<button type="button" class="more" aria-haspopup="menu" tabindex="-1" title="Copy this change's text (Shift+F10 on the row)">⋯</button>` +
                    `<span class="text">${changeText(en, CONTEXT_SHORT)}</span>`;
+    // The list is one tab stop (the current row), so the ⋯ buttons are not: the keyboard opens
+    // the current row's menu with Shift+F10 or the Menu key, as a context menu is opened.
+    const menuAt = () => {
+      const r = li.querySelector(".more").getBoundingClientRect();
+      openMenu(en, li, r.left, r.bottom + 2);
+    };
     li.addEventListener("click", () => go(i));
-    li.addEventListener("keydown", (e) => { if (e.key === "Enter") go(i); });
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") go(i);
+      else if (!state.closed && (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) { e.preventDefault(); menuAt(); }
+    });
     li.querySelector(".more").addEventListener("click", (e) => {
       if (state.closed) return;   // the button is disabled anyway; harmless
       e.stopPropagation();
-      const r = e.currentTarget.getBoundingClientRect();
-      openMenu(en, li, r.left, r.bottom + 2);
+      menuAt();
     });
     li.addEventListener("contextmenu", (e) => {
       if (state.closed) return;

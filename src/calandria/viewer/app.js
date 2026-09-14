@@ -7,7 +7,7 @@
 import { initChanges } from "./changes.js";
 import { initSources, refreshSources } from "./sources.js";
 import { initStrip } from "./strip.js";
-import { SIDE_ORDER, initPanes, leadPane, paneOf, renderPanes, requestedSides, resetPanes, visiblePanes } from "./panes.js";
+import { SIDE_ORDER, buildPages, initPanes, leadPane, paneOf, renderPanes, requestedSides, resetPanes, visiblePanes } from "./panes.js";
 import { initSync, refreshSync } from "./sync.js";
 
 const $ = (id) => document.getElementById(id);
@@ -259,19 +259,7 @@ function show(data) {
 function renderPages() {
   const main = $("pages");
   const keepScroll = main.scrollTop;
-  for (const p of main.querySelectorAll(".page")) p.remove();
-  state.data.pages.forEach((svg, i) => {
-    const page = document.createElement("div");
-    page.className = "page";
-    page.dataset.page = String(i + 1);
-    page.innerHTML = svg;
-    const n = document.createElement("div");
-    n.className = "pagenum";
-    n.textContent = `Page ${i + 1} of ${state.data.page_count}`;
-    page.appendChild(n);
-    deferPage(page);
-    main.appendChild(page);
-  });
+  buildPages(main, state.data);                    // the blackline: pages and page_count at the top level
   renderPanes();
   applyChangedOnly();
   applyZoom();
@@ -279,6 +267,21 @@ function renderPages() {
   refreshSync();
   updatePageStatus();
   warmPages();
+}
+
+// The shown page at the top of a pane (the first one whose bottom is below the scroll position).
+function anchorPage(pane) {
+  for (const page of pane.querySelectorAll(".page:not([hidden])")) {
+    if (page.offsetTop + page.offsetHeight > pane.scrollTop) return Number(page.dataset.page);
+  }
+  return 1;
+}
+
+// Scroll a pane to page n, or to the nearest shown page after it (the last one when none follows).
+function scrollToPage(pane, n) {
+  const shown = [...pane.querySelectorAll(".page:not([hidden])")];
+  const target = shown.find((p) => Number(p.dataset.page) >= n) || shown[shown.length - 1];
+  if (target) pane.scrollTop = target.offsetTop;
 }
 
 // The view toggle: pages without a change mark get the hidden attribute; nothing is requested,
@@ -447,8 +450,11 @@ function wire() {
   $("showChangedOnly").addEventListener("change", (e) => {
     state.changedOnly = e.target.checked;
     try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
+    const lead = leadPane().el;
+    const at = anchorPage(lead);                   // the reader's place survives the toggle
     applyChangedOnly();
     applyZoom();
+    scrollToPage(lead, at);
     updatePageStatus();
     document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
   });

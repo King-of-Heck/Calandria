@@ -2,7 +2,7 @@
 // segments after the row's marker, "original" the deleted and unchanged ones after the old
 // marker; a row that has no paragraph on that side (oi or ni null) adds nothing; one line per
 // paragraph. No DOM: importable under node.
-export function textOf(rows, side) {
+export function linesOf(rows, side) {
   const keep = side === "modified" ? new Set(["ins", "eq"]) : new Set(["del", "eq"]);
   const lines = [];
   for (const row of rows) {
@@ -12,5 +12,10 @@ export function textOf(rows, side) {
     const body = row.segments.filter((s) => keep.has(s.m)).map((s) => s.t).join("");
     lines.push(marker ? `${marker} ${body}` : body);
   }
-  return lines.join("\n");
+  return lines;
+}
+
+// One paragraph per line; the count of lines is the count of paragraphs copied.
+export function textOf(rows, side) {
+  return linesOf(rows, side).join("\n");
 }

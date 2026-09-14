@@ -23,7 +23,7 @@ STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; char
           "app.js": "text/javascript; charset=utf-8", "changes.js": "text/javascript; charset=utf-8",
           "sources.js": "text/javascript; charset=utf-8", "strip.js": "text/javascript; charset=utf-8",
           "copy.js": "text/javascript; charset=utf-8", "panes.js": "text/javascript; charset=utf-8",
-          "sync.js": "text/javascript; charset=utf-8"}
+          "sides.js": "text/javascript; charset=utf-8", "sync.js": "text/javascript; charset=utf-8"}
 MAX_BODY = 64 * 1024 * 1024
 DRAIN_CAP = 256 * 1024 * 1024
 DEFAULT_IDLE = 8.0          # seconds without a request, once the page has been seen (it pings every 2 s)
@@ -330,10 +330,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _api_pdf(self, session, query):
         rs = query.get("render_set", ["Standard"])[0]
-        bars = _flag(query, "change_bars", True)
         report = query.get("report", ["last"])[0]
+        check_render(rs, report)                     # the names first, then the flags
+        bars = _flag(query, "change_bars", True)
         only = _flag(query, "changed_only", False)
-        check_render(rs, report)
         with session.lock:
             data, name = session.pdf(rs, bars, report, only)
         self._send(200, data, "application/pdf", {"Content-Disposition": _disposition(name)})

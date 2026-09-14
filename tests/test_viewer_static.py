@@ -67,7 +67,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js", "sides.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -360,7 +360,7 @@ def test_panes_js_is_served_wired_and_owns_the_toggles():
     js = _read("panes.js")
     for name in ("initPanes", "applyPanes", "renderPanes", "resetPanes", "visiblePanes", "leadPane", "paneOf", "highlightSides"):
         assert f"export function {name}(" in js, name
-    assert 'SIDE_ORDER = ["original", "blackline", "modified"]' in js
+    assert 'SIDE_ORDER = ["original", "blackline", "modified"]' in _read("sides.js")   # declared once
     body = _function_body(js, "toggleView")
     assert "visiblePanes().length === 1" in body           # the last pane on cannot be turned off
     assert '"calandria:panes"' in _function_body(js, "applyPanes")
@@ -381,7 +381,7 @@ def test_requests_name_the_visible_sides_and_a_shown_pane_fetches_its_pages():
     assert "export function requestedSides(" in js and "state.views[s]" in _function_body(js, "requestedSides")
     assert "missingSide()" in _function_body(js, "applyPanes") and "!state.busy" in _function_body(js, "applyPanes")
     assert "if (state.busy) return;" in _function_body(js, "toggleView")
-    assert "if (!blk) continue;" in _function_body(js, "renderPanes")
+    assert "if (blk) {" in _function_body(js, "buildPages")
     assert "!state.data.sides[side]" in _function_body(js, "highlightSides")
     app = _read("app.js")
     assert 'sides: ["blackline"]' in _function_body(app, "compareNow")
@@ -408,8 +408,8 @@ def test_a_drop_never_compares_by_itself_and_the_defer_toggle_lives_under_option
     assert 'localStorage.getItem("calandria.deferPages") !== "off"' in app       # absent = on
     assert "export function deferPage(" in app and "export function warmPages(" in app
     assert 'contentVisibility = state.deferPages ? "auto" : ""' in _function_body(app, "deferPage")
-    assert "deferPage(page)" in _function_body(app, "renderPages") and "warmPages()" in _function_body(app, "renderPages")
-    assert "deferPage(page)" in _function_body(_read("panes.js"), "renderPanes")
+    assert "buildPages(main, state.data)" in _function_body(app, "renderPages") and "warmPages()" in _function_body(app, "renderPages")
+    assert "deferPage(page)" in _function_body(_read("panes.js"), "buildPages")
     assert "containIntrinsicSize" in _function_body(app, "applyZoom")
     assert ".test" not in _read("style.css")
 
@@ -422,7 +422,7 @@ def test_zoom_changed_pages_and_lookups_span_the_panes():
     ch = _read("changes.js")
     assert 'document.querySelector(`.page[data-page=' not in ch and '$("pages").querySelector(`.page[data-page=' in ch
     assert "highlightSides(" in _function_body(ch, "highlight")
-    assert '$("pages").querySelector(`.page[data-page=' in _read("strip.js")
+    assert 'main.querySelectorAll(".page")' in _read("strip.js")      # the blackline's pages, one walk
 
 
 # v2.4.0: the scroll sync (spec §12.5).
@@ -557,3 +557,55 @@ def test_index_carries_an_inline_svg_icon():
     assert svg.count("<rect") == 2 and svg.count("<path") == 1
     assert "#FF0000" in svg.upper() and "#0000FF" in svg.upper()
     assert len(href) < 600
+
+
+# 2.4.6: the minors left from the v2.3.0 and v2.4.0 reviews.
+def test_the_side_map_is_declared_once_and_shared():
+    assert "sides.js" in STATIC
+    sides = _read("sides.js")
+    assert "export const PANE = " in sides and not re.search(r"^import ", sides, re.M)
+    assert 'from "./sides.js"' in _read("panes.js") and 'from "./sides.js"' in _read("sync.js")
+    assert "PANE = {" not in _read("panes.js") and "PANE = {" not in _read("sync.js")
+
+
+def test_one_page_builder_serves_the_blackline_and_the_side_panes():
+    js = _read("panes.js")
+    assert "export function buildPages(" in js
+    assert "buildPages(paneOf(side), state.data.sides[side])" in _function_body(js, "renderPanes")
+    assert "document.createElement" not in _function_body(_read("app.js"), "renderPages")
+    assert "pageSize(svg).w" in _function_body(js, "highlightSides")
+
+
+def test_strip_marks_carry_an_aria_label_and_page_heights_are_read_once():
+    js = _read("strip.js")
+    body = _function_body(js, "initStrip")
+    assert 'b.setAttribute("aria-label", b.title)' in body
+    assert "const heights = pageHeights();" in body and "heights.get(a.page)" in body
+
+
+def test_the_row_menu_keeps_focus_and_opens_from_the_keyboard():
+    js = _read("changes.js")
+    init = _function_body(js, "initChanges")
+    assert 'menu.addEventListener("keydown"' in init and '"Tab"' in init and '"ArrowDown"' in init
+    lst = _function_body(js, "renderList")
+    assert 'class="more" aria-haspopup="menu" tabindex="-1"' in lst
+    assert '"ContextMenu"' in lst and '"F10"' in lst
+    assert "Shift</kbd>+<kbd>F10" in _read("index.html")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_the_copied_paragraph_count_is_the_line_count():
+    rows = ('[{"ni": 0, "oi": 0, "marker": "", "segments": [{"m": "eq", "t": "a"}]},'
+            ' {"ni": null, "oi": 1, "marker": "", "segments": [{"m": "del", "t": "b"}]},'
+            ' {"ni": 1, "oi": null, "marker": "", "segments": [{"m": "ins", "t": "c"}]}]')
+    out = _node("copy.js", f"const r = {rows}; console.log(m.linesOf(r, 'modified').length, JSON.stringify(m.textOf(r, 'modified')));")
+    assert out == '2 "a\\nc"'                          # node prints the JSON escape: a backslash and an n
+    assert "linesOf(data.changes" in _function_body(_read("changes.js"), "initChanges")
+
+
+def test_changed_pages_only_keeps_the_readers_place():
+    app = _read("app.js")
+    assert "function anchorPage(" in app and "function scrollToPage(" in app
+    wire = _function_body(app, "wire")
+    assert "const at = anchorPage(lead);" in wire and "scrollToPage(lead, at);" in wire
+    assert wire.index("anchorPage(lead)") < wire.index("applyChangedOnly();") < wire.index("scrollToPage(lead, at)")

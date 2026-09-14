@@ -3,13 +3,13 @@
 // cannot be turned off. Marks tints the changed text of the side panes (a redraw request). The
 // side panes hold pages drawn by the server exactly like the blackline's, without change marks;
 // the blackline pane is #pages, unchanged. Nothing here scrolls: sync.js does that.
-import { applyZoom, deferPage, restyle, state } from "./app.js";
+import { applyZoom, deferPage, pageSize, restyle, state } from "./app.js";
+import { PANE, SIDE_ORDER } from "./sides.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
-export const SIDE_ORDER = ["original", "blackline", "modified"];
+export { SIDE_ORDER };
 const BUTTON = { original: "viewOriginal", blackline: "viewBlackline", modified: "viewModified" };
-const PANE = { original: "paneOriginal", blackline: "pages", modified: "paneModified" };
 
 export function paneOf(side) {
   return $(PANE[side]);
@@ -100,15 +100,13 @@ export function applyPanes() {
   document.dispatchEvent(new CustomEvent("calandria:resized"));
 }
 
-// The side panes' pages, from data.sides; the blackline's are app.js's renderPages. A side the
-// data does not carry (hidden when it was requested) leaves its pane empty.
-export function renderPanes() {
-  for (const side of ["original", "modified"]) {
-    const pane = paneOf(side);
-    const keepScroll = pane.scrollTop;
-    for (const p of pane.querySelectorAll(".page")) p.remove();
-    const blk = state.data.sides[side];
-    if (!blk) continue;
+// One pane's pages from a block {pages, page_count}: a numbered, deferred .page per drawing, the
+// pane's scroll position kept. No block (a side the data does not carry because its pane was
+// hidden when the data was requested) leaves the pane empty.
+export function buildPages(pane, blk) {
+  const keepScroll = pane.scrollTop;
+  for (const p of pane.querySelectorAll(".page")) p.remove();
+  if (blk) {
     blk.pages.forEach((svg, i) => {
       const page = document.createElement("div");
       page.className = "page";
@@ -121,8 +119,13 @@ export function renderPanes() {
       deferPage(page);
       pane.appendChild(page);
     });
-    pane.scrollTop = keepScroll;
   }
+  pane.scrollTop = keepScroll;
+}
+
+// The side panes' pages, from data.sides; the blackline's are app.js's renderPages.
+export function renderPanes() {
+  for (const side of ["original", "modified"]) buildPages(paneOf(side), state.data.sides[side]);
 }
 
 // The current change's row highlighted in every side pane: the row of its first changed row on
@@ -142,7 +145,7 @@ export function highlightSides(cid) {
     r.setAttribute("class", "hl");
     r.setAttribute("x", "0");
     r.setAttribute("y", String(a.top));
-    r.setAttribute("width", svg.getAttribute("viewBox").split(/\s+/)[2]);
+    r.setAttribute("width", String(pageSize(svg).w));
     r.setAttribute("height", String(a.height));
     svg.insertBefore(r, svg.firstChild);
   }

@@ -77,7 +77,7 @@ def _compare_body(a=P("aaaa"), b=P("aaaa bbbb"), options=None):
 
 def test_defaults():
     assert DEFAULT_IDLE == 8.0 and DEFAULT_GRACE == 120.0 and MAX_BODY == 64 * 1024 * 1024
-    assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js"}
+    assert set(STATIC) == {"index.html", "style.css", "app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js", "sides.js"}
 
 
 def test_url_is_loopback_with_the_bound_port(srv):
@@ -154,6 +154,8 @@ def test_bad_requests(srv):
     assert _json(srv.url + "api/pages?change_bars=maybe") == (400, {"error": "change_bars must be 0 or 1"})
     assert _json(srv.url + "api/pdf?report=middle")[0] == 400
     assert _json(srv.url + "api/pdf?changed_only=maybe") == (400, {"error": "changed_only must be 0 or 1"})
+    # the names are checked before the flags, so a request wrong in both is told about the name
+    assert "rendering set" in _json(srv.url + "api/pdf?render_set=Sepia&changed_only=maybe")[1]["error"]
 
 
 def _post_with_headers(url, extra):

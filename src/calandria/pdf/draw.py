@@ -196,6 +196,8 @@ def draw_layout(layout: Layout, rs: RenderSet, opts: PdfOptions, painter, resolv
         if report is not None:
             report = replace(report, changed_only=(len(pages), layout.page_count))
     n, report_page = 0, None
+    if not pages:                                        # a hand-built empty layout: nothing to draw, no report
+        where = "none"
     if where == "first":
         g = pages[0]
         painter.page(g.w, g.h)

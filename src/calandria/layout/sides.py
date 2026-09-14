@@ -12,19 +12,27 @@ from .pieces import LayoutOptions
 
 SIDES = ("blackline", "original", "modified")
 
+# What a side changes in the engine's options: nothing for the blackline; for a clean side, the
+# other side's pieces hidden and no formatting-change ranges (they belong to the blackline).
+_OPTIONS = {
+    "blackline": {},
+    "original": {"show_insertions": False, "show_deletions": True, "show_formatting": False},
+    "modified": {"show_insertions": True, "show_deletions": False, "show_formatting": False},
+}
+
+
+def check_side(side: str) -> str:
+    """`side` itself, or a ValueError naming the three sides (the one place that knows them)."""
+    if side not in _OPTIONS:
+        raise ValueError(f"unknown side {side!r}; expected one of {', '.join(SIDES)}")
+    return side
+
 
 def side_options(opts: LayoutOptions) -> LayoutOptions:
-    """The options the engine runs with for `opts.side`: the blackline's own; for a side, the
-    other side's pieces hidden and no formatting-change ranges (they belong to the blackline).
-    On the original side the shared text takes the original document's own character formatting
-    (pieces.row_pieces)."""
-    if opts.side == "blackline":
-        return opts
-    if opts.side == "original":
-        return replace(opts, show_insertions=False, show_deletions=True, show_formatting=False)
-    if opts.side == "modified":
-        return replace(opts, show_insertions=True, show_deletions=False, show_formatting=False)
-    raise ValueError(f"unknown side {opts.side!r}; expected one of {', '.join(SIDES)}")
+    """The options the engine runs with for `opts.side` (see _OPTIONS). On the original side the
+    shared text takes the original document's own character formatting (pieces.row_pieces)."""
+    changes = _OPTIONS[check_side(opts.side)]
+    return replace(opts, **changes) if changes else opts
 
 
 def side_items(items: list[Item], cmp: Comparison, side: str) -> list[Item]:
@@ -34,11 +42,9 @@ def side_items(items: list[Item], cmp: Comparison, side: str) -> list[Item]:
     revised document's paragraphs (empty ones included) minus the deleted rows. Table items keep
     their table location, so a shared table takes the revised-side table's geometry on every
     side, exactly as the blackline does (see tables.py); only the text is the side's own."""
-    if side == "blackline":
-        return items
-    if side == "original":
+    if check_side(side) == "original":
         return [replace(it, para=cmp.a_units[it.row.oi].para)
                 for it in items if it.row is not None and it.row.oi is not None]
     if side == "modified":
         return [it for it in items if it.row is None or it.row.ni is not None]
-    raise ValueError(f"unknown side {side!r}; expected one of {', '.join(SIDES)}")
+    return items

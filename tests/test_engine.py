@@ -272,6 +272,8 @@ def test_side_options_and_side_items():
     assert side_items(items, cmp, "blackline") is items
     with pytest.raises(ValueError, match="side"):
         layout(cmp, LayoutOptions(fonts=FR, side="sideways"))
+    with pytest.raises(ValueError, match="sideways"):
+        side_items(items, cmp, "sideways")
 
 
 def test_side_layouts_lay_out_tables_with_the_side_s_own_text():

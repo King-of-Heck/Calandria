@@ -5,10 +5,10 @@
 // by the value that was set (lastSet) and never leads. Top level touches no DOM, so the pure
 // functions load under node.
 
+import { PANE, SIDE_ORDER as SIDES } from "./sides.js";
+
 const $ = (id) => document.getElementById(id);
 const CAPTION = 0;                    // the captions are sticky inside the scroll box; no offset to subtract
-const SIDES = ["original", "blackline", "modified"];
-const PANE = { original: "paneOriginal", blackline: "pages", modified: "paneModified" };
 
 // rows: {row_index: {page, top, height}} (points, from the payload); pageTop(page) -> pane pixel
 // top of that page's element, or null when the page is hidden; scale: CSS px per pt for the pane,

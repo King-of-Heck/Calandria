@@ -18,25 +18,32 @@ export function initStrip() {
   const view = strip.querySelector(".view");
   let marks = new Map();                             // cid -> button
 
-  const pageHeight = (page) => {
-    const svg = $("pages").querySelector(`.page[data-page="${page}"] svg`);
-    return svg ? Number(svg.getAttribute("viewBox").split(/\s+/)[3]) : null;
+  // page number -> page height in pt, one walk of the blackline's pages per build
+  const pageHeights = () => {
+    const out = new Map();
+    for (const page of main.querySelectorAll(".page")) {
+      const svg = page.querySelector("svg");
+      if (svg) out.set(Number(page.dataset.page), Number(svg.getAttribute("viewBox").split(/\s+/)[3]));
+    }
+    return out;
   };
 
   const build = (data) => {
     for (const b of marks.values()) b.remove();
     marks = new Map();
     const seen = new Set();
+    const heights = pageHeights();
     for (const row of data.changes) {
       if (row.cid === null || row.cid === undefined || seen.has(row.cid)) continue;
       seen.add(row.cid);
       const a = data.anchors[String(row.cid)];
-      const h = a ? pageHeight(a.page) : null;
+      const h = a ? heights.get(a.page) : null;
       if (!a || !h) continue;
       const b = document.createElement("button");
       b.type = "button";
       b.className = `mark ${row.category}`;
       b.title = `Change ${row.cid} · p. ${a.page}`;
+      b.setAttribute("aria-label", b.title);
       b.style.top = `${(markTop(a, h, data.page_count) * 100).toFixed(3)}%`;
       b.addEventListener("click", () => document.dispatchEvent(new CustomEvent("calandria:goto", { detail: { cid: row.cid } })));
       strip.appendChild(b);

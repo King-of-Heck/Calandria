@@ -1,5 +1,18 @@
 # Calandria changelog
 
+## v2.4.6 — Review minors (2026-09-14)
+
+- The row menu of the changes list keeps the keyboard focus while it is open (Tab and the arrow
+  keys cycle through it) and opens from the keyboard on the current row (Shift+F10 or the Menu
+  key); the row's menu buttons leave the tab order.
+- "Changed pages only" keeps the reader's page when it is turned on or off.
+- Copy Final reports the number of lines it copied.
+- The marks on the page strip carry an accessible label, and the strip reads the page heights
+  once per layout.
+- Inside: the blackline and the side panes share one page builder and one side map; the server
+  checks a requested side in one place; a PDF request checks the document names before its flags;
+  an empty layout draws nothing instead of failing.
+
 ## v2.4.5 — Shortcut without PowerShell (2026-09-12)
 
 - The `Calandria` shortcut beside the launcher is written by Calandria itself, in the Windows

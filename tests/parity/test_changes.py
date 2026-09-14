@@ -12,6 +12,10 @@ from .common import CORPUS, ORACLE, allowed, divergences, load_allow, pairs, par
 ALLOW = load_allow("allow-changes.json")
 FIELDS = ["type", "cid", "cat", "oi", "ni", "html", "numChanged", "oldMarker", "fmtChanged", "fmtDescs", "tbl"]
 VARIANTS = {"compare_v2": {"ignore_case": False}, "compare_v2_ic": {"ignore_case": True}}
+# The reference counts an amendment as an insertion and a deletion too; since v2.4.7 Calandria counts
+# a numbered change once, by its content, and tallies runs (KNOWN_DIVERGENCES (n)). Only the keys
+# whose meaning is the same on both sides are compared.
+SUMMARY_FIELDS = ("total", "numbering", "formatting", "content", "punctuation", "moves", "splits", "merges")
 
 
 def _first_mismatch(ours, ref):
@@ -40,8 +44,10 @@ def test_change_list_parity(pair, variant):
         if divs[0]["field"] == "count":
             problems.append(_first_mismatch(ours, ref["rows"]))
         problems += [f"[{d['i']}] {d['field']}: ours={d['ours']!r} ref={d['ref']!r}" for d in divs[:25]]
-    if cmp.summary != ref["summary"]:
-        problems.append(f"summary ours={cmp.summary} ref={ref['summary']}")
+    ours_s = {k: cmp.summary[k] for k in SUMMARY_FIELDS}
+    ref_s = {k: ref["summary"][k] for k in SUMMARY_FIELDS}
+    if ours_s != ref_s:
+        problems.append(f"summary ours={ours_s} ref={ref_s}")
     if problems:
         pytest.fail(f"{pair['alias']}/{variant}:\n" + "\n".join(problems))
 

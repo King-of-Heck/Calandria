@@ -1,5 +1,16 @@
 # Calandria changelog
 
+## v2.4.7 — Counts that add up (2026-09-14)
+
+- A change is counted once, by what it holds: a paragraph with only added text is an insertion,
+  with only removed text a deletion, with both an amendment. The four tiles now add up to the
+  total; before, every changed paragraph counted as an insertion and a deletion as well, so a
+  200-change document could read 200 insertions, 200 deletions, 200 amendments and 200 changes.
+- The badge of a change in the list, the mark on the page strip and the tile filters follow the
+  same rule: a paragraph with only added text shows `Add`.
+- A line under the tiles, and the PDF's summary line, give the number of inserted and deleted
+  passages (contiguous runs of changed text), the unit other comparison tools count.
+
 ## v2.4.6 — Review minors (2026-09-14)
 
 - The row menu of the changes list keeps the keyboard focus while it is open (Tab and the arrow

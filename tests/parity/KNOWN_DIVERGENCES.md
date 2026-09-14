@@ -132,7 +132,9 @@ insertion, deleted only = deletion, both = amendment) and `insertions` / `deleti
 numbered rows: Litera's unit (a Workshare Compare report of a 200-paragraph pair read Insertions
 150, Deletions 97, Total 247 = the sum). The change gate compares `SUMMARY_FIELDS` only; the row
 gate is unaffected because it never compared the category. Rows, `type`, `cid`, `total`,
-`numbering` and `formatting` still match the reference exactly.
+`numbering` and `formatting` still match the reference exactly. `numbering_changes` (numbering
+changes that carry a number) is also Calandria-only; `numbering` keeps the reference's meaning
+(every renumbered row, including changed paragraphs that also renumber).
 
 # Layout (Plan 3)
 

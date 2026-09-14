@@ -1,4 +1,4 @@
-"""Gate: Calandria's change list matches SorkWhare 1.16.0's compare() rows and summary on the
+"""Gate: matches the oracle's rows and the summary keys whose meaning is shared, on the
 corpus, in the v2.0.0 scope (no moves, no split/merge), at both ignore-case settings."""
 import json
 
@@ -44,6 +44,7 @@ def test_change_list_parity(pair, variant):
         if divs[0]["field"] == "count":
             problems.append(_first_mismatch(ours, ref["rows"]))
         problems += [f"[{d['i']}] {d['field']}: ours={d['ours']!r} ref={d['ref']!r}" for d in divs[:25]]
+    assert all(k in ref["summary"] for k in SUMMARY_FIELDS), "stale oracle: run node harness/oracle_export.mjs"
     ours_s = {k: cmp.summary[k] for k in SUMMARY_FIELDS}
     ref_s = {k: ref["summary"][k] for k in SUMMARY_FIELDS}
     if ours_s != ref_s:

@@ -9,7 +9,7 @@ from calandria.diff.changes import SUMMARY_KEYS, Row, empty_summary, run_counts
 from calandria.diff.compare import compare
 from calandria.diff.inline import Seg
 from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, make_docx
+from calandria.testing.makedocx import DOC, P, W_NS, make_docx
 
 CORPUS = Path(__file__).parent / "corpus"
 
@@ -65,9 +65,10 @@ def test_summary_counts_numbered_rows_per_category_and_tallies_runs():
     assert cats.count("insertion") == c.summary["insertions"]
     assert cats.count("deletion") == c.summary["deletions"]
     assert cats.count("amendment") == c.summary["amendments"]
-    numbering_only = cats.count("numbering")
-    assert (c.summary["insertions"] + c.summary["deletions"] + c.summary["amendments"] + numbering_only
-            == c.summary["total"])
+    assert cats.count("numbering") == c.summary["numbering_changes"]
+    s = c.summary
+    assert (s["insertions"] + s["deletions"] + s["amendments"] + s["numbering_changes"]
+            == s["total"])
     ins = sum(run_counts(r.segments)[0] for r in by_cid)
     dele = sum(run_counts(r.segments)[1] for r in by_cid)
     assert (c.summary["inserted_runs"], c.summary["deleted_runs"]) == (ins, dele)
@@ -82,5 +83,40 @@ def test_tiles_sum_to_total_on_every_corpus_pair(pair):
     c = compare(parse_docx((CORPUS / pair["a"]).read_bytes()), parse_docx((CORPUS / pair["b"]).read_bytes()))
     s = c.summary
     numbering_only = sum(1 for r in c.rows if r.cid is not None and r.category == "numbering")
-    assert s["insertions"] + s["deletions"] + s["amendments"] + numbering_only == s["total"]
+    assert numbering_only == s["numbering_changes"]
+    assert s["insertions"] + s["deletions"] + s["amendments"] + s["numbering_changes"] == s["total"]
     assert s["inserted_runs"] >= s["insertions"] and s["deleted_runs"] >= s["deletions"]
+
+
+_NUMBERING = (f'<w:numbering xmlns:w="{W_NS}"><w:abstractNum w:abstractNumId="0">'
+              '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl>'
+              '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+_NUM_PPR = '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'
+
+
+def _item(t):
+    return P(t, ppr=_NUM_PPR)
+
+
+def _numbered_doc(body):
+    return parse_docx(make_docx({"word/document.xml": DOC(body), "word/numbering.xml": _NUMBERING}))
+
+
+def test_changed_and_renumbered_row_counts_numbering_changes_once():
+    a = _numbered_doc(_item("first item") + _item("second item"))
+    b = _numbered_doc(_item("zero") + _item("first item") + _item("second item edited"))
+    c = compare(a, b)
+    s = c.summary
+    assert s["numbering"] == 2
+    assert s["numbering_changes"] == 1
+    assert s["insertions"] + s["deletions"] + s["amendments"] + s["numbering_changes"] == s["total"] == 3
+
+
+def test_changed_and_renumbered_row_with_numbering_uncounted():
+    a = _numbered_doc(_item("first item") + _item("second item"))
+    b = _numbered_doc(_item("zero") + _item("first item") + _item("second item edited"))
+    c = compare(a, b, count_numbering=False)
+    s = c.summary
+    assert s["numbering"] == 2
+    assert s["numbering_changes"] == 0
+    assert s["insertions"] + s["deletions"] + s["amendments"] + s["numbering_changes"] == s["total"]

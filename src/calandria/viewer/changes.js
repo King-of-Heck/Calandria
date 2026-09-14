@@ -15,7 +15,7 @@ const CONTEXT_SHORT = 24;             // the same for the clamped rows
 const MAX_SEGMENT = 200;              // characters of one inserted / deleted segment shown
 const BADGE = { insertion: "Add", deletion: "Delete", amendment: "Change", numbering: "Number" };
 const TILES = [["Insertions", "insertions", "insertion"], ["Deletions", "deletions", "deletion"],
-               ["Amendments", "amendments", "amendment"], ["Numbering", "numbering", "numbering"]];
+               ["Amendments", "amendments", "amendment"], ["Numbering", "numbering_changes", "numbering"]];
 
 let data = null;
 let entries = [];                     // every numbered change, document order
@@ -135,7 +135,7 @@ const passages = (k, word) => `${k} ${word}${k === 1 ? "" : "s"}`;
 function tiles() {
   const s = data.summary;
   const runs = s.inserted_runs || s.deleted_runs
-    ? `<div class="tile passages" title="Contiguous inserted and deleted passages over all changes, the unit Litera counts">` +
+    ? `<div class="tile passages" title="Contiguous inserted and deleted passages over all changes, the unit other comparison tools count">` +
       `<span>${passages(s.inserted_runs, "inserted passage")} · ${passages(s.deleted_runs, "deleted passage")}</span></div>`
     : "";
   $("tiles").innerHTML = TILES.map(([label, key, cat]) =>

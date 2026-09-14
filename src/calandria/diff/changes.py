@@ -1,4 +1,4 @@
-"""The change model: rows in document order, numbered changes classified by content, per-category counts and run tallies.
+"""The change model: rows in document order, numbered changes by content, per-category counts.
 
 This is the single object the layout engine, the viewer and the reports consume. It is plain
 data (to_dict() is JSON) and carries no rendering.
@@ -14,7 +14,10 @@ from .units import Unit
 
 SUMMARY_KEYS = ("insertions", "deletions", "moves", "amendments", "content", "numbering",
                 "punctuation", "total", "formatting", "splits", "merges",
-                "inserted_runs", "deleted_runs")
+                "inserted_runs", "deleted_runs",
+                # numbered changes whose category is "numbering" (numbering-only rows that carry
+                # a cid; 0 when numbering is not counted)
+                "numbering_changes")
 
 _CATEGORY = {"inserted": "insertion", "deleted": "deletion", "changed": "amendment"}
 
@@ -23,7 +26,7 @@ def empty_summary() -> dict:
     return {k: 0 for k in SUMMARY_KEYS}
 
 
-def run_counts(segments) -> tuple[int, int]:
+def run_counts(segments: list[Seg]) -> tuple[int, int]:
     """(inserted runs, deleted runs): maximal runs of consecutive ins / del segments. A segment
     split only by a bold boundary continues the run; an equal segment between two marked ones
     ends it. This is Litera's unit of counting (spec section 13.2)."""

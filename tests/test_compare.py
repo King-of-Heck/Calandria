@@ -29,7 +29,7 @@ def test_insert_change_and_equal_rows_with_cids():
     assert _flat(c.rows[3]) == [("ins", "Delta")]
     assert c.summary == {"insertions": 2, "deletions": 0, "moves": 0, "amendments": 0, "content": 2,
                          "numbering": 0, "punctuation": 0, "total": 2, "formatting": 0, "splits": 0,
-                         "merges": 0, "inserted_runs": 2, "deleted_runs": 0}
+                         "merges": 0, "inserted_runs": 2, "deleted_runs": 0, "numbering_changes": 0}
     assert c.rows[1].category == "insertion" and c.rows[3].category == "insertion"
 
 

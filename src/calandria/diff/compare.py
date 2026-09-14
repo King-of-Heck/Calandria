@@ -119,6 +119,7 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
                 if count_numbering:
                     n += 1
                     r.cid = n
+                    summary["numbering_changes"] += 1
             continue
         n += 1
         r.cid = n

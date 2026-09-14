@@ -14,7 +14,7 @@ WHEN = datetime(2026, 9, 9, 14, 5)
 
 def _info(**kw):
     s = empty_summary()
-    s.update({"total": 7, "insertions": 4, "deletions": 3, "amendments": 2, "numbering": 1, "formatting": 5})
+    s.update({"total": 7, "insertions": 4, "deletions": 3, "amendments": 2, "numbering": 1, "formatting": 5, "inserted_runs": 6, "deleted_runs": 5})
     base = dict(original="a.docx", modified="b.docx", when=WHEN, render_set="Standard", summary=s,
                 ignore_case=False, count_numbering=True)
     base.update(kw)
@@ -25,14 +25,16 @@ def test_report_lines():
     assert report_lines(_info()) == [
         "Original: a.docx", "Modified: b.docx", "Compared: 2026-09-09 14:05", "Rendering set: Standard",
         "Options: ignore case off; count numbering changes on",
-        "Changes: 7 (insertions 4, deletions 3, amendments 2, numbering 1); formatting 5 (not counted)"]
+        "Changes: 7 (insertions 4, deletions 3, amendments 2, numbering 1); inserted passages 6, "
+        "deleted passages 5; formatting 5 (not counted)"]
     assert report_lines(_info(ignore_case=True, count_numbering=False))[4] == \
         "Options: ignore case on; count numbering changes off"
 
 
 def test_report_info_from_a_comparison():
-    cmp = Comparison([], {"total": 1, "insertions": 1, "deletions": 0, "amendments": 0, "numbering": 0,
-                          "formatting": 0}, [], [], True, False)
+    s = empty_summary()
+    s.update({"total": 1, "insertions": 1})
+    cmp = Comparison([], s, [], [], True, False)
     info = report_info(cmp, "x.docx", "y.docx", "Black and White", WHEN)
     assert (info.original, info.modified, info.when, info.render_set) == ("x.docx", "y.docx", WHEN, "Black and White")
     assert info.summary is not cmp.summary and info.summary["insertions"] == 1

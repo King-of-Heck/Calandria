@@ -83,8 +83,9 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .tile span { color: #4b5563; font-size: 12px; }
 #panel .tile.insertion b { color: var(--ins); }
 #panel .tile.deletion b { color: var(--del); }
-#panel .tile.formatting { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; align-items: baseline; padding: 2px 6px; color: var(--muted); border-style: dashed; }
+#panel .tile.formatting, #panel .tile.passages { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; align-items: baseline; padding: 2px 6px; color: var(--muted); border-style: dashed; }
 #panel .tile.formatting b { font-size: 14px; color: var(--fmt); }
+#panel .tile.passages { font-size: 12px; border-style: none; padding-top: 0; }
 #panel .head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
 #panel .head .count { font-weight: 600; margin-right: auto; }
 #panel.collapsed { width: 28px; }

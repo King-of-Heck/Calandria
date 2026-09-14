@@ -130,13 +130,19 @@ function group(rows) {
   return [...byCid.values()];
 }
 
+const passages = (k, word) => `${k} ${word}${k === 1 ? "" : "s"}`;
+
 function tiles() {
   const s = data.summary;
+  const runs = s.inserted_runs || s.deleted_runs
+    ? `<div class="tile passages" title="Contiguous inserted and deleted passages over all changes, the unit Litera counts">` +
+      `<span>${passages(s.inserted_runs, "inserted passage")} · ${passages(s.deleted_runs, "deleted passage")}</span></div>`
+    : "";
   $("tiles").innerHTML = TILES.map(([label, key, cat]) =>
     `<button type="button" class="tile ${cat}" data-cat="${cat}" aria-pressed="false" ` +
-    `title="Show only ${label.toLowerCase()}${cat === "insertion" || cat === "deletion" ? " (amendments included)" : ""}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
+    `title="Show only ${label.toLowerCase()}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
     `<div class="tile formatting" title="Formatting changes are shown on the page but not counted or listed">` +
-    `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>`;
+    `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>` + runs;
 }
 
 function markTiles() {
@@ -146,15 +152,13 @@ function markTiles() {
     t.classList.toggle("on", on);
     t.classList.toggle("dim", solo !== null && !on);
   }
-  $("tiles").querySelector(".tile.formatting").classList.toggle("dim", solo !== null);
+  for (const t of $("tiles").querySelectorAll(".tile.formatting, .tile.passages")) t.classList.toggle("dim", solo !== null);
 }
 
-// A tile shows what its count counts: the summary counts an amendment (deleted and inserted text
-// in one paragraph) as an insertion and as a deletion as well, so those two tiles include amendments.
+// A tile solos exactly its category: since v2.4.7 a change is classified by its content, so the
+// four counts add up to the total and no tile includes another's changes.
 function matchesTile(en, tile) {
-  if (tile === null) return true;
-  if (tile === "insertion" || tile === "deletion") return en.category === tile || en.category === "amendment";
-  return en.category === tile;
+  return tile === null || en.category === tile;
 }
 
 function refilter() {

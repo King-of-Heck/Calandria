@@ -317,12 +317,12 @@ def test_gutter_numerals_get_a_floor_on_screen():
 
 
 def test_the_tiles_filter_the_way_the_summary_counts():
-    # the summary counts an amendment as an insertion AND a deletion (SorkWhare parity), so the
-    # Insertions and Deletions tiles must show amendments too, or the tile and its list disagree
+    # v2.4.7: a change is classified by its content, so the four counts add up to the total and
+    # each tile solos exactly its own category (no more folding amendments into the other two).
     js = _read("changes.js")
     assert "function matchesTile(" in js
     body = _function_body(js, "matchesTile")
-    assert '"insertion"' in body and '"deletion"' in body and '"amendment"' in body
+    assert "en.category === tile" in body and '"amendment"' not in body
     assert "matchesTile(" in _function_body(js, "refilter")
     assert "en.category === solo" not in js
 
@@ -609,3 +609,11 @@ def test_changed_pages_only_keeps_the_readers_place():
     wire = _function_body(app, "wire")
     assert "const at = anchorPage(lead);" in wire and "scrollToPage(lead, at);" in wire
     assert wire.index("anchorPage(lead)") < wire.index("applyChangedOnly();") < wire.index("scrollToPage(lead, at)")
+
+
+# v2.4.7: a change is classified by its content, so a tile solos exactly its category.
+def test_tiles_solo_their_own_category_and_show_the_passages_line():
+    js = _read("changes.js")
+    assert "amendments included" not in js
+    assert 'class="tile passages"' in js and "inserted_runs" in js and "deleted_runs" in js
+    assert ".tile.passages" in _read("style.css")

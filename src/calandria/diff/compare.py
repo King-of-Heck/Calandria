@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..model import Document
-from .changes import Comparison, Row, empty_summary
+from .changes import Comparison, Row, empty_summary, run_counts
 from .fmt import fmt_diff
 from .inline import safe_inline, whole_segs
 from .lcs import lcs_ops
@@ -10,6 +10,8 @@ from .text import categorize, content_tokens, norm, sim, sim_upper
 from .units import Unit, units
 
 PAIR_THRESHOLD = 0.5
+
+_PLURAL = {"insertion": "insertions", "deletion": "deletions", "amendment": "amendments"}
 
 
 def compare(a: Document, b: Document, *, ignore_case: bool = False,
@@ -120,18 +122,12 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
             continue
         n += 1
         r.cid = n
-        if r.type == "inserted":
-            summary["insertions"] += 1
-            summary["content"] += 1
-        elif r.type == "deleted":
-            summary["deletions"] += 1
-            summary["content"] += 1
-        else:
-            summary["amendments"] += 1
-            summary["punctuation" if r.cat == "punctuation" else "content"] += 1
-            summary["insertions"] += 1
-            summary["deletions"] += 1
-            if r.num_changed:
-                summary["numbering"] += 1
+        summary[_PLURAL[r.category]] += 1                       # by content: spec section 13.1
+        summary["punctuation" if r.cat == "punctuation" else "content"] += 1
+        if r.type == "changed" and r.num_changed:
+            summary["numbering"] += 1
+        ins, dele = run_counts(r.segments)
+        summary["inserted_runs"] += ins
+        summary["deleted_runs"] += dele
     summary["total"] = n
     return Comparison(rows, summary, orig, rev, ignore_case, count_numbering)

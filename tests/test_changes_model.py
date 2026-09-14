@@ -16,7 +16,7 @@ def test_to_dict_is_json_serializable_and_complete():
     assert d["options"] == {"ignore_case": False, "count_numbering": True}
     assert d["summary"] == c.summary
     ch = d["changes"][1]
-    assert ch["type"] == "changed" and ch["category"] == "amendment" and ch["cid"] == 1
+    assert ch["type"] == "changed" and ch["category"] == "insertion" and ch["cid"] == 1
     assert ch["oi"] == 1 and ch["ni"] == 1 and ch["loc"] is None and ch["marker"] == ""
     assert ch["segments"] == [{"m": "eq", "t": "Beta", "b": False}, {"m": "ins", "t": " two", "b": False}]
     assert ch["fmt_changed"] is False and ch["fmt_descs"] == [] and ch["num_changed"] is False

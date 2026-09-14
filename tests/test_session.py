@@ -108,8 +108,8 @@ def test_payload_of_a_one_line_insertion():
     assert d["names"] == {"original": "a.docx", "modified": "b.docx"}
     assert d["options"] == {"ignore_case": False, "count_numbering": True, "show_equal": True,
                             "show_insertions": True, "show_deletions": True, "show_formatting": True}
-    assert d["summary"]["total"] == 1 and d["summary"]["insertions"] == 1 and d["summary"]["amendments"] == 1
-    assert len(d["changes"]) == 1 and d["changes"][0]["cid"] == 1 and d["changes"][0]["category"] == "amendment"
+    assert d["summary"]["total"] == 1 and d["summary"]["insertions"] == 1 and d["summary"]["amendments"] == 0
+    assert len(d["changes"]) == 1 and d["changes"][0]["cid"] == 1 and d["changes"][0]["category"] == "insertion"
     assert d["page_count"] == 1 and len(d["pages"]) == 1 and "bbbb" in d["pages"][0]
     assert d["anchors"] == {1: {"page": 1, "top": 72.0}}
     assert d["marks"] == [[1, 72.0, 12.0, [1]]]

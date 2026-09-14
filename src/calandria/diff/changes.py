@@ -1,4 +1,4 @@
-"""The change model: rows in document order, numbered changes, per-category counts.
+"""The change model: rows in document order, numbered changes classified by content, per-category counts and run tallies.
 
 This is the single object the layout engine, the viewer and the reports consume. It is plain
 data (to_dict() is JSON) and carries no rendering.
@@ -13,13 +13,30 @@ from .inline import Seg
 from .units import Unit
 
 SUMMARY_KEYS = ("insertions", "deletions", "moves", "amendments", "content", "numbering",
-                "punctuation", "total", "formatting", "splits", "merges")
+                "punctuation", "total", "formatting", "splits", "merges",
+                "inserted_runs", "deleted_runs")
 
 _CATEGORY = {"inserted": "insertion", "deleted": "deletion", "changed": "amendment"}
 
 
 def empty_summary() -> dict:
     return {k: 0 for k in SUMMARY_KEYS}
+
+
+def run_counts(segments) -> tuple[int, int]:
+    """(inserted runs, deleted runs): maximal runs of consecutive ins / del segments. A segment
+    split only by a bold boundary continues the run; an equal segment between two marked ones
+    ends it. This is Litera's unit of counting (spec section 13.2)."""
+    ins = dele = 0
+    prev = None
+    for s in segments:
+        if s.m != prev:
+            if s.m == "ins":
+                ins += 1
+            elif s.m == "del":
+                dele += 1
+        prev = s.m
+    return ins, dele
 
 
 @dataclass
@@ -37,6 +54,13 @@ class Row:
 
     @property
     def category(self) -> str | None:
+        if self.type == "changed":
+            modes = {s.m for s in self.segments if s.m != "eq"}
+            if modes == {"ins"}:
+                return "insertion"
+            if modes == {"del"}:
+                return "deletion"
+            return "amendment"          # both, or nothing marked (a case-only change under ignore case)
         if self.type != "equal":
             return _CATEGORY[self.type]
         if self.num_changed:

@@ -8,7 +8,7 @@ read: a loopback server is reachable from every page the browser has open.
   GET  /api/state             {"version", "loaded", "names"}
   POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...},
                               "render_set"?: NAME, "change_bars"?: true|false}
-                              -> the full payload (names, options, summary, changes, page_count,
+                              -> the full payload (names, options, summary, changes, passages, page_count,
                               changed_pages, anchors, marks, render_sets, render_set_styles, render_set,
                               change_bars, pages (SVG strings), report_lines)
   POST /api/layout            {"options": {...}, "render_set"?: NAME, "change_bars"?: true|false}

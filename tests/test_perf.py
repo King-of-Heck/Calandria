@@ -25,5 +25,5 @@ def test_three_thousand_paragraph_pair_under_budget():
     c = compare(parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(a)}))),
                 parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(b)}))))
     elapsed = time.perf_counter() - t0
-    assert c.summary["deletions"] == 18 and c.summary["insertions"] == 18 and c.summary["total"] == 36
+    assert c.summary["deletions"] == 18 and c.summary["insertions"] == 18 and c.summary["total"] == 36  # 18, not 5: each of the five edited paragraphs swaps "dolor" -> "colour" wherever it occurs (3 or 4 times), a deletion and an insertion each
     assert elapsed < 20, f"{elapsed:.1f}s"

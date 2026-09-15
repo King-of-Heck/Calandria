@@ -325,3 +325,32 @@ def test_paragraph_borders_from_own_ppr_and_style():
     assert pr.border_left == Border(0.75, 2.0, None)          # inherited; any line style draws as one line
     assert pr.border_right is None
     assert (b.props.border_top, b.props.border_bottom, b.props.border_left, b.props.border_right) == (None,) * 4
+
+
+def test_footnotes_and_endnotes_are_parsed_and_references_numbered():
+    from calandria.model import NoteRef
+    from calandria.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
+    body = (PR(R("Delivery") + FNREF(2) + R(" within thirty days") + FNREF(1) + R(".")) +
+            PR(R("Payment") + ENREF(1) + R(" terms")) + P("plain"))
+    d = _doc(body, **{"word/footnotes.xml": FOOTNOTES({1: "Invoice date, not delivery.\nSecond paragraph.",
+                                                        2: "See Section 2."}),
+                      "word/endnotes.xml": ENDNOTES({1: "An endnote."})})
+    assert sorted(d.footnotes) == [1, 2] and sorted(d.endnotes) == [1]      # separators skipped
+    assert [b.text for b in d.footnotes[1]] == ["Invoice date, not delivery.", "Second paragraph."]
+    assert d.footnotes[2][0].props.style_id is None and d.footnotes[2][0].text == "See Section 2."
+    # numbers follow the body's reference order, per kind
+    assert d.note_numbers == {NoteRef("footnote", 2): 1, NoteRef("footnote", 1): 2, NoteRef("endnote", 1): 1}
+    a, b, c = d.blocks
+    assert a.text == "Delivery within thirty days."                       # a reference adds no text
+    assert [r.props.note for r in a.runs if r.props.note] == [NoteRef("footnote", 2), NoteRef("footnote", 1)]
+    assert [r.text for r in a.runs] == ["Delivery", "", " within thirty days", "", "."]
+    assert [r.props.note for r in c.runs] == [None]
+
+
+def test_a_note_body_may_hold_a_table_and_a_missing_part_means_no_notes():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R, TBL
+    d = _doc(PR(R("x") + FNREF(5)), **{"word/footnotes.xml": FOOTNOTES({5: TBL([["cell"]]) + P("after")})})
+    blocks = d.footnotes[5]
+    assert isinstance(blocks[0], Table) and blocks[1].text == "after"
+    e = _doc(P("no notes"))
+    assert e.footnotes == {} and e.endnotes == {} and e.note_numbers == {}

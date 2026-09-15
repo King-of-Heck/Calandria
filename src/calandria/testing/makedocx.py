@@ -55,3 +55,34 @@ def NUMBERING(levels: list[tuple]) -> str:
 def STYLES(defaults_rpr: str = "", styles: str = "") -> str:
     return (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:rPrDefault><w:rPr>{defaults_rpr}</w:rPr>'
             f"</w:rPrDefault></w:docDefaults>{styles}</w:styles>")
+
+
+def FNREF(note_id: int) -> str:
+    """A footnote reference run (the superscript mark in the body)."""
+    return f'<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="{note_id}"/></w:r>'
+
+
+def ENREF(note_id: int) -> str:
+    return f'<w:r><w:rPr><w:rStyle w:val="EndnoteReference"/></w:rPr><w:endnoteReference w:id="{note_id}"/></w:r>'
+
+
+def _notes(tag: str, ref: str, notes: dict) -> str:
+    seps = (f'<w:{tag} w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:{tag}>'
+            f'<w:{tag} w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:{tag}>')
+    body = ""
+    for nid, text in notes.items():
+        paras = text if text.startswith("<w:") else "".join(
+            f'<w:p><w:r><w:rPr><w:rStyle w:val="{ref[0].upper()+ref[1:]}"/></w:rPr><w:{ref}/></w:r>'
+            f'<w:r><w:t xml:space="preserve"> {escape(t)}</w:t></w:r></w:p>' for t in text.splitlines())
+        body += f'<w:{tag} w:id="{nid}">{paras}</w:{tag}>'
+    return f'<w:{tag}s xmlns:w="{W_NS}">{seps}{body}</w:{tag}s>'
+
+
+def FOOTNOTES(notes: dict[int, str]) -> str:
+    """word/footnotes.xml: the two separator notes plus one note per id. A value is the note's
+    text (paragraphs split on newlines, each led by the w:footnoteRef mark run) or raw <w:p> XML."""
+    return _notes("footnote", "footnoteRef", notes)
+
+
+def ENDNOTES(notes: dict[int, str]) -> str:
+    return _notes("endnote", "endnoteRef", notes)

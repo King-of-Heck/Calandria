@@ -23,21 +23,21 @@ def test_insert_change_and_equal_rows_with_cids():
     a = _doc(P("Alpha") + P("Beta") + P("Gamma"))
     b = _doc(P("Alpha") + P("Beta two") + P("Gamma") + P("Delta"))
     c = compare(a, b)
-    assert [(r.type, r.oi, r.ni, r.cid) for r in c.rows] == [
-        ("equal", 0, 0, None), ("changed", 1, 1, 1), ("equal", 2, 2, None), ("inserted", None, 3, 2)]
+    assert [(r.type, r.oi, r.ni, r.cids) for r in c.rows] == [
+        ("equal", 0, 0, []), ("changed", 1, 1, [1]), ("equal", 2, 2, []), ("inserted", None, 3, [2])]
     assert _flat(c.rows[1]) == [("eq", "Beta"), ("ins", " two")] and c.rows[1].cat == "content"
     assert _flat(c.rows[3]) == [("ins", "Delta")]
-    assert c.summary == {"insertions": 2, "deletions": 0, "moves": 0, "amendments": 0, "content": 2,
+    assert c.summary == {"insertions": 2, "deletions": 0, "moves": 0, "content": 2,
                          "numbering": 0, "punctuation": 0, "total": 2, "formatting": 0, "splits": 0,
-                         "merges": 0, "inserted_runs": 2, "deleted_runs": 0, "numbering_changes": 0}
-    assert c.rows[1].category == "insertion" and c.rows[3].category == "insertion"
+                         "merges": 0, "numbering_changes": 0}
+    assert c.passages[0].category == "insertion" and c.passages[1].category == "insertion"
 
 
 def test_unpaired_delete_below_threshold_and_row_order():
     a = _doc(P("one two three four") + P("keep"))
     b = _doc(P("completely different words here") + P("keep"))
     c = compare(a, b)
-    assert [(r.type, r.cid) for r in c.rows] == [("deleted", 1), ("inserted", 2), ("equal", None)]
+    assert [(r.type, r.cids) for r in c.rows] == [("deleted", [1]), ("inserted", [2]), ("equal", [])]
     assert c.summary["deletions"] == 1 and c.summary["insertions"] == 1 and c.summary["total"] == 2
 
 
@@ -47,7 +47,8 @@ def test_punctuation_and_case_categories():
     c = compare(a, b)
     assert [r.cat for r in c.rows] == ["punctuation", "punctuation"]
     assert c.summary["punctuation"] == 2 and c.summary["content"] == 0
-    assert c.summary["amendments"] == 1 and c.summary["deletions"] == 1
+    s = c.summary
+    assert s["deletions"] == 3 and s["insertions"] == 1 and s["insertions"] + s["deletions"] == s["total"]
 
 
 def test_ignore_case_pairs_at_paragraph_level_but_renders_raw_text():
@@ -65,7 +66,7 @@ def test_formatting_only_change_is_uncounted():
     b = _doc(P("Bold me", rpr="<w:b/>"))
     c = compare(a, b)
     r = c.rows[0]
-    assert r.type == "equal" and r.fmt_changed and r.cid is None and r.category == "formatting"
+    assert r.cids == [] and r.type == "equal" and r.fmt_changed
     assert [(x.s, x.e, x.desc) for x in r.fmt_ranges] == [(0, 7, "bold added")]
     assert c.summary["formatting"] == 1 and c.summary["total"] == 0
 
@@ -85,24 +86,24 @@ def test_renumbering_is_a_marker_meta_compare():
     b = _doc(_item("new") + _item("first") + _item("second") + _item("third"),
              **{"word/numbering.xml": _NUMBERING})
     c = compare(a, b)
-    assert [(r.type, r.num_changed, r.old_marker, r.cid) for r in c.rows] == [
-        ("inserted", False, None, 1), ("equal", True, "1.", 2), ("equal", True, "2.", 3), ("equal", True, "3.", 4)]
-    assert c.rows[1].category == "numbering" and c.b_units[1].marker == "2."
+    assert [(r.type, r.num_changed, r.old_marker, r.cids) for r in c.rows] == [
+        ("inserted", False, None, [1]), ("equal", True, "1.", [2]), ("equal", True, "2.", [3]), ("equal", True, "3.", [4])]
+    assert c.passages[1].category == "numbering" and c.rows[1].num_cid == 2 and c.b_units[1].marker == "2."
     assert c.summary["numbering"] == 3 and c.summary["total"] == 4 and c.summary["insertions"] == 1
     u = compare(a, b, count_numbering=False)
-    assert [r.cid for r in u.rows] == [1, None, None, None]
+    assert [r.cids for r in u.rows] == [[1], [], [], []]
     assert u.summary["numbering"] == 3 and u.summary["total"] == 1
 
 
-def test_changed_row_that_also_renumbers_counts_numbering_once_under_its_cid():
+def test_changed_row_that_also_renumbers_carries_a_numbering_passage_and_a_text_passage():
     a = _doc(_item("first item") + _item("second item"), **{"word/numbering.xml": _NUMBERING})
     b = _doc(_item("zero") + _item("first item") + _item("second item edited"),
              **{"word/numbering.xml": _NUMBERING})
     c = compare(a, b)
     ch = [r for r in c.rows if r.type == "changed"][0]
-    assert ch.num_changed and ch.old_marker == "2." and ch.cid == 3
-    assert ch.category == "insertion"      # "second item" -> "second item edited" adds text only
-    assert c.summary["numbering"] == 2 and c.summary["insertions"] == 2 and c.summary["total"] == 3
+    assert ch.num_changed and ch.old_marker == "2." and ch.cids == [3, 4] and ch.num_cid == 3
+    assert c.summary["numbering"] == 2 and c.summary["insertions"] == 2 \
+        and c.summary["numbering_changes"] == 2 and c.summary["total"] == 4
 
 
 def test_table_cells_diff_as_units_with_locations():
@@ -118,7 +119,7 @@ def test_table_cells_diff_as_units_with_locations():
                          ("equal", Loc(0, 1, 0, 2))]
     assert types[4] == ("changed", Loc(0, 1, 1, 2))
     assert [t for t, _ in types].count("inserted") == 2
-    assert c.summary["total"] == 3
+    assert c.summary["total"] == 4   # "10 units" -> "12 units" numbers the deletion then the insertion
 
 
 def test_compare_carries_both_documents_but_compare_units_does_not():
@@ -143,7 +144,7 @@ def test_all_deleted_document():
     b = _doc("")
     c = compare(a, b)
     assert [r.type for r in c.rows] == ["deleted", "deleted"]
-    assert (c.summary["deletions"], c.summary["total"], c.rows[1].cid) == (2, 2, 2)
+    assert (c.summary["deletions"], c.summary["total"], c.rows[1].cids) == (2, 2, [2])
 
 
 def test_all_inserted_document():
@@ -151,4 +152,4 @@ def test_all_inserted_document():
     b = _doc(P("one") + P("two"))
     c = compare(a, b)
     assert [r.type for r in c.rows] == ["inserted", "inserted"]
-    assert (c.summary["insertions"], c.summary["total"], c.rows[1].cid) == (2, 2, 2)
+    assert (c.summary["insertions"], c.summary["total"], c.rows[1].cids) == (2, 2, [2])

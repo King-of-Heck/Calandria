@@ -27,6 +27,7 @@ class Seg:
     m: str
     t: str
     b: bool = False
+    cid: int | None = None      # the passage number of a marked segment (spec 14.2); None on equal text
 
 
 def _in_runs(runs, i: int) -> bool:

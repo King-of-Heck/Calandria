@@ -25,5 +25,5 @@ def test_three_thousand_paragraph_pair_under_budget():
     c = compare(parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(a)}))),
                 parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(b)}))))
     elapsed = time.perf_counter() - t0
-    assert c.summary["amendments"] == 5 and c.summary["total"] == 5
+    assert c.summary["deletions"] == 18 and c.summary["insertions"] == 18 and c.summary["total"] == 36
     assert elapsed < 20, f"{elapsed:.1f}s"

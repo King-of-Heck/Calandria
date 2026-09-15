@@ -1,8 +1,8 @@
-"""Document comparison: unit stream -> LCS -> pairing -> rows -> numbering and summary."""
+"""Document comparison: unit stream -> LCS -> pairing -> rows -> passages and summary."""
 from __future__ import annotations
 
 from ..model import Document
-from .changes import Comparison, Row, empty_summary, run_counts
+from .changes import Comparison, Passage, Row, empty_summary, row_passages
 from .fmt import fmt_diff
 from .inline import safe_inline, whole_segs
 from .lcs import lcs_ops
@@ -11,7 +11,7 @@ from .units import Unit, units
 
 PAIR_THRESHOLD = 0.5
 
-_PLURAL = {"insertion": "insertions", "deletion": "deletions", "amendment": "amendments"}
+_PLURAL = {"insertion": "insertions", "deletion": "deletions", "numbering": "numbering_changes"}
 
 
 def compare(a: Document, b: Document, *, ignore_case: bool = False,
@@ -109,26 +109,18 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
         s += 1
 
     summary = empty_summary()
-    n = 0
-    for r in rows:
+    passages: list[Passage] = []
+    for k, r in enumerate(rows):
+        if r.num_changed:
+            summary["numbering"] += 1        # every renumbered row, counted or not: the gate's key
         if r.type == "equal":
             if r.fmt_changed:
                 summary["formatting"] += 1
-            if r.num_changed:
-                summary["numbering"] += 1
-                if count_numbering:
-                    n += 1
-                    r.cid = n
-                    summary["numbering_changes"] += 1
-            continue
-        n += 1
-        r.cid = n
-        summary[_PLURAL[r.category]] += 1                       # by content: spec section 13.1
-        summary["punctuation" if r.cat == "punctuation" else "content"] += 1
-        if r.type == "changed" and r.num_changed:
-            summary["numbering"] += 1
-        ins, dele = run_counts(r.segments)
-        summary["inserted_runs"] += ins
-        summary["deleted_runs"] += dele
-    summary["total"] = n
-    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering)
+        else:
+            summary["punctuation" if r.cat == "punctuation" else "content"] += 1
+        ps = row_passages(r, k, len(passages) + 1, count_numbering)
+        for p in ps:
+            summary[_PLURAL[p.category]] += 1
+        passages += ps
+    summary["total"] = len(passages)
+    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering, passages)

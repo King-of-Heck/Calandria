@@ -16,15 +16,17 @@ def test_to_dict_is_json_serializable_and_complete():
     assert d["options"] == {"ignore_case": False, "count_numbering": True}
     assert d["summary"] == c.summary
     ch = d["changes"][1]
-    assert ch["type"] == "changed" and ch["category"] == "insertion" and ch["cid"] == 1
+    assert ch["type"] == "changed" and ch["cids"] == [1] and ch["num_cid"] is None
     assert ch["oi"] == 1 and ch["ni"] == 1 and ch["loc"] is None and ch["marker"] == ""
-    assert ch["segments"] == [{"m": "eq", "t": "Beta", "b": False}, {"m": "ins", "t": " two", "b": False}]
+    assert ch["segments"] == [{"m": "eq", "t": "Beta", "b": False, "cid": None},
+                              {"m": "ins", "t": " two", "b": False, "cid": 1}]
     assert ch["fmt_changed"] is False and ch["fmt_descs"] == [] and ch["num_changed"] is False
     assert ch["old_marker"] is None
-    assert d["changes"][0] == {"type": "equal", "category": None, "cid": None, "cat": None, "oi": 0, "ni": 0,
+    assert d["changes"][0] == {"type": "equal", "cids": [], "num_cid": None, "cat": None, "oi": 0, "ni": 0,
                                "loc": None, "marker": "", "old_marker": None, "num_changed": False,
                                "fmt_changed": False, "fmt_descs": [],
-                               "segments": [{"m": "eq", "t": "Alpha", "b": False}]}
+                               "segments": [{"m": "eq", "t": "Alpha", "b": False, "cid": None}]}
+    assert d["passages"] == [{"cid": 1, "category": "insertion", "row": 1}]
 
 
 def test_empty_documents():

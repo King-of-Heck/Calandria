@@ -187,3 +187,32 @@ def test_a_toc_line_lays_out_its_number_text_and_page_number():
     assert blk.x == 10 and [(r.text, r.w, r.leader) for r in ln.runs] == [
         ("1.1", 15, None), ("\t", 15, None), ("Definitions", 55, None), ("\t", 45, "."), ("12", 10, None)]
     assert blk.x + ln.width == 150                       # the page number ends at the right stop
+
+
+BOX = ('<w:pBdr><w:top w:val="single" w:sz="8" w:space="4"/><w:bottom w:val="single" w:sz="8" w:space="4"/>'
+       '<w:left w:val="single" w:sz="8" w:space="4"/></w:pBdr>')
+
+
+def test_paragraph_borders_add_their_width_and_space_to_the_first_and_last_line():
+    from calandria.model import Border
+    body = P(" ".join(["aaaa"] * 20), ppr=BOX)                       # 8 words per 200 pt line: 3 lines
+    c, items = _items(body, body)
+    b = _block(items, 0, _ctx(c))
+    assert len(b.lines) == 3
+    assert b.borders == (Border(1.0, 4.0), Border(1.0, 4.0), Border(1.0, 4.0), None)
+    assert (b.draw_top, b.draw_bottom) == (True, True)
+    assert [ln.height for ln in b.lines] == [17, 12, 17]        # 1 pt line + 4 pt space on each end
+    assert [ln.ascent for ln in b.lines] == [13, 8, 8]          # the top border pushes the first baseline down
+    assert b.height == 46
+
+
+def test_adjacent_paragraphs_with_the_same_borders_join_into_one_box():
+    body = P("one", ppr=BOX) + P("two", ppr=BOX) + P("three", ppr=BOX + '<w:ind w:left="720"/>')
+    c, items = _items(body, body)
+    ctx = _ctx(c)
+    one, two, three = (_block(items, i, ctx) for i in range(3))
+    assert (one.draw_top, one.draw_bottom) == (True, False)     # its bottom is drawn by nobody: joined
+    assert (two.draw_top, two.draw_bottom) == (False, True)     # "three" is indented: a new box starts there
+    assert (three.draw_top, three.draw_bottom) == (True, True)
+    assert [ln.height for ln in one.lines] == [17] and [ln.height for ln in two.lines] == [17]
+    assert [ln.height for ln in three.lines] == [22]

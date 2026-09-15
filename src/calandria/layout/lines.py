@@ -1,7 +1,7 @@
 """Measured runs and greedy line breaking on glyph widths.
 
 A line's height follows Word: single spacing is the tallest run's font line height (hhea
-ascender - descender + lineGap), "auto" multiplies it, "exact" fixes it, "atLeast" takes the
+ascender - descender + lineGap; a tab's own formatting does not count), "auto" multiplies it, "exact" fixes it, "atLeast" takes the
 larger; text is bottom-aligned in the line, so the baseline sits `descent` above the bottom.
 Breaking is first-fit on word/whitespace tokens; a word wider than the whole line is split at the
 last character that fits (Word's behaviour for an unbreakable word); trailing whitespace never
@@ -106,9 +106,10 @@ def _following_width(runs: list[Run], i: int, kind: str) -> float:
 
 
 def line_height(runs: list[Run], spacing: Spacing, default_face, default_size: float) -> tuple[float, float]:
-    if runs:
-        natural = max(r.face.line_height(r.size) for r in runs)
-        desc = max(r.face.descent(r.size) for r in runs)
+    chars = [r for r in runs if not r.tab]     # a tab's own formatting does not size the line (Word)
+    if chars:
+        natural = max(r.face.line_height(r.size) for r in chars)
+        desc = max(r.face.descent(r.size) for r in chars)
     else:
         natural = default_face.line_height(default_size)
         desc = default_face.descent(default_size)

@@ -154,3 +154,13 @@ def test_a_tab_past_the_right_edge_wraps_and_is_empty_on_a_fresh_line():
 def test_tabs_are_not_justification_gaps_and_survive_the_line_end():
     lines = break_lines(_tab_runs("a b", 1), 200, 200, Spacing(), FACE, 10, default_tab=36)
     assert lines[0].gaps == 1 and _placed(lines)[0][-1] == ("\t", 21, None)
+
+
+def test_a_tab_run_does_not_raise_the_line():
+    # Word sizes a line by its characters, not its tabs: an 11 pt tab between 10 pt runs (every
+    # entry of the EPC template's stored TOC) leaves the line at the text's height. A line that
+    # holds only tabs keeps the paragraph's default height.
+    runs = _runs("a") + measure([Piece("", "eq", size=20, tab=1)], FR, "Fake", 10) + _runs("b")
+    assert line_height(runs, Spacing(), FACE, 10) == (12, 8)
+    only_tabs = measure([Piece("", "eq", size=20, tab=1)], FR, "Fake", 10)
+    assert line_height(only_tabs, Spacing(), FACE, 10) == (12, 8)

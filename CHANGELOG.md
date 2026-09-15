@@ -1,5 +1,12 @@
 # Calandria changelog
 
+## v2.5.2 — Tabs do not size the line (2026-09-15)
+
+- A tab formatted larger than the text around it no longer makes its line taller, as in Word.
+  A table of contents whose entries carry an 11 pt tab between 10 pt text (every entry of the
+  EPC template's stored TOC) now sits at Word's line pitch, so its page breaks fall where Word's
+  do. Before, each such line took the tab's height.
+
 ## v2.5.1 — Capitals, symbol characters, tab stops (2026-09-15)
 
 - Text formatted as capitals or small capitals (`w:caps`, `w:smallCaps`, on the run or its

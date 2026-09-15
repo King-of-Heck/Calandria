@@ -4,7 +4,7 @@ every sink.
 Rules (Word-like, spec section 4.5):
 - Line height: single spacing is the tallest run's font line height, taken from the TrueType hhea
   table (ascender - descender + lineGap), which is what Word uses (Calibri 11 -> 13.43 pt, Times
-  New Roman 12 -> 13.8 pt). "auto" spacing multiplies it, "exact" fixes it, "atLeast" takes the
+  New Roman 12 -> 13.8 pt); a tab's own formatting does not count (Word). "auto" spacing multiplies it, "exact" fixes it, "atLeast" takes the
   larger. Text is bottom-aligned in the line: baseline = top + height - descent.
 - Widths: hmtx advances; no kerning (Word kerns only when w:kern is set; not modelled).
 - Paragraph spacing: space before + space after both apply (they add, they do not collapse);

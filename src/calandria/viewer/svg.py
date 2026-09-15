@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape, quoteattr
 
-from ..layout.fonts import default_resolver
+from ..layout.fonts import default_resolver, glyph_outlines
 from ..layout.pages import Layout
 from ..pdf.draw import PdfOptions, draw_layout
 from ..pdf.fpdf_sink import DASH, DASH_GAP, ITALIC_DEGREES, STROKE_FRACTION
@@ -32,6 +32,9 @@ class SvgPainter:
              role: str | None = None) -> None:
         if not text:
             return
+        if getattr(face, "symbol", False) and role != "gutter":
+            self._outlines(x, baseline, text, face, size, color, fake_bold, fake_italic)
+            return
         attrs = [f'x="{_n(x)}"', f'y="{_n(baseline)}"', f"font-family={quoteattr(face.family)}",
                  f'font-size="{_n(size)}"', f'fill="#{color}"']
         if role == "gutter":
@@ -52,6 +55,27 @@ class SvgPainter:
             attrs += [f'textLength="{_n(width)}"', 'lengthAdjust="spacing"']
         attrs.append('xml:space="preserve"')
         self._pages[-1].append(f"<text {' '.join(attrs)}>{escape(text)}</text>")
+
+    def _outlines(self, x: float, baseline: float, text: str, face, size: float, color: str,
+                  fake_bold: bool, fake_italic: bool) -> None:
+        """A symbol face (Wingdings, Symbol) as glyph outlines: browsers draw its private-use
+        characters with a fallback glyph of another width, the PDF embeds the real one, so the
+        screen takes the outlines straight from the font file to match."""
+        outlines, upem = glyph_outlines(face.path, face.font_number, text)
+        k = size / upem
+        attrs = [f'fill="#{color}"']
+        if fake_bold:
+            attrs += [f'stroke="#{color}"', f'stroke-width="{_n(size * STROKE_FRACTION / k)}"']
+        if fake_italic:
+            attrs.append(f'transform="translate({_n(x)} {_n(baseline)}) skewX(-{ITALIC_DEGREES}) '
+                         f'translate(-{_n(x)} -{_n(baseline)})"')
+        parts = [f"<g {' '.join(attrs)}>"]
+        for d, adv in outlines:
+            if d:
+                parts.append(f'<path d="{d}" transform="translate({_n(x)} {_n(baseline)}) scale({k:.6f} {-k:.6f})"/>')
+            x += adv * k
+        parts.append("</g>")
+        self._pages[-1].append("".join(parts))
 
     def rule(self, x1: float, x2: float, y: float, thickness: float, color: str, dotted: bool = False) -> None:
         dash = f' stroke-dasharray="{_n(DASH)} {_n(DASH_GAP)}"' if dotted else ""

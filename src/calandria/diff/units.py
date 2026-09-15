@@ -5,11 +5,11 @@ its table location. Empty paragraphs are not units (they are layout, not content
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator
 
 from ..model import Document, Paragraph, Table, iter_paragraphs
-from .chars import FmtSpan, char_fmt
+from .chars import FmtSpan, char_fmt, tab_marks
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,8 @@ class Unit:
     fmt_spans: list[FmtSpan]
     loc: Loc | None
     para: Paragraph
+    lead_tabs: int = 0                                  # tabs before the first word (trimmed from text)
+    tabs: dict[int, int] = field(default_factory=dict)  # offset of a collapsed space -> tabs it held
 
 
 def walk(doc: Document) -> Iterator[tuple[Paragraph, Loc | None]]:
@@ -58,7 +60,8 @@ def units(doc: Document) -> list[Unit]:
         if p.is_empty:
             continue
         bold, spans = char_fmt(p)
-        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold, spans, loc, p))
+        lead, marks = tab_marks(p)
+        out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold, spans, loc, p, lead, marks))
     return out
 
 

@@ -30,13 +30,15 @@ class FmtSpan:
     f: str | None
     z: float | None
     clr: str | None
+    caps: bool = False           # drawn in capitals (w:caps / w:smallCaps); not a compared property
+    small_caps: bool = False
 
     def same_fmt(self, o: "FmtSpan") -> bool:
         return (self.b == o.b and self.i == o.i and self.u == o.u and self.f == o.f
                 and self.z == o.z and self.clr == o.clr)
 
 
-# A span under construction: [s, e, b, i, u, f, z, clr] (mutable; e grows, b can be OR-ed).
+# A span under construction: [s, e, b, i, u, f, z, clr, caps, small_caps] (mutable; e grows, b can be OR-ed).
 _S, _E, _B = 0, 1, 2
 
 
@@ -56,7 +58,7 @@ def _spans(p: Paragraph) -> list[list]:
 
     for run in p.runs:
         pr = run.props
-        fmt = (pr.bold, pr.italic, pr.underline, pr.font, pr.size_pt, pr.color)
+        fmt = (pr.bold, pr.italic, pr.underline, pr.font, pr.size_pt, pr.color, pr.caps, pr.small_caps)
         parts = _WS_RUN.split(run.text)         # words and the whitespace groups between them
         for k, part in enumerate(parts):
             if k:                               # a whitespace group precedes every part but the first
@@ -86,6 +88,37 @@ def _spans(p: Paragraph) -> list[list]:
         if last[_E] == last[_S]:
             out.pop()
     return out
+
+
+def tab_marks(p: Paragraph) -> tuple[int, dict[int, int]]:
+    """Where the paragraph's tabs went when its whitespace collapsed: (tabs before the first
+    word, {offset of a collapsed space in p.text: tabs that whitespace group held}). Trailing
+    tabs are trimmed with the trailing whitespace."""
+    lead, marks = 0, {}
+    n = 0
+    last_space = False
+    for run in p.runs:
+        parts = _WS_RUN.split(run.text)
+        groups = _WS_RUN.findall(run.text)
+        for k, part in enumerate(parts):
+            if k:
+                t = groups[k - 1].count("\t")
+                if n == 0:
+                    lead += t
+                elif last_space:
+                    if t:
+                        marks[n - 1] = marks.get(n - 1, 0) + t
+                else:
+                    n += 1
+                    last_space = True
+                    if t:
+                        marks[n - 1] = t
+            if part:
+                n += len(part)
+                last_space = False
+    if last_space:
+        marks.pop(n - 1, None)
+    return lead, marks
 
 
 def char_fmt(p: Paragraph) -> tuple[list[list[int]], list[FmtSpan]]:

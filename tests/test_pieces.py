@@ -99,3 +99,27 @@ def test_numbering_or_formatting_change_keeps_an_equal_row_visible_under_hide_un
     (row,) = c.rows
     assert visible(row, LayoutOptions(show_equal=False))
     assert not visible(row, LayoutOptions(show_equal=False, show_formatting=False))
+
+
+def test_caps_reach_the_pieces_as_one_flag():
+    c = _cmp(PR(R("Engineering", "<w:caps/>") + R(" Project", "<w:smallCaps/>") + R(" plain")),
+             PR(R("Engineering", "<w:caps/>") + R(" Project", "<w:smallCaps/>") + R(" plain")))
+    (row,) = c.rows
+    ps = row_pieces(c, row, LayoutOptions())
+    assert [(p.text, p.caps) for p in ps] == [("Engineering Project", True), (" plain", False)]
+
+
+def test_tabs_become_pieces_of_their_own():
+    c = _cmp(PR('<w:r><w:tab/><w:t>1.1</w:t><w:tab/><w:t>Definitions</w:t><w:tab/><w:t>2</w:t></w:r>'),
+             PR('<w:r><w:tab/><w:t>1.1</w:t><w:tab/><w:t>Definitions</w:t><w:tab/><w:t>2</w:t></w:r>'))
+    (row,) = c.rows
+    ps = row_pieces(c, row, LayoutOptions())
+    assert [(p.text, p.tab) for p in ps] == [("", 1), ("1.1", 0), (" ", 1), ("Definitions", 0), (" ", 1), ("2", 0)]
+    assert ps[0].mode == "eq"
+
+
+def test_a_tab_inside_a_change_keeps_its_mode():
+    c = _cmp(PR(R("Name")), PR('<w:r><w:t>Name</w:t><w:tab/><w:t>Value</w:t></w:r>'))
+    (row,) = c.rows
+    ps = row_pieces(c, row, LayoutOptions())
+    assert [(p.text, p.mode, p.tab) for p in ps] == [("Name", "eq", 0), (" ", "ins", 1), ("Value", "ins", 0)]

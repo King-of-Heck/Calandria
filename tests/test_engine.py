@@ -327,3 +327,15 @@ def test_two_replacements_on_one_line_number_deletion_then_insertion():
     assert [(g.text, g.mode, g.cid) for g in ln.runs if g.cid is not None] == \
         [("old", "del", 1), ("new", "ins", 2), ("here", "del", 3), ("there", "ins", 4)]
     assert all(g.cid is None for g in ln.runs if g.mode == "eq")     # the equal text is several runs
+
+
+def test_leader_dots_are_placed_to_end_at_the_stop():
+    sty = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>',
+                 '<w:style w:type="paragraph" w:styleId="TOC1"><w:pPr><w:tabs>'
+                 '<w:tab w:val="right" w:leader="dot" w:pos="2000"/></w:tabs></w:pPr></w:style>')
+    body = ('<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t>Intro</w:t><w:tab/><w:t>3</w:t></w:r></w:p>')
+    d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": sty})))
+    L = layout(compare(d, d), LayoutOptions(fonts=FR))
+    (ln,) = L.pages[0].lines
+    # "Intro" 25 pt from 72; the tab spans 97 -> 167 (the stop at 172 minus the 5 pt "3"); 14 dots of 5 pt
+    assert [(r.text, r.x, r.w) for r in ln.runs] == [("Intro", 72, 25), ("\t", 97, 70), ("." * 14, 97, 70), ("3", 167, 5)]

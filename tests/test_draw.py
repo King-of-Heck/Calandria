@@ -428,3 +428,13 @@ def test_marks_tint_the_side_s_own_changed_runs_only():
 def test_marks_never_touch_the_blackline():
     _, p = _side("blackline", marks=True)
     assert p.of("box") == [] and p.of("rule")                  # the redline decorations are still drawn
+
+
+def test_a_tab_run_draws_its_decorations_but_no_text():
+    from calandria.layout.pages import GlyphRun, PlacedLine
+    g = GlyphRun("\t", 10, 30, "Fake|", 10, False, False, False, None, "ins", False, 1)
+    ln = PlacedLine(10, 0, 12, 8, [g], [], True, [1], 0)
+    p = RecordingPainter()
+    fonts = {"Fake|": FontRef("<fake:Fake|>", 0, "Fake", False, False, False)}
+    draw_runs(ln, [g], fonts, STANDARD, p)
+    assert p.of("text") == [] and p.of("rule") and {(o[1], o[2]) for o in p.of("rule")} == {(10, 40)}

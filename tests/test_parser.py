@@ -259,3 +259,36 @@ def test_unstyled_paragraph_spacing_normal_default_wins_over_doc_defaults():
               '<w:pPr><w:spacing w:after="0"/></w:pPr></w:style></w:styles>')
     d = _doc(P("x"), **{"word/styles.xml": styles})
     assert d.blocks[0].props.space_after_pt == 0.0
+
+
+def test_caps_and_small_caps_come_from_the_run_or_its_style():
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="TOC1">'
+              '<w:name w:val="toc 1"/><w:rPr><w:caps/></w:rPr></w:style></w:styles>')
+    d = _doc('<w:p><w:r><w:rPr><w:caps/></w:rPr><w:t>Agreement</w:t></w:r>'
+             '<w:r><w:rPr><w:smallCaps/></w:rPr><w:t>Project</w:t></w:r><w:r><w:t>plain</w:t></w:r></w:p>'
+             '<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t>Section 1</w:t></w:r>'
+             '<w:r><w:rPr><w:caps w:val="0"/></w:rPr><w:t>not</w:t></w:r></w:p>',
+             **{"word/styles.xml": styles})
+    a, b = d.blocks
+    assert [(r.props.caps, r.props.small_caps) for r in a.runs] == [(True, False), (False, True), (False, False)]
+    assert a.text == "AgreementProjectplain"          # the text itself is never changed
+    assert [r.props.caps for r in b.runs] == [True, False]
+
+
+def test_paragraph_tab_stops_merge_style_level_and_own():
+    from calandria.model import TabStop
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="TOC2">'
+              '<w:name w:val="toc 2"/><w:pPr><w:tabs><w:tab w:val="left" w:pos="800"/>'
+              '<w:tab w:val="right" w:leader="dot" w:pos="9350"/></w:tabs></w:pPr></w:style></w:styles>')
+    numbering = (f'<w:numbering xmlns:w="{W_NS}"><w:abstractNum w:abstractNumId="0">'
+                 '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/>'
+                 '<w:pPr><w:tabs><w:tab w:val="num" w:pos="1440"/></w:tabs><w:ind w:left="1440" w:hanging="720"/>'
+                 '</w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+    d = _doc('<w:p><w:pPr><w:pStyle w:val="TOC2"/><w:tabs><w:tab w:val="clear" w:pos="800"/>'
+             '<w:tab w:val="center" w:pos="2000"/></w:tabs></w:pPr><w:r><w:t>a</w:t></w:r></w:p>'
+             '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>b</w:t></w:r></w:p>'
+             + P("c"), **{"word/styles.xml": styles, "word/numbering.xml": numbering})
+    a, b, c = d.blocks
+    assert a.props.tabs == (TabStop(100.0, "center"), TabStop(467.5, "right", "dot"))
+    assert b.props.tabs == (TabStop(72.0, "num"),)
+    assert c.props.tabs == ()

@@ -1,5 +1,19 @@
 # Calandria changelog
 
+## v2.5.1 — Capitals, symbol characters, tab stops (2026-09-15)
+
+- Text formatted as capitals or small capitals (`w:caps`, `w:smallCaps`, on the run or its
+  paragraph style) is drawn in capitals, as Word shows it; the comparison still runs on the text
+  as typed. Small capitals are drawn at full size.
+- A character from a symbol font (Wingdings, Wingdings 2, Symbol: a checkbox, an arrow) measures
+  its own glyph width instead of a placeholder's, and the on-screen pages draw the glyph's outline
+  from the font file, so it no longer runs into the text beside it. The PDF already embedded the
+  right glyph.
+- Tabs advance to tab stops: the paragraph's own stops and its style's and list level's, then
+  Word's default stops beyond them. Right, centre and decimal stops align the text that follows,
+  and dot, hyphen and underscore leaders are drawn. A table of contents now lays out as in Word:
+  number, title, leader dots, page number at the right stop. Before, every tab was one space.
+
 ## v2.5.0 — Changes counted by passage (2026-09-14)
 
 - A change is a passage: a contiguous run of inserted text, a contiguous run of deleted text, or

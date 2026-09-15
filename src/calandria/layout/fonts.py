@@ -105,7 +105,17 @@ class Face:
             self.upem = f["head"].unitsPerEm
             h = f["hhea"]
             self._asc, self._desc, self._gap = h.ascent, abs(h.descent), h.lineGap
-            self._cmap = f.getBestCmap() or {}
+            self._cmap = dict(f.getBestCmap() or {})
+            # A symbol font (Wingdings, Symbol, ...) maps its glyphs in a (3,0) table at U+F0xx;
+            # Word stores the character as U+F0xx (sometimes as the low byte). No text layer knows
+            # these code points, so such a face is flagged and the viewer draws its outlines.
+            sym = f["cmap"].getcmap(3, 0) if "cmap" in f else None
+            self.symbol = sym is not None
+            if sym is not None:
+                for code, g in sym.cmap.items():
+                    self._cmap.setdefault(code, g)
+                    if 0xF000 <= code <= 0xF0FF:
+                        self._cmap.setdefault(code - 0xF000, g)
             self._adv = {g: m[0] for g, m in f["hmtx"].metrics.items()}
             notdef = self._adv.get(".notdef")
             if notdef is None:
@@ -176,6 +186,45 @@ class FontResolver:
             face = Face(file, fam, bold, italic, synthetic=actual != (bold, italic))
             self._faces[k] = face
         return face
+
+
+_OUTLINE_FONTS: dict[tuple[str, int], tuple] = {}
+_OUTLINES: dict[tuple[str, int, str], tuple[str, int]] = {}
+
+
+def glyph_outlines(path: str, font_number: int, text: str) -> tuple[list[tuple[str, int]], int]:
+    """([(SVG path data in font units, y up; advance in font units)] per character, unitsPerEm)
+    from the font file. A character the font lacks draws nothing and advances its .notdef width.
+    Used for symbol faces, whose characters no text renderer resolves (see Face.symbol)."""
+    from fontTools.pens.svgPathPen import SVGPathPen
+
+    key = (path, font_number)
+    entry = _OUTLINE_FONTS.get(key)
+    if entry is None:
+        f = TTFont(path, fontNumber=font_number, lazy=True)
+        cmap = dict(f.getBestCmap() or {})
+        sym = f["cmap"].getcmap(3, 0) if "cmap" in f else None
+        if sym is not None:
+            for code, g in sym.cmap.items():
+                cmap.setdefault(code, g)
+                if 0xF000 <= code <= 0xF0FF:
+                    cmap.setdefault(code - 0xF000, g)
+        entry = (f.getGlyphSet(), cmap, {g: m[0] for g, m in f["hmtx"].metrics.items()}, f["head"].unitsPerEm)
+        _OUTLINE_FONTS[key] = entry
+    glyphs, cmap, adv, upem = entry
+    out = []
+    for ch in text:
+        g = cmap.get(ord(ch), ".notdef")
+        k = (path, font_number, g)
+        d = _OUTLINES.get(k)
+        if d is None:
+            pen = SVGPathPen(glyphs)
+            if g in glyphs:
+                glyphs[g].draw(pen)
+            d = (pen.getCommands(), adv.get(g, adv.get(".notdef", upem // 2)))
+            _OUTLINES[k] = d
+        out.append(d)
+    return out, upem
 
 
 _DEFAULT: FontResolver | None = None

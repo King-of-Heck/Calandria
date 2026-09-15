@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..model import TabStop, merge_tabs
 from .ns import wq, wval, wbool, half_pt, twips_to_pt
+
+_TAB_KINDS = {"start": "left", "end": "right"}
 
 
 def read_rpr(rpr) -> dict:
@@ -20,6 +23,10 @@ def read_rpr(rpr) -> dict:
     u = rpr.find(wq("u"))
     if u is not None:
         out["underline"] = wval(u, "single") != "none"
+    for tag, key in (("caps", "caps"), ("smallCaps", "small_caps")):
+        el = rpr.find(wq(tag))
+        if el is not None:
+            out[key] = wbool(el)
     fonts = rpr.find(wq("rFonts"))
     if fonts is not None and fonts.get(wq("ascii")):
         out["font"] = fonts.get(wq("ascii"))
@@ -81,6 +88,16 @@ def read_ppr(ppr) -> dict:
     ol = ppr.find(wq("outlineLvl"))
     if ol is not None and wval(ol) is not None:
         out["outline_level"] = int(wval(ol))
+    tabs = ppr.find(wq("tabs"))
+    if tabs is not None:
+        stops = []
+        for t in tabs.findall(wq("tab")):
+            pos = twips_to_pt(t.get(wq("pos")))
+            if pos is None:
+                continue
+            kind = wval(t, "left") or "left"
+            stops.append(TabStop(pos, _TAB_KINDS.get(kind, kind), t.get(wq("leader")) or "none"))
+        out["tabs"] = tuple(stops)
     numpr = ppr.find(wq("numPr"))
     if numpr is not None:
         nid, il = numpr.find(wq("numId")), numpr.find(wq("ilvl"))
@@ -159,6 +176,10 @@ class Styles:
 
     def resolved_ppr(self, sid) -> dict:
         out: dict = {}
+        tabs: tuple = ()
         for st in reversed(self._chain(sid)):
             out.update(st.ppr)
+            tabs = merge_tabs(tabs, st.ppr.get("tabs", ()))   # stops accumulate down the chain
+        if tabs or "tabs" in out:
+            out["tabs"] = tabs
         return out

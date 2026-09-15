@@ -73,7 +73,7 @@ button:disabled { opacity: .5; cursor: default; }
   width: 340px; flex: none; display: flex; flex-direction: column; min-height: 0;
   background: #fff; border-right: 1px solid var(--edge);
 }
-#panel .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; }
+#panel .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; }
 #panel .tile { border: 1px solid var(--edge); border-radius: 4px; padding: 4px 2px; text-align: center; background: #fff; }
 #panel button.tile { cursor: pointer; }
 #panel button.tile:hover { background: var(--bar); }
@@ -83,9 +83,8 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .tile span { color: #4b5563; font-size: 12px; }
 #panel .tile.insertion b { color: var(--ins); }
 #panel .tile.deletion b { color: var(--del); }
-#panel .tile.formatting, #panel .tile.passages { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; align-items: baseline; padding: 2px 6px; color: var(--muted); border-style: dashed; }
+#panel .tile.formatting { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; align-items: baseline; padding: 2px 6px; color: var(--muted); border-style: dashed; }
 #panel .tile.formatting b { font-size: 14px; color: var(--fmt); }
-#panel .tile.passages { font-size: 12px; border-style: none; padding-top: 0; }
 #panel .head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--edge); }
 #panel .head .count { font-weight: 600; margin-right: auto; }
 #panel.collapsed { width: 28px; }
@@ -114,7 +113,6 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .badge { font-size: 11px; text-align: center; border-radius: 3px; padding: 1px 4px; color: #fff; background: var(--muted); align-self: start; }
 #panel li.insertion .badge { background: var(--ins); }
 #panel li.deletion .badge { background: var(--del); }
-#panel li.amendment .badge { background: #7c3aed; }
 #panel li.numbering .badge { background: #0f766e; }
 #panel .no { font-weight: 600; }
 #panel .text s.del { color: var(--del); }
@@ -173,7 +171,6 @@ button:disabled { opacity: .5; cursor: default; }
 #strip .mark { position: absolute; left: 2px; right: 2px; height: 2px; padding: 0; min-height: 0; border: 0; border-radius: 0; background: var(--muted); cursor: pointer; }
 #strip .mark.insertion { background: var(--ins); }
 #strip .mark.deletion { background: var(--del); }
-#strip .mark.amendment { background: var(--fmt); }
 #strip .mark.numbering { background: #0f766e; }
 #strip .mark.dim { opacity: .25; }
 #strip .mark.current { height: 4px; left: 0; right: 0; outline: 1px solid var(--ink); z-index: 2; }

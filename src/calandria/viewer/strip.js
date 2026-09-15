@@ -1,4 +1,4 @@
-// The density strip beside the pages: one mark per numbered change at its position over the
+// The density strip beside the pages: one mark per passage at its position over the
 // whole document, coloured by category; the current change's mark is bigger; filtered-out marks
 // dim; a translucent band shows the part of the document on screen. The strip only listens to
 // the change list's events and asks for a jump with calandria:goto — it never reads its state.
@@ -31,23 +31,20 @@ export function initStrip() {
   const build = (data) => {
     for (const b of marks.values()) b.remove();
     marks = new Map();
-    const seen = new Set();
     const heights = pageHeights();
-    for (const row of data.changes) {
-      if (row.cid === null || row.cid === undefined || seen.has(row.cid)) continue;
-      seen.add(row.cid);
-      const a = data.anchors[String(row.cid)];
+    for (const p of data.passages) {
+      const a = data.anchors[String(p.cid)];
       const h = a ? heights.get(a.page) : null;
       if (!a || !h) continue;
       const b = document.createElement("button");
       b.type = "button";
-      b.className = `mark ${row.category}`;
-      b.title = `Change ${row.cid} · p. ${a.page}`;
+      b.className = `mark ${p.category}`;
+      b.title = `Change ${p.cid} · p. ${a.page}`;
       b.setAttribute("aria-label", b.title);
       b.style.top = `${(markTop(a, h, data.page_count) * 100).toFixed(3)}%`;
-      b.addEventListener("click", () => document.dispatchEvent(new CustomEvent("calandria:goto", { detail: { cid: row.cid } })));
+      b.addEventListener("click", () => document.dispatchEvent(new CustomEvent("calandria:goto", { detail: { cid: p.cid } })));
       strip.appendChild(b);
-      marks.set(row.cid, b);
+      marks.set(p.cid, b);
     }
     strip.hidden = marks.size === 0;
     viewport();

@@ -316,15 +316,17 @@ def test_gutter_numerals_get_a_floor_on_screen():
     assert "const GUTTER_MIN_PX = 9;" in _read("app.js")
 
 
-def test_the_tiles_filter_the_way_the_summary_counts():
-    # v2.4.7: a change is classified by its content, so the four counts add up to the total and
-    # each tile solos exactly its own category (no more folding amendments into the other two).
+def test_the_list_is_built_from_the_passages():
+    # v2.5.0: one row per passage; a tile solos exactly its category; the three counts add up.
     js = _read("changes.js")
-    assert "function matchesTile(" in js
+    assert "function entriesOf(" in js and "d.passages.map(" in _function_body(js, "entriesOf")
+    assert "function group(" not in js
+    assert 'const TILES = [["Insertions", "insertions", "insertion"], ["Deletions", "deletions", "deletion"],' in js
+    assert '["Numbering", "numbering_changes", "numbering"]];' in js and "Amendments" not in js
+    assert "amendment" not in js and "inserted_runs" not in js and "passages\"" not in js
     body = _function_body(js, "matchesTile")
-    assert "en.category === tile" in body and '"amendment"' not in body
-    assert "matchesTile(" in _function_body(js, "refilter")
-    assert "en.category === solo" not in js
+    assert "en.category === tile" in body
+    assert "jumpTo(lead, visible[i].rowIndex)" in _function_body(js, "go")
 
 
 # v2.4.0: the side-by-side panes (spec section 12.4).
@@ -611,9 +613,17 @@ def test_changed_pages_only_keeps_the_readers_place():
     assert wire.index("anchorPage(lead)") < wire.index("applyChangedOnly();") < wire.index("scrollToPage(lead, at)")
 
 
-# v2.4.7: a change is classified by its content, so a tile solos exactly its category.
-def test_tiles_solo_their_own_category_and_show_the_passages_line():
-    js = _read("changes.js")
-    assert "amendments included" not in js
-    assert 'class="tile passages"' in js and "inserted_runs" in js and "deleted_runs" in js
-    assert ".tile.passages" in _read("style.css")
+# v2.5.0: the numbered unit of a comparison is a passage, not a paragraph.
+def test_the_strip_the_panes_and_the_styles_speak_passages():
+    strip, panes, css = _read("strip.js"), _read("panes.js"), _read("style.css")
+    assert "data.passages" in strip and "row.category" not in strip and "amendment" not in strip
+    assert "row.cids.includes(cid)" in panes
+    assert "amendment" not in css and ".tile.passages" not in css
+    assert "grid-template-columns: repeat(3, 1fr)" in css
+
+
+def test_a_passage_row_shows_its_own_passage_with_context():
+    body = _function_body(_read("changes.js"), "changeText")
+    assert "s.cid === en.cid" in body                       # the passage's segments
+    assert 'en.category === "numbering"' in body            # the marker row
+    assert "keepEnd(before, context)" in body and "keepStart(after, context)" in body

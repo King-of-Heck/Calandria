@@ -1,8 +1,8 @@
 // The change list panel: summary tiles that filter (click to solo a category, again for all),
-// the location select, the numbered list with the change text styled like the page (two lines
-// per row, the selected row in full), navigation from the toolbar and the keys, and the on-page
-// highlight of the selected change (a translucent band over every line and changed table row
-// carrying its number).
+// the location select, the numbered list, one row per passage, with the passage's text styled
+// like the page (two lines per row, the selected row in full), navigation from the toolbar and
+// the keys, and the on-page highlight of the selected change (a translucent band over every line
+// and changed table row carrying its number).
 import { pageSize, flash, state } from "./app.js";
 import { linesOf, textOf } from "./copy.js";
 import { highlightSides, leadPane } from "./panes.js";
@@ -13,12 +13,12 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const CONTEXT = 40;                   // characters of unchanged text kept on each side of a change (selected row)
 const CONTEXT_SHORT = 24;             // the same for the clamped rows
 const MAX_SEGMENT = 200;              // characters of one inserted / deleted segment shown
-const BADGE = { insertion: "Add", deletion: "Delete", amendment: "Change", numbering: "Number" };
+const BADGE = { insertion: "Add", deletion: "Delete", numbering: "Number" };
 const TILES = [["Insertions", "insertions", "insertion"], ["Deletions", "deletions", "deletion"],
-               ["Amendments", "amendments", "amendment"], ["Numbering", "numbering_changes", "numbering"]];
+               ["Numbering", "numbering_changes", "numbering"]];
 
 let data = null;
-let entries = [];                     // every numbered change, document order
+let entries = [];                     // every passage, document order
 let visible = [];                     // after the filters
 let current = -1;                     // index into visible
 let solo = null;                      // the one category shown, or null for all
@@ -109,7 +109,7 @@ function initPanel() {
 }
 
 function build() {
-  entries = group(data.changes);
+  entries = entriesOf(data);
   hasTables = entries.some((en) => en.loc === "table");
   solo = null;
   $("copyFinal").disabled = false;
@@ -117,32 +117,24 @@ function build() {
   refilter();
 }
 
-function group(rows) {
-  const byCid = new Map();
-  for (const row of rows) {
-    if (row.cid === null || row.cid === undefined) continue;
-    if (!byCid.has(row.cid)) {
-      const a = data.anchors[String(row.cid)];
-      byCid.set(row.cid, { cid: row.cid, category: row.category, loc: row.loc ? "table" : "body", page: a ? a.page : null, rows: [] });
-    }
-    byCid.get(row.cid).rows.push(row);
-  }
-  return [...byCid.values()];
+// One entry per passage: its row (the paragraph it sits in; the row menu copies that), its
+// category, its page from the anchors.
+function entriesOf(d) {
+  return d.passages.map((p) => {
+    const row = d.changes[p.row];
+    const a = d.anchors[String(p.cid)];
+    return { cid: p.cid, category: p.category, loc: row.loc ? "table" : "body", page: a ? a.page : null,
+             row, rowIndex: p.row, rows: [row] };
+  });
 }
-
-const passages = (k, word) => `${k} ${word}${k === 1 ? "" : "s"}`;
 
 function tiles() {
   const s = data.summary;
-  const runs = s.inserted_runs || s.deleted_runs
-    ? `<div class="tile passages" title="Contiguous inserted and deleted passages over all changes, the unit other comparison tools count">` +
-      `<span>${passages(s.inserted_runs, "inserted passage")} · ${passages(s.deleted_runs, "deleted passage")}</span></div>`
-    : "";
   $("tiles").innerHTML = TILES.map(([label, key, cat]) =>
     `<button type="button" class="tile ${cat}" data-cat="${cat}" aria-pressed="false" ` +
     `title="Show only ${label.toLowerCase()}; click again for all"><b>${s[key]}</b><span>${label}</span></button>`).join("") +
     `<div class="tile formatting" title="Formatting changes are shown on the page but not counted or listed">` +
-    `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>` + runs;
+    `<b>${s.formatting}</b><span>Formatting · shown, not counted</span></div>`;
 }
 
 function markTiles() {
@@ -152,11 +144,10 @@ function markTiles() {
     t.classList.toggle("on", on);
     t.classList.toggle("dim", solo !== null && !on);
   }
-  for (const t of $("tiles").querySelectorAll(".tile.formatting, .tile.passages")) t.classList.toggle("dim", solo !== null);
+  for (const t of $("tiles").querySelectorAll(".tile.formatting")) t.classList.toggle("dim", solo !== null);
 }
 
-// A tile solos exactly its category: since v2.4.7 a change is classified by its content, so the
-// four counts add up to the total and no tile includes another's changes.
+// A tile solos exactly its category: the three counts add up to the total.
 function matchesTile(en, tile) {
   return tile === null || en.category === tile;
 }
@@ -179,28 +170,25 @@ function esc(s) {
 function keepEnd(t, n) { return t.length > n ? "…" + t.slice(-n) : t; }
 function keepStart(t, n) { return t.length > n ? t.slice(0, n) + "…" : t; }
 
+// The row's text: a numbering passage shows the old marker struck, the new one underlined, then
+// the start of the paragraph; a text passage shows its own segments (from its first marked
+// segment to its last, with whatever whitespace and other-side segments lie between) and a
+// little unchanged text either side. Other passages of the same paragraph have their own rows.
 function changeText(en, context) {
-  const parts = [];
-  for (const row of en.rows) {
-    if (row.num_changed && row.old_marker !== null && row.old_marker !== undefined) {
-      parts.push(`<s class="del">${esc(row.old_marker)}</s> <u class="ins">${esc(row.marker || "")}</u> `);
-    }
-    const segs = row.segments;
-    let first = -1, last = -1;
-    segs.forEach((s, i) => { if (s.m !== "eq") { if (first < 0) first = i; last = i; } });
-    segs.forEach((s, i) => {
-      let t = s.t;
-      if (s.m === "eq") {
-        if (first < 0 || i > last) t = keepStart(t, context);
-        else if (i < first) t = keepEnd(t, context);
-      } else {
-        t = keepStart(t, MAX_SEGMENT);
-      }
-      parts.push(s.m === "del" ? `<s class="del">${esc(t)}</s>` : s.m === "ins" ? `<u class="ins">${esc(t)}</u>` : esc(t));
-    });
-    parts.push(" ");
+  const segs = en.row.segments;
+  const mark = (s, t) => s.m === "del" ? `<s class="del">${esc(t)}</s>` : s.m === "ins" ? `<u class="ins">${esc(t)}</u>` : esc(t);
+  if (en.category === "numbering") {
+    const start = segs.filter((s) => s.m !== "del").map((s) => s.t).join("");
+    return `<s class="del">${esc(en.row.old_marker || "")}</s> <u class="ins">${esc(en.row.marker || "")}</u> ${esc(keepStart(start, context))}`;
   }
-  return parts.join("");
+  let first = -1, last = -1;
+  segs.forEach((s, i) => { if (s.cid === en.cid) { if (first < 0) first = i; last = i; } });
+  if (first < 0) return "";
+  let before = "", after = "";
+  for (let i = first - 1; i >= 0 && segs[i].m === "eq"; i--) before = segs[i].t + before;
+  for (let i = last + 1; i < segs.length && segs[i].m === "eq"; i++) after += segs[i].t;
+  const middle = segs.slice(first, last + 1).map((s) => mark(s, s.m === "eq" ? s.t : keepStart(s.t, MAX_SEGMENT))).join("");
+  return esc(keepEnd(before, context)) + middle + esc(keepStart(after, context));
 }
 
 function renderList() {
@@ -287,10 +275,9 @@ function go(i) {
     $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
     syncFrom("blackline");
   } else {
-    // The blackline is off: the jump goes by the change's row in the lead pane.
+    // The blackline is off: the jump goes by the passage's row in the lead pane.
     const lead = leadPane();
-    const k = data.changes.findIndex((row) => row.cid === visible[i].cid);
-    if (lead && k >= 0) jumpTo(lead, k);
+    if (lead) jumpTo(lead, visible[i].rowIndex);
   }
 }
 

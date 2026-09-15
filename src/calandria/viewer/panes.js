@@ -128,15 +128,15 @@ export function renderPanes() {
   for (const side of ["original", "modified"]) buildPages(paneOf(side), state.data.sides[side]);
 }
 
-// The current change's row highlighted in every side pane: the row of its first changed row on
-// that side (an inserted row has no place in Original and gets none there).
+// The current passage's row highlighted in every side pane: the row it sits in on that side (an
+// inserted row has no place in Original and gets none there).
 export function highlightSides(cid) {
   for (const side of ["original", "modified"]) {
     const pane = paneOf(side);
     for (const r of pane.querySelectorAll("rect.hl")) r.remove();
     if (cid === null || !state.data || !state.data.sides[side]) continue;
     const rows = state.data.sides[side].rows;
-    const k = state.data.changes.findIndex((row, i) => row.cid === cid && rows[String(i)]);
+    const k = state.data.changes.findIndex((row, i) => row.cids.includes(cid) && rows[String(i)]);
     if (k < 0) continue;
     const a = rows[String(k)];
     const svg = pane.querySelector(`.page[data-page="${a.page}"] svg`);

@@ -173,6 +173,14 @@ def test_anchors_follow_a_passage_to_the_line_it_starts_on():
     assert [m[3] for m in marks] == [[1]]                     # only the line holding the passage
 
 
+def test_a_hidden_passage_is_anchored_to_its_row():
+    s = _session(P("The old value here"), P("The new value here"), options=Options(show_insertions=False))
+    anchors, marks = change_marks(s.layout, s.cmp.passages)
+    assert set(anchors) == {1, 2}
+    assert anchors[2] == anchors[1]
+    assert {c for m in marks for c in m[3]} == {1}
+
+
 def test_touch_updates_last_seen():
     s = Session(fonts=FR)
     before = s.last_seen

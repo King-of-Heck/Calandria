@@ -82,10 +82,13 @@ def _parse(name: str, data: bytes):
         raise BadDocument(f"{name}: not a Word document ({type(e).__name__})") from e
 
 
-def change_marks(lay: Layout) -> tuple[dict[int, dict], list[list]]:
-    """(anchors, marks). anchors[cid] = {"page", "top"} of the line a passage starts on (the first
-    line carrying one of its runs when no line starts it); marks = [page, top, height, [cids]] for
-    every line and every changed table row carrying passage numbers (the highlight)."""
+def change_marks(lay: Layout, passages=()) -> tuple[dict[int, dict], list[list]]:
+    """(anchors, marks). anchors[cid] = {"page", "top"} of the line a passage starts on, else the
+    first line carrying one of its runs, else (when `passages` is given) the first line of its row
+    -- a passage hidden by show_insertions/show_deletions carries no runs on the layout at all, so
+    it falls back to wherever its row landed. marks = [page, top, height, [cids]] for every line and
+    every changed table row carrying passage numbers (the highlight; nothing to highlight for a
+    passage with no placed text)."""
     anchors: dict[int, dict] = {}
     marks: list[list] = []
     for pg in lay.pages:
@@ -102,6 +105,12 @@ def change_marks(lay: Layout) -> tuple[dict[int, dict], list[list]]:
     for page, top, _h, cids in marks:
         for c in cids:
             anchors.setdefault(c, {"page": page, "top": top})
+    if passages:
+        rows = row_map(lay)
+        for p in passages:
+            if p.cid not in anchors and p.row in rows:
+                r = rows[p.row]
+                anchors.setdefault(p.cid, {"page": r["page"], "top": r["top"]})
     return anchors, marks
 
 
@@ -271,7 +280,7 @@ class Session:
     def payload(self, render_set: str = "Standard", change_bars: bool = True, marks: bool = False,
                 sides: list[str] | None = None) -> dict:
         self._need()
-        anchors, marks_ = change_marks(self.layout)
+        anchors, marks_ = change_marks(self.layout, self.cmp.passages)
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name},
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],

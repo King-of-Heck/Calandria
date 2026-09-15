@@ -19,7 +19,7 @@
   scroll, gaps between pages and zoom included. Before, the strip spanned the whole pane height
   and placed marks by page number, so a mark sat a little off the thumb.
 
-## v2.5.0 — Changes counted by passage (2026-09-14)
+## v2.5.0 — Changes counted by passage (2026-09-15)
 
 - A change is a passage: a contiguous run of inserted text, a contiguous run of deleted text, or
   a renumbered list marker. A paragraph that swaps a word holds two changes, the deletion then

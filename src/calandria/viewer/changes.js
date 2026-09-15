@@ -7,12 +7,12 @@ import { pageSize, flash, state } from "./app.js";
 import { linesOf, textOf } from "./copy.js";
 import { highlightSides, leadPane } from "./panes.js";
 import { syncFrom } from "./sync.js";
+import { changeText } from "./rowtext.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CONTEXT = 40;                   // characters of unchanged text kept on each side of a change (selected row)
 const CONTEXT_SHORT = 24;             // the same for the clamped rows
-const MAX_SEGMENT = 200;              // characters of one inserted / deleted segment shown
 const BADGE = { insertion: "Add", deletion: "Delete", numbering: "Number" };
 const TILES = [["Insertions", "insertions", "insertion"], ["Deletions", "deletions", "deletion"],
                ["Numbering", "numbering_changes", "numbering"]];
@@ -161,34 +161,6 @@ function refilter() {
   highlight(-1);
   status();
   document.dispatchEvent(new CustomEvent("calandria:filtered", { detail: { visible: visible.map((en) => en.cid) } }));
-}
-
-function esc(s) {
-  return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-}
-
-function keepEnd(t, n) { return t.length > n ? "…" + t.slice(-n) : t; }
-function keepStart(t, n) { return t.length > n ? t.slice(0, n) + "…" : t; }
-
-// The row's text: a numbering passage shows the old marker struck, the new one underlined, then
-// the start of the paragraph; a text passage shows its own segments (from its first marked
-// segment to its last, with whatever whitespace and other-side segments lie between) and a
-// little unchanged text either side. Other passages of the same paragraph have their own rows.
-function changeText(en, context) {
-  const segs = en.row.segments;
-  const mark = (s, t) => s.m === "del" ? `<s class="del">${esc(t)}</s>` : s.m === "ins" ? `<u class="ins">${esc(t)}</u>` : esc(t);
-  if (en.category === "numbering") {
-    const start = segs.filter((s) => s.m !== "del").map((s) => s.t).join("");
-    return `<s class="del">${esc(en.row.old_marker || "")}</s> <u class="ins">${esc(en.row.marker || "")}</u> ${esc(keepStart(start, context))}`;
-  }
-  let first = -1, last = -1;
-  segs.forEach((s, i) => { if (s.cid === en.cid) { if (first < 0) first = i; last = i; } });
-  if (first < 0) return "";
-  let before = "", after = "";
-  for (let i = first - 1; i >= 0 && segs[i].m === "eq"; i--) before = segs[i].t + before;
-  for (let i = last + 1; i < segs.length && segs[i].m === "eq"; i++) after += segs[i].t;
-  const middle = segs.slice(first, last + 1).map((s) => mark(s, s.m === "eq" ? s.t : keepStart(s.t, MAX_SEGMENT))).join("");
-  return esc(keepEnd(before, context)) + middle + esc(keepStart(after, context));
 }
 
 function renderList() {

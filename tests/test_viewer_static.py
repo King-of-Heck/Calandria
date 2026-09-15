@@ -1,5 +1,6 @@
 """The page's files exist, agree with each other (every id the scripts look up is
 in the HTML, every static reference is a served file) and parse (node --check when node is here)."""
+import json
 import re
 import shutil
 import subprocess
@@ -67,7 +68,7 @@ def test_the_ping_carries_the_page_visibility():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js", "sides.js"])
+@pytest.mark.parametrize("script", ["app.js", "changes.js", "sources.js", "strip.js", "copy.js", "panes.js", "sync.js", "sides.js", "rowtext.js"])
 def test_scripts_parse(script):
     path = VIEWER.joinpath(script)
     r = subprocess.run([shutil.which("node"), "--check", str(path)], capture_output=True, text=True)
@@ -248,7 +249,7 @@ def _node(script, code):
     never touches the DOM: strip.js, copy.js)."""
     uri = Path(str(VIEWER.joinpath(script))).as_uri()
     r = subprocess.run([shutil.which("node"), "--input-type=module", "-e", f'import * as m from "{uri}";\n{code}'],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     assert r.returncode == 0, r.stderr
     return r.stdout.strip()
 
@@ -623,7 +624,62 @@ def test_the_strip_the_panes_and_the_styles_speak_passages():
 
 
 def test_a_passage_row_shows_its_own_passage_with_context():
-    body = _function_body(_read("changes.js"), "changeText")
+    js = _read("rowtext.js")
+    assert "rowtext.js" in STATIC
+    assert 'from "./rowtext.js"' in _read("changes.js")
+    body = _function_body(js, "changeText")
     assert "s.cid === en.cid" in body                       # the passage's segments
     assert 'en.category === "numbering"' in body            # the marker row
     assert "keepEnd(before, context)" in body and "keepStart(after, context)" in body
+
+
+# v2.5.0 review: changeText's row-HTML is exercised behaviourally under node (it moved to
+# rowtext.js, which touches no DOM, unlike changes.js which cannot be imported under node).
+
+def _entry(cid, category, segments, old_marker=None, marker=None):
+    return {"cid": cid, "category": category,
+            "row": {"segments": segments, "old_marker": old_marker, "marker": marker}}
+
+
+def _change_text(en, context):
+    return _node("rowtext.js", f"console.log(m.changeText({json.dumps(en)}, {context}));")
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_a_replacements_delete_row_shows_only_its_own_passage():
+    en = _entry(1, "deletion", [{"m": "del", "t": "old", "cid": 1}, {"m": "ins", "t": "new", "cid": 2},
+                                {"m": "eq", "t": " value", "cid": None}])
+    assert _change_text(en, 40) == '<s class="del">old</s>'
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_a_replacements_add_row_shows_only_its_own_passage():
+    en = _entry(2, "insertion", [{"m": "del", "t": "old", "cid": 1}, {"m": "ins", "t": "new", "cid": 2},
+                                 {"m": "eq", "t": " value", "cid": None}])
+    assert _change_text(en, 40) == '<u class="ins">new</u> value'
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_an_insertion_with_context_both_sides_bridges_a_deletion():
+    segs = [{"m": "eq", "t": "During the term", "cid": None}, {"m": "ins", "t": ",", "cid": 1},
+            {"m": "eq", "t": " ", "cid": None}, {"m": "del", "t": "OPG", "cid": 2},
+            {"m": "ins", "t": "where applicableOPG ", "cid": 1}, {"m": "eq", "t": "engaged in", "cid": None}]
+    en = _entry(1, "insertion", segs)
+    assert _change_text(en, 40) == ('During the term<u class="ins">,</u> <s class="del">OPG</s>'
+                                    '<u class="ins">where applicableOPG </u>engaged in')
+    assert _change_text(en, 6) == ('…e term<u class="ins">,</u> <s class="del">OPG</s>'
+                                   '<u class="ins">where applicableOPG </u>engage…')
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_a_numbering_passage_shows_the_marker_change_then_plain_text():
+    segs = [{"m": "eq", "t": "Second item", "cid": None}, {"m": "ins", "t": " edited", "cid": 3}]
+    en = _entry(2, "numbering", segs, old_marker="2.", marker="3.")
+    assert _change_text(en, 40) == '<s class="del">2.</s> <u class="ins">3.</u> Second item edited'
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_an_inserted_segment_is_escaped():
+    segs = [{"m": "ins", "t": "a < b & c", "cid": 1}]
+    en = _entry(1, "insertion", segs)
+    assert _change_text(en, 40) == '<u class="ins">a &lt; b &amp; c</u>'

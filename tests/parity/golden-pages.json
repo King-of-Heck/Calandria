@@ -2,7 +2,7 @@
  "bench": {
   "a": 3,
   "b": 3,
-  "digest": "58811cd5b8153e26",
+  "digest": "b15f773873b2f1ed",
   "redline": 3
  },
  "big200": {
@@ -86,7 +86,7 @@
  "spacing": {
   "a": 2,
   "b": 2,
-  "digest": "60b5db19638dd627",
+  "digest": "a044c3e9848c269c",
   "redline": 2
  }
 }

@@ -51,6 +51,8 @@ def _rec(u: Unit) -> dict:
         "contextualSpacing": pr.contextual_spacing,
         "heading": _heading(pr),
         "boldRuns": u.bold_runs,
+        "stream": u.stream,
+        "note": {"kind": u.note.kind, "id": u.note.id} if u.note else None,
         "tbl": {"ti": u.loc.ti, "ri": u.loc.ri, "ci": u.loc.ci, "cols": u.loc.cols} if u.loc else None,
     }
 

@@ -21,6 +21,10 @@ def compare(a: Document, b: Document, *, ignore_case: bool = False,
     return cmp
 
 
+def _stream_keys(us: list[Unit], texts: list[str]) -> list[str]:
+    return [t if u.stream == "body" else u.stream + "\x00" + t for u, t in zip(us, texts)]
+
+
 def _mark_num(row: Row, ou: Unit, ru: Unit) -> None:
     if (ou.marker or "") != (ru.marker or ""):
         row.num_changed = True
@@ -45,7 +49,8 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
     r_tok = [content_tokens(t) for t in r_t]
 
     segs: list[tuple[str, list[tuple[int, int]]]] = []
-    for tag, i, j in lcs_ops(o_t, r_t):
+    # a note paragraph never equals or pairs with a body paragraph: the LCS keys carry the stream
+    for tag, i, j in lcs_ops(_stream_keys(orig, o_t), _stream_keys(rev, r_t)):
         if segs and segs[-1][0] == tag:
             segs[-1][1].append((i, j))
         else:
@@ -78,7 +83,7 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
         for di in dels:
             best, bs = -1, 0.0
             for ji in ins:
-                if ji in used:
+                if ji in used or rev[ji].stream != orig[di].stream:
                     continue
                 if sim_upper(o_tok[di], r_tok[ji]) <= max(bs, PAIR_THRESHOLD - 1e-9):
                     continue

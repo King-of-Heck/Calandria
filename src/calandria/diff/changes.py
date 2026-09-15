@@ -110,6 +110,7 @@ class Comparison:
         return {
             "type": r.type, "cids": list(r.cids), "num_cid": r.num_cid, "cat": r.cat,
             "oi": r.oi, "ni": r.ni, "loc": loc, "marker": u.marker, "old_marker": r.old_marker,
+            "stream": u.stream, "note": {"kind": u.note.kind, "id": u.note.id} if u.note else None,
             "num_changed": r.num_changed, "fmt_changed": r.fmt_changed,
             "fmt_descs": [x.desc for x in r.fmt_ranges],
             "segments": [{"m": s.m, "t": s.t, "b": s.b, "cid": s.cid} for s in r.segments],

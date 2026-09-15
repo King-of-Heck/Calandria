@@ -167,7 +167,7 @@ def _corpus_paragraphs():
             doc = parse_docx(path)
         except Exception:
             continue
-        for p, _loc in walk(doc):
+        for p, _loc, _w in walk(doc):
             yield p
 
 
@@ -186,7 +186,7 @@ def test_per_run_walk_matches_the_oracle_on_a_generated_document():
         f'<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve"> says\t</w:t></w:r>'
         f'<w:r><w:t xml:space="preserve"> that {k * 7} </w:t></w:r></w:p>' for k in range(40))
     doc = parse_docx(make_docx({"word/document.xml": DOC(body)}))
-    ps = [p for p, _ in walk(doc)]
+    ps = [p for p, _l, _w in walk(doc)]
     assert len(ps) == 40
     for p in ps:
         _same_as_old(p)

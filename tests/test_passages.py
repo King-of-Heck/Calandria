@@ -31,6 +31,12 @@ def test_whitespace_only_equal_text_does_not_break_a_passage():
     assert r.cids == [1] and r.num_cid is None
 
 
+def test_whitespace_only_equal_text_does_not_break_a_deleted_passage():
+    r = _row(("eq", "Pro"), ("del", ","), ("eq", " "), ("del", "gone "), ("eq", "50"))
+    assert _cats(row_passages(r, 0, 1, True)) == [(1, "deletion")]
+    assert [s.cid for s in r.segments] == [None, 1, None, 1, None]
+
+
 def test_the_other_sides_segment_does_not_break_a_passage():
     r = _row(("eq", "time"), ("ins", ","), ("eq", " "), ("del", "OPG"), ("ins", "where applicableOPG "), ("eq", "engaged"))
     assert _cats(row_passages(r, 0, 1, True)) == [(1, "insertion"), (2, "deletion")]

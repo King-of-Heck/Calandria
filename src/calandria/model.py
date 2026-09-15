@@ -24,6 +24,8 @@ class RunProps:
     color: str | None = None
     caps: bool = False           # w:caps: drawn in capitals (the text itself is unchanged)
     small_caps: bool = False     # w:smallCaps: drawn in capitals too (Word's smaller capitals are not modelled)
+    style_bold: bool = False     # bold as drawn: the paragraph style's bold unless the run turns it off.
+                                 # `bold` (the run's own w:b) is the compared property (parity with the reference).
 
 
 @dataclass

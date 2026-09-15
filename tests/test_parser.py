@@ -292,3 +292,17 @@ def test_paragraph_tab_stops_merge_style_level_and_own():
     assert a.props.tabs == (TabStop(100.0, "center"), TabStop(467.5, "right", "dot"))
     assert b.props.tabs == (TabStop(72.0, "num"),)
     assert c.props.tabs == ()
+
+
+def test_bold_from_the_paragraph_style_is_drawn_not_compared():
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="TOC1">'
+              '<w:name w:val="toc 1"/><w:rPr><w:b/></w:rPr></w:style></w:styles>')
+    d = _doc('<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t>Section 1</w:t></w:r>'
+             '<w:r><w:rPr><w:b w:val="0"/></w:rPr><w:t>not</w:t></w:r>'
+             '<w:r><w:rPr><w:b/></w:rPr><w:t>own</w:t></w:r></w:p>' + P("plain"),
+             **{"word/styles.xml": styles})
+    a, b = d.blocks
+    # `bold` is the compared property and comes from the run alone (parity with the reference);
+    # `style_bold` is what is drawn.
+    assert [(r.props.bold, r.props.style_bold) for r in a.runs] == [(False, True), (False, False), (True, True)]
+    assert [(r.props.bold, r.props.style_bold) for r in b.runs] == [(False, False)]

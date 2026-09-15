@@ -104,7 +104,7 @@ def test_changed_cell_flags_the_row_and_collects_change_numbers():
     b = _tbl([["h", "x"], ["new value", "y"]])
     c, items = _items(a, b)
     r1, r2 = _blocks(c, items)
-    assert (r1.changed, r1.cids) == (False, []) and (r2.changed, r2.cids) == (True, [1])
+    assert (r1.changed, r1.cids) == (False, []) and (r2.changed, r2.cids) == (True, [1, 2])
 
 
 def test_deleted_row_comes_from_the_original_table():

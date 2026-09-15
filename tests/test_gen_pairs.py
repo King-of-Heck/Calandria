@@ -27,7 +27,7 @@ def test_fmt_pair_exercises_every_formatting_attribute():
     descs = sorted(d for r in c.rows for d in (x.desc for x in r.fmt_ranges))
     assert descs == ["bold added", "colour default → #ff0000", "font Calibri → Arial",
                      "italic added", "size 11 → 14", "underline added"]
-    assert c.summary["formatting"] == 6 and c.summary["total"] == 1
+    assert c.summary["formatting"] == 6 and c.summary["total"] == 2
 
 
 def test_longcap_pair_is_above_the_inline_cap():

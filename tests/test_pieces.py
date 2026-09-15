@@ -27,7 +27,9 @@ def test_pieces_reassemble_both_sides_of_a_changed_row():
     assert [p.italic for p in ps if p.text == "quick"] == [True]
     assert [p.italic for p in ps if p.text == "slow"] == [True]
     assert [p.bold for p in ps if p.text == "fox"] == [True]
-    assert all(p.cid == 1 for p in ps)
+    assert {p.cid for p in ps if p.mode == "del"} == {1}
+    assert {p.cid for p in ps if p.mode == "ins"} == {2}
+    assert all(p.cid is None for p in ps if p.mode == "eq")
 
 
 def test_dense_rewrite_duplicates_the_shared_connective_into_both_sides():

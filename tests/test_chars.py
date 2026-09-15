@@ -121,8 +121,10 @@ def _old_fmt_spans(p):
 
 
 def _same_as_old(p):
+    from dataclasses import replace
     bold, spans = char_fmt(p)
-    assert (bold, spans) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
+    compared = [replace(s, style_bold=False) for s in spans]      # the old walk knew only the compared fields
+    assert (bold, compared) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
     assert "".join(ch.c for ch in _old_collapsed_chars(p)) == p.text
     if spans:
         assert spans[0].s == 0 and spans[-1].e == len(p.text)
@@ -203,3 +205,12 @@ def test_tab_marks_locate_the_collapsed_spaces_that_held_tabs():
     assert p.text == "Lead mid double"
     assert tab_marks(p) == (2, {4: 1, 8: 2})          # the trailing tab is trimmed with the whitespace
     assert tab_marks(_p(("no tabs here", {}))) == (0, {})
+
+
+def test_spans_carry_style_bold_without_making_it_a_formatting_difference():
+    # style_bold is the drawn bold; the compared bold (b, bold_runs) is the run's own.
+    p = _p(("Section", {"style_bold": True}), (" one", {"style_bold": True, "bold": True}), (" plain", {}))
+    bold, spans = char_fmt(p)
+    assert bold == [[7, 11]]
+    assert [(s.b, s.style_bold) for s in spans] == [(False, True), (True, True), (False, False)]
+    assert spans[0].same_fmt(spans[2])

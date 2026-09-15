@@ -1,15 +1,20 @@
 # Calandria changelog
 
-## v2.4.7 — Counts that add up (2026-09-14)
+## v2.5.0 — Changes counted by passage (2026-09-14)
 
-- A change is counted once, by what it holds: a paragraph with only added text is an insertion,
-  with only removed text a deletion, with both an amendment. The four tiles now add up to the
-  total; before, every changed paragraph counted as an insertion and a deletion as well, so a
-  200-change document could read 200 insertions, 200 deletions, 200 amendments and 200 changes.
-- The badge of a change in the list, the mark on the page strip and the tile filters follow the
-  same rule: a paragraph with only added text shows `Add`.
-- A line under the tiles, and the PDF's summary line, give the number of inserted and deleted
-  passages (contiguous runs of changed text), the unit other comparison tools count.
+- A change is a passage: a contiguous run of inserted text, a contiguous run of deleted text, or
+  a renumbered list marker. A paragraph that swaps a word holds two changes, the deletion then
+  the insertion, numbered in reading order and labelled together in the margin ("22-23"). This
+  is the unit other comparison tools count; the amendment class is gone, and the three tiles,
+  Insertions, Deletions and Numbering, add up to the total. Before, every changed paragraph was
+  one change and counted as an insertion and a deletion as well, so a 200-change document could
+  read 200 insertions, 200 deletions, 200 amendments and 200 changes.
+- The change list has one row per passage, showing that passage with a little unchanged text
+  either side; the margin numbers sit beside the line each passage starts on; the density strip,
+  the on-page highlight and the side panes follow the passage.
+- The PDF summary line reads `Changes: T (insertions I, deletions D, numbering N); formatting F
+  (not counted)`.
+- Version 2.4.7 was built but never released; its work ships here.
 
 ## v2.4.6 — Review minors (2026-09-14)
 

@@ -34,7 +34,7 @@ def test_payload_pages_anchors_and_marks_agree_with_the_layout_and_the_changes(p
         root = ET.fromstring(svg)
         page = s.layout.pages[i]
         assert root.get("viewBox") == f"0 0 {page.w:.2f} {page.h:.2f}", (pair["alias"], i)
-    cids = {r["cid"] for r in d["changes"] if r["cid"] is not None}
+    cids = {p["cid"] for p in d["passages"]}
     assert set(d["anchors"]) == cids, (pair["alias"], sorted(set(d["anchors"]) ^ cids))
     for page, top, height, mcids in d["marks"]:
         assert 1 <= page <= d["page_count"] and height > 0 and set(mcids) <= cids, (pair["alias"], page, mcids)
@@ -50,7 +50,7 @@ def test_hidden_unchanged_keeps_every_anchor():
     before = s.layout.page_count
     s.relayout(Options(show_equal=False))
     d = s.payload()
-    cids = {r["cid"] for r in d["changes"] if r["cid"] is not None}
+    cids = {p["cid"] for p in d["passages"]}
     assert set(d["anchors"]) == cids and d["page_count"] <= before
 
 

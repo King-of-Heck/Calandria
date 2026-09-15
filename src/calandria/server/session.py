@@ -83,9 +83,9 @@ def _parse(name: str, data: bytes):
 
 
 def change_marks(lay: Layout) -> tuple[dict[int, dict], list[list]]:
-    """(anchors, marks). anchors[cid] = {"page", "top"} of the line that starts the change (the
-    first line carrying one of its runs when no line starts it); marks = [page, top, height,
-    [cids]] for every line and every changed table row carrying change numbers (the highlight)."""
+    """(anchors, marks). anchors[cid] = {"page", "top"} of the line a passage starts on (the first
+    line carrying one of its runs when no line starts it); marks = [page, top, height, [cids]] for
+    every line and every changed table row carrying passage numbers (the highlight)."""
     anchors: dict[int, dict] = {}
     marks: list[list] = []
     for pg in lay.pages:
@@ -275,6 +275,7 @@ class Session:
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name},
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
+                "passages": d["passages"],
                 "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),
                 "anchors": anchors, "marks": marks_,
                 "render_sets": list(RENDER_SETS),

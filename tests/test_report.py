@@ -14,7 +14,7 @@ WHEN = datetime(2026, 9, 9, 14, 5)
 
 def _info(**kw):
     s = empty_summary()
-    s.update({"total": 7, "insertions": 4, "deletions": 3, "amendments": 2, "numbering": 1, "numbering_changes": 1, "formatting": 5, "inserted_runs": 6, "deleted_runs": 5})
+    s.update({"total": 8, "insertions": 4, "deletions": 3, "numbering": 1, "numbering_changes": 1, "formatting": 5})
     base = dict(original="a.docx", modified="b.docx", when=WHEN, render_set="Standard", summary=s,
                 ignore_case=False, count_numbering=True)
     base.update(kw)
@@ -25,8 +25,7 @@ def test_report_lines():
     assert report_lines(_info()) == [
         "Original: a.docx", "Modified: b.docx", "Compared: 2026-09-09 14:05", "Rendering set: Standard",
         "Options: ignore case off; count numbering changes on",
-        "Changes: 7 (insertions 4, deletions 3, amendments 2, numbering 1); inserted passages 6, "
-        "deleted passages 5; formatting 5 (not counted)"]
+        "Changes: 8 (insertions 4, deletions 3, numbering 1); formatting 5 (not counted)"]
     assert report_lines(_info(ignore_case=True, count_numbering=False))[4] == \
         "Options: ignore case on; count numbering changes off"
 

@@ -108,8 +108,9 @@ def test_payload_of_a_one_line_insertion():
     assert d["names"] == {"original": "a.docx", "modified": "b.docx"}
     assert d["options"] == {"ignore_case": False, "count_numbering": True, "show_equal": True,
                             "show_insertions": True, "show_deletions": True, "show_formatting": True}
-    assert d["summary"]["total"] == 1 and d["summary"]["insertions"] == 1 and d["summary"]["amendments"] == 0
-    assert len(d["changes"]) == 1 and d["changes"][0]["cid"] == 1 and d["changes"][0]["category"] == "insertion"
+    assert d["summary"]["total"] == 1 and d["summary"]["insertions"] == 1 and "amendments" not in d["summary"]
+    assert len(d["changes"]) == 1 and d["changes"][0]["cids"] == [1]
+    assert d["passages"] == [{"cid": 1, "category": "insertion", "row": 0}]
     assert d["page_count"] == 1 and len(d["pages"]) == 1 and "bbbb" in d["pages"][0]
     assert d["anchors"] == {1: {"page": 1, "top": 72.0}}
     assert d["marks"] == [[1, 72.0, 12.0, [1]]]
@@ -155,12 +156,21 @@ def test_hidden_insertions_leave_the_page_and_load_keeps_the_current_options():
 def test_change_marks_include_changed_table_rows_and_anchor_every_number():
     s = _session(P("aaaa") + TBL([["x", "y"]], [4680, 4680]), P("aaaa bbbb") + TBL([["x", "z"]], [4680, 4680]))
     anchors, marks = change_marks(s.layout)
-    cids = {r["cid"] for r in s.cmp.to_dict()["changes"] if r["cid"] is not None}
-    assert set(anchors) == cids and 1 in cids and len(cids) >= 2       # the paragraph, then the cell(s)
+    cids = {c for r in s.cmp.to_dict()["changes"] for c in r["cids"]}
+    assert set(anchors) == cids == {p["cid"] for p in s.cmp.to_dict()["passages"]} and 1 in cids and len(cids) >= 2
     assert all(len(m) == 4 and m[0] == 1 for m in marks)
     row_marks = [m for m in marks if set(m[3]) & (cids - {1})]
     assert row_marks and any(m[2] > 12.0 for m in row_marks)      # a row box is taller than a line
     assert all(cid in anchors for m in marks for cid in m[3])
+
+
+def test_anchors_follow_a_passage_to_the_line_it_starts_on():
+    words = " ".join(["aaaa"] * 30)
+    s = _session(P(words + " bbbb cccc"), P(words + " bbbb dddd cccc"))
+    anchors, marks = change_marks(s.layout)
+    ins_line = next(ln for pg in s.layout.pages for ln in pg.lines if any(g.mode == "ins" for g in ln.runs))
+    assert anchors == {1: {"page": 1, "top": round(ins_line.top, 2)}} and ins_line.top > 72
+    assert [m[3] for m in marks] == [[1]]                     # only the line holding the passage
 
 
 def test_touch_updates_last_seen():

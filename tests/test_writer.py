@@ -43,7 +43,7 @@ def test_redline_pdf_with_report_on_the_last_page():
     (text,) = _pages(data)
     assert "Alpha stays" in text and "Beta arrives" in text
     assert TITLE in text and "Original: a.docx" in text and "Compared: 2026-09-09 14:05" in text
-    assert "Changes: 1 (insertions 1, deletions 0, amendments 0, numbering 0)" in text
+    assert "Changes: 1 (insertions 1, deletions 0, numbering 0)" in text
     assert "1" in text                                        # the gutter number
 
 

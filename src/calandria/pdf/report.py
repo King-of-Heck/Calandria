@@ -48,9 +48,7 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Rendering set: {info.render_set}",
         f"Options: ignore case {_onoff(info.ignore_case)}; count numbering changes {_onoff(info.count_numbering)}",
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
-        f"amendments {s['amendments']}, numbering {s['numbering_changes']}); "
-        f"inserted passages {s['inserted_runs']}, deleted passages {s['deleted_runs']}; "
-        f"formatting {s['formatting']} (not counted)",
+        f"numbering {s['numbering_changes']}); formatting {s['formatting']} (not counted)",
     ]
     if info.changed_only:
         lines.append(f"Changed pages only: {info.changed_only[0]} of {info.changed_only[1]} pages")

@@ -121,20 +121,20 @@ closing tag and truncate the outer table.
 Calandria is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
 Calandria to match.
 
-## (n) Counts by content (v2.4.7)
+## (n) Changes counted by passage (v2.5.0)
 
-The reference's summary adds one insertion AND one deletion for every changed paragraph, whatever
-the paragraph holds, and calls every changed paragraph an amendment; its tiles cannot add up to
-the total. Since v2.4.7 a numbered change is classified by its content (inserted text only =
-insertion, deleted only = deletion, both = amendment) and `insertions` / `deletions` /
-`amendments` count numbered changes per class, so they sum to `total`. Two extra keys,
-`inserted_runs` / `deleted_runs`, count maximal runs of inserted / deleted segments over the
-numbered rows: Litera's unit (a Workshare Compare report of a 200-paragraph pair read Insertions
-150, Deletions 97, Total 247 = the sum). The change gate compares `SUMMARY_FIELDS` only; the row
-gate is unaffected because it never compared the category. Rows, `type`, `cid`, `total`,
-`numbering` and `formatting` still match the reference exactly. `numbering_changes` (numbering
-changes that carry a number) is also Calandria-only; `numbering` keeps the reference's meaning
-(every renumbered row, including changed paragraphs that also renumber).
+The reference numbers paragraphs: one change per changed, inserted, deleted or renumbered row, and
+its summary adds one insertion AND one deletion for every changed paragraph whatever it holds, so
+its tiles cannot add up to its total. Since v2.5.0 Calandria numbers passages: within a row, an
+inserted passage is a maximal stretch of inserted segments broken only by an equal segment holding
+visible text (whitespace-only equal text and deleted segments in between do not break it), deleted
+passages likewise, plus one numbering passage per renumbered marker when numbering is counted; a
+replacement is a deleted passage then an inserted one. This is the unit Litera counts (a Workshare
+Compare report of a 200-paragraph pair read Insertions 150, Deletions 97, Total 247 = the sum; the
+same pair reads 142 / 95 / 237 here, the rest being word-level versus character-level diffing).
+`insertions`, `deletions`, `numbering_changes` and `total` are therefore Calandria-only; the row
+gate does not read the number. Rows, `type`, `cat`, `numbering` (every renumbered row, counted or
+not), `formatting`, `content` and `punctuation` still match the reference exactly.
 
 # Layout (Plan 3)
 

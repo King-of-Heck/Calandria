@@ -42,9 +42,9 @@ def test_records_shape_for_each_row_type():
     b = _doc(P("Keep") + P("New para") + PR(R("Bold", "<w:b/>") + R(" me")) + P("Added"))
     recs = records(compare(a, b))
     assert [r["type"] for r in recs] == ["equal", "changed", "equal", "deleted", "inserted"]
-    assert recs[0] == {"type": "equal", "cid": None, "cat": None, "oi": 0, "ni": 0, "html": "Keep",
+    assert recs[0] == {"type": "equal", "cat": None, "oi": 0, "ni": 0, "html": "Keep",
                        "numChanged": False, "oldMarker": None, "fmtChanged": False, "fmtDescs": None, "tbl": None}
-    assert recs[1]["html"] == "<del>Old</del><ins>New</ins> para" and recs[1]["cid"] == 1 and recs[1]["cat"] == "content"
+    assert recs[1]["html"] == "<del>Old</del><ins>New</ins> para" and recs[1]["cat"] == "content"
     assert recs[2]["fmtChanged"] and recs[2]["fmtDescs"] == ["bold added"]
     assert recs[2]["html"] == '<span class="fmtchg" title="bold added"><b>Bold</b></span> me'
     assert recs[3]["html"] == "<del>Gone</del>" and recs[4]["html"] == "<ins>Added</ins>"

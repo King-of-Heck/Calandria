@@ -1,4 +1,5 @@
-"""Render the change model in the reference engine's HTML row shape for the parity gate.
+"""Render the change model in the reference engine's HTML row shape for the parity gate (the
+reference numbers rows; Calandria numbers passages, so the number is not emitted).
 
 Only the harness speaks HTML; the change model itself is plain data. The escaping and wrapper
 rules here reproduce the reference's row html byte for byte, which is what lets the gate compare
@@ -73,7 +74,7 @@ def row_record(cmp: Comparison, row: Row) -> dict:
     u = cmp.unit_for(row)
     html = fmt_wrap(u.text, u.fmt_spans, row.fmt_ranges) if row.fmt_changed else render_html(row.segments)
     return {
-        "type": row.type, "cid": row.cid, "cat": row.cat, "oi": row.oi, "ni": row.ni, "html": html,
+        "type": row.type, "cat": row.cat, "oi": row.oi, "ni": row.ni, "html": html,
         "numChanged": row.num_changed, "oldMarker": row.old_marker,
         "fmtChanged": row.fmt_changed, "fmtDescs": [r.desc for r in row.fmt_ranges] or None,
         "tbl": u.loc.as_dict() if u.loc else None,

@@ -1,5 +1,5 @@
-"""Gate: matches the oracle's rows and the summary keys whose meaning is shared, on the
-corpus, in the v2.0.0 scope (no moves, no split/merge), at both ignore-case settings."""
+"""Gate: matches the oracle's rows (numbers aside) and the summary keys whose meaning is shared, on
+the corpus, in the v2.0.0 scope (no moves, no split/merge), at both ignore-case settings."""
 import json
 
 import pytest
@@ -10,12 +10,12 @@ from calandria.harness.changes import records
 from .common import CORPUS, ORACLE, allowed, divergences, load_allow, pairs, parse_cached
 
 ALLOW = load_allow("allow-changes.json")
-FIELDS = ["type", "cid", "cat", "oi", "ni", "html", "numChanged", "oldMarker", "fmtChanged", "fmtDescs", "tbl"]
+FIELDS = ["type", "cat", "oi", "ni", "html", "numChanged", "oldMarker", "fmtChanged", "fmtDescs", "tbl"]
 VARIANTS = {"compare_v2": {"ignore_case": False}, "compare_v2_ic": {"ignore_case": True}}
-# The reference counts an amendment as an insertion and a deletion too; since v2.4.7 Calandria counts
-# a numbered change once, by its content, and tallies runs (KNOWN_DIVERGENCES (n)). Only the keys
-# whose meaning is the same on both sides are compared.
-SUMMARY_FIELDS = ("total", "numbering", "formatting", "content", "punctuation", "moves", "splits", "merges")
+# The reference numbers rows and counts an amendment as an insertion and a deletion too; since
+# v2.5.0 Calandria numbers and counts passages (KNOWN_DIVERGENCES (n)). Only the keys whose
+# meaning is the same on both sides are compared; the row gate never compared the number.
+SUMMARY_FIELDS = ("numbering", "formatting", "content", "punctuation", "moves", "splits", "merges")
 
 
 def _first_mismatch(ours, ref):

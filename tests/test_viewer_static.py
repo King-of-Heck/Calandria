@@ -266,9 +266,22 @@ def test_the_strip_is_served_and_sits_after_the_pages():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
-def test_mark_position_is_page_index_plus_top_over_the_whole_document():
-    out = _node("strip.js", "console.log(m.markTop({page: 1, top: 0}, 792, 4), m.markTop({page: 3, top: 396}, 792, 4));")
-    assert out == "0 0.625"
+def test_marks_sit_on_the_scrollbar_track_in_scroll_geometry():
+    # A 1149 px strip beside a pane with 15 px scrollbars: the track runs from the 15 px top arrow
+    # button to above the bottom button and the horizontal scrollbar (1149 - 15 - 30 = 1104).
+    # An overlay scrollbar (width 0) has no buttons: the whole strip is the track.
+    out = _node("strip.js", "const t = m.track(1149, 15, 15); const o = m.track(600, 0, 0);"
+                "console.log(JSON.stringify([t, o, m.markTop(0, 200000, t), m.markTop(100000, 200000, t), m.markTop(300, 600, o)]));")
+    assert out == '[{"top":15,"len":1104},{"top":0,"len":600},15,567,300]'
+
+
+def test_the_strip_places_marks_by_page_offset_and_zoom_and_follows_relayouts():
+    js = _read("strip.js")
+    body = _function_body(js, "initStrip")
+    assert "page.offsetTop + a.top * (Number(page.dataset.scale) || 1) * PT" in body
+    assert "main.offsetWidth - main.clientWidth" in body and "main.offsetHeight - main.clientHeight" in body
+    assert 'document.addEventListener("calandria:resized", relayout)' in body
+    assert 'window.addEventListener("resize", relayout)' in body
 
 
 def test_changed_pages_only_is_a_view_toggle_and_a_pdf_flag():
@@ -425,7 +438,7 @@ def test_zoom_changed_pages_and_lookups_span_the_panes():
     ch = _read("changes.js")
     assert 'document.querySelector(`.page[data-page=' not in ch and '$("pages").querySelector(`.page[data-page=' in ch
     assert "highlightSides(" in _function_body(ch, "highlight")
-    assert 'main.querySelectorAll(".page")' in _read("strip.js")      # the blackline's pages, one walk
+    assert 'main.querySelector(`.page[data-page="${a.page}"]`)' in _read("strip.js")   # the blackline's page
 
 
 # v2.4.0: the scroll sync (spec §12.5).
@@ -579,11 +592,11 @@ def test_one_page_builder_serves_the_blackline_and_the_side_panes():
     assert "pageSize(svg).w" in _function_body(js, "highlightSides")
 
 
-def test_strip_marks_carry_an_aria_label_and_page_heights_are_read_once():
+def test_strip_marks_carry_an_aria_label_and_keep_their_anchor():
     js = _read("strip.js")
     body = _function_body(js, "initStrip")
     assert 'b.setAttribute("aria-label", b.title)' in body
-    assert "const heights = pageHeights();" in body and "heights.get(a.page)" in body
+    assert "marks.set(p.cid, { button: b, anchor: a })" in body      # placed again at every relayout
 
 
 def test_the_row_menu_keeps_focus_and_opens_from_the_keyboard():

@@ -13,6 +13,11 @@
   Word's default stops beyond them. Right, centre and decimal stops align the text that follows,
   and dot, hyphen and underscore leaders are drawn. A table of contents now lays out as in Word:
   number, title, leader dots, page number at the right stop. Before, every tab was one space.
+- The change strip beside the pages lines up with the scrollbar: its marks and the band that
+  shows the part on screen sit on the scrollbar's own track (below the top arrow button, above
+  the bottom one and the horizontal scrollbar), placed by where each change really is in the
+  scroll, gaps between pages and zoom included. Before, the strip spanned the whole pane height
+  and placed marks by page number, so a mark sat a little off the thumb.
 
 ## v2.5.0 — Changes counted by passage (2026-09-14)
 

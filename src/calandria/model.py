@@ -50,6 +50,16 @@ def merge_tabs(base, over) -> tuple:
     return tuple(sorted((t for t in stops.values() if t.kind != "clear"), key=lambda t: t.pos_pt))
 
 
+@dataclass(frozen=True)
+class Border:
+    """One side of a paragraph border (w:pBdr), as drawn: a single line of `width_pt` (w:sz is
+    eighths of a point; double, dashed and the other line styles all draw as one solid line),
+    `space_pt` between the text and the line (w:space), colour 6-hex lower-case or None (auto)."""
+    width_pt: float
+    space_pt: float = 0.0
+    color: str | None = None
+
+
 @dataclass
 class NumInfo:
     num_id: int
@@ -81,6 +91,10 @@ class ParaProps:
     style_name: str | None = None
     section_break: bool = False   # this paragraph carries a <w:sectPr>; it is the last of its section
     tabs: tuple = ()              # resolved TabStops (style chain, numbering level, own), sorted
+    border_top: Border | None = None      # w:pBdr sides, each inherited on its own through the style chain
+    border_bottom: Border | None = None
+    border_left: Border | None = None
+    border_right: Border | None = None
 
 
 @dataclass

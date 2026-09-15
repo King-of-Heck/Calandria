@@ -210,7 +210,9 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       keep_next=merged.get("keep_next", False), keep_lines=merged.get("keep_lines", False),
                       page_break_before=merged.get("page_break_before", False),
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
-                      style_name=style_name, tabs=tabs)
+                      style_name=style_name, tabs=tabs,
+                      border_top=merged.get("border_top"), border_bottom=merged.get("border_bottom"),
+                      border_left=merged.get("border_left"), border_right=merged.get("border_right"))
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

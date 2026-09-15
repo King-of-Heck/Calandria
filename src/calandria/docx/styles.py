@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..model import TabStop, merge_tabs
-from .ns import wq, wval, wbool, half_pt, twips_to_pt
+from ..model import Border, TabStop, merge_tabs
+from .ns import wq, wval, wbool, half_pt, twips_to_pt, _num
 
 _TAB_KINDS = {"start": "left", "end": "right"}
 
@@ -98,6 +98,20 @@ def read_ppr(ppr) -> dict:
             kind = wval(t, "left") or "left"
             stops.append(TabStop(pos, _TAB_KINDS.get(kind, kind), t.get(wq("leader")) or "none"))
         out["tabs"] = tuple(stops)
+    bdr = ppr.find(wq("pBdr"))
+    if bdr is not None:
+        for side in ("top", "bottom", "left", "right"):
+            el = bdr.find(wq(side))
+            if el is None:
+                continue
+            val = wval(el, "single")
+            sz = _num(el.get(wq("sz")))
+            if val in ("none", "nil") or not sz:
+                out[f"border_{side}"] = None          # set to None on purpose: cancels an inherited side
+                continue
+            color = (el.get(wq("color")) or "auto").lower()
+            out[f"border_{side}"] = Border(sz / 8.0, _num(el.get(wq("space"))) or 0.0,
+                                           None if color == "auto" else color)
     numpr = ppr.find(wq("numPr"))
     if numpr is not None:
         nid, il = numpr.find(wq("numId")), numpr.find(wq("ilvl"))

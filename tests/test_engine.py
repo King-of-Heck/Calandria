@@ -339,3 +339,47 @@ def test_leader_dots_are_placed_to_end_at_the_stop():
     (ln,) = L.pages[0].lines
     # "Intro" 25 pt from 72; the tab spans 97 -> 167 (the stop at 172 minus the 5 pt "3"); 14 dots of 5 pt
     assert [(r.text, r.x, r.w) for r in ln.runs] == [("Intro", 72, 25), ("\t", 97, 70), ("." * 14, 97, 70), ("3", 167, 5)]
+
+
+BOX = ('<w:pBdr><w:top w:val="single" w:sz="8" w:space="4"/><w:bottom w:val="single" w:sz="8" w:space="4"/>'
+       '<w:left w:val="single" w:sz="8" w:space="4" w:color="FF0000"/></w:pBdr>')
+
+
+def test_paragraph_borders_are_rules_on_the_placed_lines():
+    from calandria.layout.pages import Rule
+    body = P(" ".join(["aaaa"] * 100), ppr=BOX) + P("after")      # 18 words per 468 pt line: 6 lines
+    L = _lay(body, body)
+    lines = L.pages[0].lines
+    assert len(lines) == 7 and lines[0].top == 72 and lines[0].height == 17 and lines[0].baseline == 85
+    assert lines[5].height == 17 and lines[1].height == 12
+    # the top rule's centre sits half its width below the paragraph's top edge, spanning the indents
+    assert lines[0].rules[0] == Rule(72, 72.5, 540, 72.5, 1.0, "000000")
+    # every line of the paragraph carries the left rule over its own height, outside the space
+    for ln in lines[:6]:
+        assert Rule(67.5, ln.top, 67.5, ln.top + ln.height, 1.0, "ff0000") in ln.rules
+    assert lines[5].rules[-1] == Rule(72, lines[5].top + 17 - 0.5, 540, lines[5].top + 17 - 0.5, 1.0, "000000")
+    assert lines[6].rules == [] and lines[6].top == lines[5].top + 17
+    d = L.to_dict()["pages"][0]["lines"]
+    assert d[0]["rules"][0] == {"x1": 72, "y1": 72.5, "x2": 540, "y2": 72.5, "w": 1.0, "clr": "000000"}
+    assert "rules" not in d[6]                                   # emitted only when there is one
+
+
+def test_joined_paragraphs_draw_no_rule_between_them():
+    body = P("one", ppr=BOX) + P("two", ppr=BOX)
+    L = _lay(body, body)
+    a, b = L.pages[0].lines
+    assert [r.y1 for r in a.rules if r.y1 == r.y2] == [72.5]                      # top only
+    assert [r.y1 for r in b.rules if r.y1 == r.y2] == [b.top + 17 - 0.5]          # bottom only
+    assert (a.height, b.height, b.top) == (17, 17, 89)
+
+
+def test_right_border_inside_a_table_cell_uses_the_cell_edge():
+    from calandria.layout.pages import Rule
+    ppr = '<w:pBdr><w:right w:val="single" w:sz="4" w:space="0"/></w:pBdr>'
+    body = ('<w:tbl><w:tblGrid><w:gridCol w:w="4000"/></w:tblGrid><w:tr><w:tc>'
+            + P("cell", ppr=ppr) + '</w:tc></w:tr></w:tbl>')
+    L = _lay(body, body)
+    (ln,) = L.pages[0].lines
+    (cell,) = L.pages[0].table_rows[0].cells
+    (r,) = ln.rules
+    assert r.x1 == r.x2 and r.x1 < cell.x + cell.w and r.x1 > ln.x and (r.y1, r.y2) == (ln.top, ln.top + ln.height)

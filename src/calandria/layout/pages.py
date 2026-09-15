@@ -25,6 +25,18 @@ class GlyphRun:
     cid: int | None
 
 
+@dataclass(frozen=True)
+class Rule:
+    """A paragraph border segment in page points: horizontal (y1 == y2) for a top or bottom
+    border, vertical for a left or right one; `width` is the line's thickness, centred on it."""
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    width: float
+    color: str            # 6-hex lower-case
+
+
 @dataclass
 class PlacedLine:
     x: float
@@ -36,6 +48,7 @@ class PlacedLine:
     changed: bool
     cid_starts: list[int]     # passage numbers whose first glyph run is on this line (gutter numbers)
     row_index: int | None
+    rules: list[Rule] = field(default_factory=list)   # the paragraph's border segments on this line
 
 
 @dataclass
@@ -101,9 +114,13 @@ class Layout:
                     "i": g.italic, "u": g.underline, "clr": g.color, "m": g.mode, "fmt": g.fmt, "cid": g.cid}
 
         def line(ln: PlacedLine) -> dict:
-            return {"x": r(ln.x), "top": r(ln.top), "h": r(ln.height), "baseline": r(ln.baseline),
-                    "changed": ln.changed, "cids": list(ln.cid_starts), "row": ln.row_index,
-                    "runs": [run(g) for g in ln.runs], "marker": [run(g) for g in ln.marker]}
+            d = {"x": r(ln.x), "top": r(ln.top), "h": r(ln.height), "baseline": r(ln.baseline),
+                 "changed": ln.changed, "cids": list(ln.cid_starts), "row": ln.row_index,
+                 "runs": [run(g) for g in ln.runs], "marker": [run(g) for g in ln.marker]}
+            if ln.rules:              # only when present, so a border-free page model reads as before
+                d["rules"] = [{"x1": r(q.x1), "y1": r(q.y1), "x2": r(q.x2), "y2": r(q.y2), "w": r(q.width),
+                               "clr": q.color} for q in ln.rules]
+            return d
 
         def trow(t: TableRowBox) -> dict:
             return {"x": r(t.x), "y": r(t.y), "w": r(t.w), "h": r(t.h), "changed": t.changed,

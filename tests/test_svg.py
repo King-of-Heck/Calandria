@@ -183,3 +183,36 @@ def test_side_pages_carry_tint_rects_only_with_marks():
     rects = ET.fromstring(marked).findall(f"{{{SVG_NS}}}rect")
     assert rects and all(r.get("fill") == "#ffd9d9" and r.get("class") == "tint" for r in rects)
     assert "<line" not in marked
+
+
+def test_a_symbol_face_is_drawn_as_glyph_outlines(monkeypatch):
+    import calandria.viewer.svg as svgmod
+    monkeypatch.setattr(svgmod, "glyph_outlines",
+                        lambda path, n, text: ([("M0 0L10 0L10 10Z", 1000), ("", 500)], 2000))
+    face = FakeFace("Wingdings 2", False, False, 0.5, 1.2, 0.8)
+    face.symbol = True
+    p = SvgPainter()
+    p.page(100, 100)
+    p.text(20, 50, "\uf097\uf098", face, 16, "ff0000", width=8.0)
+    (svg,) = p.pages()
+    root = ET.fromstring(svg)
+    assert not root.findall(f"{{{SVG_NS}}}text")
+    (g,) = root.findall(f"{{{SVG_NS}}}g")
+    assert g.get("fill") == "#ff0000"
+    paths = g.findall(f"{{{SVG_NS}}}path")
+    assert len(paths) == 1                                   # the empty outline draws nothing
+    assert paths[0].get("d") == "M0 0L10 0L10 10Z"
+    assert paths[0].get("transform") == "translate(20.00 50.00) scale(0.008000 -0.008000)"
+
+
+def test_a_symbol_face_with_fake_bold_strokes_its_outlines(monkeypatch):
+    import calandria.viewer.svg as svgmod
+    monkeypatch.setattr(svgmod, "glyph_outlines", lambda path, n, text: ([("M0 0Z", 1000)], 1000))
+    face = FakeFace("Symbol", True, False, 0.5, 1.2, 0.8)
+    face.symbol = True
+    p = SvgPainter()
+    p.page(100, 100)
+    p.text(0, 10, "a", face, 10, "000000", fake_bold=True)
+    (svg,) = p.pages()
+    (g,) = ET.fromstring(svg).findall(f"{{{SVG_NS}}}g")
+    assert g.get("stroke") == "#000000" and float(g.get("stroke-width")) > 0

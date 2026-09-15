@@ -19,7 +19,10 @@ Rules (Word-like, spec section 4.5):
   Document.default_tab_pt) unless the level's suffix is a space or nothing.
 - Order: the revised document in order, empty paragraphs included, with each deleted paragraph
   placed where it stood ("final showing markup").
-Deviations recorded for v2.0.0: body tabs render as one space (the diff runs on collapsed text);
-custom tab stops, kerning, character styles and paragraph-mark fonts (an empty paragraph takes the
-document default size) are later minors.
+- Tabs: a tab advances to the next stop -- the paragraph's own stops (style chain, numbering
+  level, direct), then default stops beyond the last of them; right, centre and decimal stops
+  align the text after the tab; leaders are drawn. The diff still runs on collapsed text: a unit
+  records which collapsed spaces held tabs and the layout restores them.
+Deviations recorded for v2.0.0: kerning, character styles and paragraph-mark fonts (an empty
+paragraph takes the document default size) are later minors.
 """

@@ -188,3 +188,18 @@ def test_per_run_walk_matches_the_oracle_on_a_generated_document():
     assert len(ps) == 40
     for p in ps:
         _same_as_old(p)
+
+
+def test_spans_carry_caps_without_making_them_a_formatting_difference():
+    p = _p(("Title", {"caps": True}), (" text", {"small_caps": True}), (" plain", {}))
+    spans = fmt_spans(p)
+    assert [(s.caps, s.small_caps) for s in spans] == [(True, False), (False, True), (False, False)]
+    assert spans[0].same_fmt(spans[2]) and spans[1].same_fmt(spans[2])
+
+
+def test_tab_marks_locate_the_collapsed_spaces_that_held_tabs():
+    from calandria.diff.chars import tab_marks
+    p = _p(("\t\tLead", {}), ("\tmid", {}), (" \t \tdouble", {}), ("\t", {}))
+    assert p.text == "Lead mid double"
+    assert tab_marks(p) == (2, {4: 1, 8: 2})          # the trailing tab is trimmed with the whitespace
+    assert tab_marks(_p(("no tabs here", {}))) == (0, {})

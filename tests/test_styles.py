@@ -41,3 +41,24 @@ def test_paragraph_mark_rpr_inside_ppr_is_ignored():
     s = Styles.parse(etree.fromstring(STYLES))
     d = s.resolved_rpr("DocID")
     assert d["size_pt"] == 8.0 and d["underline"] is False and d["italic"] is True
+
+
+def test_tab_stops_are_read_and_inherited_down_the_chain():
+    from calandria.docx.styles import Styles, read_ppr
+    from calandria.model import TabStop
+    from calandria.testing.makedocx import W_NS
+    import lxml.etree as ET
+    root = ET.fromstring(
+        f'<w:styles xmlns:w="{W_NS}">'
+        '<w:style w:type="paragraph" w:styleId="Base"><w:pPr><w:tabs>'
+        '<w:tab w:val="left" w:pos="800"/><w:tab w:val="right" w:leader="dot" w:pos="9350"/>'
+        '</w:tabs></w:pPr></w:style>'
+        '<w:style w:type="paragraph" w:styleId="Child"><w:basedOn w:val="Base"/><w:pPr><w:tabs>'
+        '<w:tab w:val="clear" w:pos="800"/><w:tab w:val="center" w:pos="4000"/>'
+        '</w:tabs></w:pPr></w:style></w:styles>')
+    s = Styles.parse(root)
+    assert s.resolved_ppr("Base")["tabs"] == (TabStop(40.0, "left"), TabStop(467.5, "right", "dot"))
+    assert s.resolved_ppr("Child")["tabs"] == (TabStop(200.0, "center"), TabStop(467.5, "right", "dot"))
+    ppr = ET.fromstring(f'<w:pPr xmlns:w="{W_NS}"><w:tabs><w:tab w:val="start" w:pos="100"/>'
+                        '<w:tab w:val="end" w:pos="200"/><w:tab w:pos="x"/></w:tabs></w:pPr>')
+    assert read_ppr(ppr)["tabs"] == (TabStop(5.0, "left"), TabStop(10.0, "right"))

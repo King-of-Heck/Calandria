@@ -1,7 +1,8 @@
 """document.xml -> model.Document."""
 from __future__ import annotations
 
-from ..model import (Cell, Document, ParaProps, Paragraph, Row, Run, RunProps, Section, Table)
+from ..model import (Cell, Document, ParaProps, Paragraph, Row, Run, RunProps, Section, Table,
+                     merge_tabs)
 from .ns import wq, wval, wbool, twips_to_pt
 from .numbering import Numbering, NumberingCounter
 from .package import Package
@@ -107,7 +108,8 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
     return RunProps(bold=bool(own.get("bold", False)),
                     italic=bool(d.get("italic", False)), underline=bool(d.get("underline", False)),
                     font=d.get("font") or ctx.styles.defaults["font"],
-                    size_pt=d.get("size_pt") or ctx.styles.defaults["size_pt"], color=d.get("color"))
+                    size_pt=d.get("size_pt") or ctx.styles.defaults["size_pt"], color=d.get("color"),
+                    caps=bool(d.get("caps", False)), small_caps=bool(d.get("small_caps", False)))
 
 
 def _paragraph(el, ctx: _Ctx) -> Paragraph:
@@ -180,6 +182,8 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     # from the paragraph's own pPr, else the style chain, else None (already resolved into
     # `merged` by the dict merge above; never derived from styleId/style name here).
     outline = merged.get("outline_level")
+    # Tab stops accumulate: the style chain's, then the numbering level's, then the paragraph's own.
+    tabs = merge_tabs(merge_tabs(style_ppr.get("tabs", ()), level_ppr.get("tabs", ())), own.get("tabs", ()))
     st = ctx.styles.get(style_id)
     style_name = st.name if st is not None else None
 
@@ -205,7 +209,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       keep_next=merged.get("keep_next", False), keep_lines=merged.get("keep_lines", False),
                       page_break_before=merged.get("page_break_before", False),
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
-                      style_name=style_name)
+                      style_name=style_name, tabs=tabs)
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

@@ -38,10 +38,13 @@ class Piece:
     color: str | None = None
     fmt: bool = False              # inside a formatting-change range (only when formatting is shown)
     cid: int | None = None            # the passage number (spec 14.4)
+    caps: bool = False             # drawn in capitals (w:caps or w:smallCaps)
+    tab: int = 0                   # this piece is a tab: the number of stops to advance (its text is
+                                   # the collapsed space it became, or "" before the first word)
 
     def style_key(self):
         return (self.mode, self.bold, self.italic, self.underline, self.font, self.size, self.color,
-                self.fmt, self.cid)
+                self.fmt, self.cid, self.caps, self.tab)
 
 
 def visible(row: Row, opts: LayoutOptions) -> bool:
@@ -57,11 +60,11 @@ def visible(row: Row, opts: LayoutOptions) -> bool:
 def merge_pieces(pieces: list[Piece]) -> list[Piece]:
     out: list[Piece] = []
     for p in pieces:
-        if out and out[-1].style_key() == p.style_key():
+        if out and out[-1].style_key() == p.style_key() and not p.tab:
             out[-1].text += p.text
-        elif p.text:
+        elif p.text or p.tab:
             out.append(Piece(p.text, p.mode, p.bold, p.italic, p.underline, p.font, p.size, p.color,
-                             p.fmt, p.cid))
+                             p.fmt, p.cid, p.caps, p.tab))
     return out
 
 
@@ -78,16 +81,22 @@ def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid) -> list[Piece]:
             cuts.add(r.s)
         if s < r.e < e:
             cuts.add(r.e)
+    for t in unit.tabs:                     # a collapsed space that held a tab is a piece of its own
+        if s <= t < e:
+            cuts.add(t)
+            cuts.add(t + 1)
     pts = sorted(cuts)
     out: list[Piece] = []
     for a, b in zip(pts, pts[1:]):
         sp = next((x for x in spans if x.s <= a < x.e), None)
         fmt = any(r.s <= a < r.e for r in ranges)
         text = unit.text[a:b]
+        tab = unit.tabs.get(a, 0)
         if sp is None:
-            out.append(Piece(text, mode, fmt=fmt, cid=cid))
+            out.append(Piece(text, mode, fmt=fmt, cid=cid, tab=tab))
         else:
-            out.append(Piece(text, mode, sp.b, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid))
+            out.append(Piece(text, mode, sp.b, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid,
+                             sp.caps or sp.small_caps, tab))
     return out
 
 
@@ -112,4 +121,7 @@ def row_pieces(cmp: Comparison, row: Row, opts: LayoutOptions) -> list[Piece]:
         if seg.m == "ins" and not opts.show_insertions:
             continue
         out.extend(_slice(unit, start, start + n, seg.m, ranges if seg.m == "eq" else [], seg.cid))
+    lead_unit = ou if (opts.side == "original" and ou is not None) else (ru or ou)
+    if lead_unit is not None and lead_unit.lead_tabs and out:
+        out.insert(0, Piece("", out[0].mode, tab=lead_unit.lead_tabs))
     return merge_pieces(out)

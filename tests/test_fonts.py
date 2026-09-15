@@ -98,3 +98,27 @@ def test_fake_resolver_surface():
     assert f.ascent(10) == 8 and f.descent(10) == pytest.approx(4)
     assert fr.face("Anything", bold=True) is f
     assert fr.face(None).family == fr.fallback == "Fake"
+
+
+def _wingdings(fonts):
+    if not fonts.index.has("Wingdings 2"):
+        pytest.skip("Wingdings 2 is not installed")
+    return fonts.face("Wingdings 2")
+
+
+def test_symbol_font_measures_its_private_use_characters(fonts):
+    # Word stores a Wingdings character as U+F0xx; the font maps it in its (3,0) symbol table,
+    # which the unicode-only best cmap does not see. The advance must be the glyph's own, not .notdef's.
+    f = _wingdings(fonts)
+    assert f.symbol
+    assert f.units("\uf097") == f.units("\x97") != f._notdef
+    assert not fonts.face("Arial").symbol
+
+
+def test_symbol_glyph_outlines_come_with_their_advances(fonts):
+    from calandria.layout.fonts import glyph_outlines
+    f = _wingdings(fonts)
+    (outline,), upem = glyph_outlines(f.path, f.font_number, "\uf097")
+    d, adv = outline
+    assert upem == f.upem and adv == f.units("\uf097")
+    assert d.startswith("M") and "Z" in d

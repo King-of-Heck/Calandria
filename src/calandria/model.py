@@ -22,12 +22,30 @@ class RunProps:
     font: str | None = None
     size_pt: float | None = None
     color: str | None = None
+    caps: bool = False           # w:caps: drawn in capitals (the text itself is unchanged)
+    small_caps: bool = False     # w:smallCaps: drawn in capitals too (Word's smaller capitals are not modelled)
 
 
 @dataclass
 class Run:
     text: str
     props: RunProps
+
+
+@dataclass(frozen=True)
+class TabStop:
+    pos_pt: float
+    kind: str = "left"       # left | center | right | decimal | bar | num | clear (w:tab/@w:val)
+    leader: str = "none"     # none | dot | hyphen | underscore | middleDot | heavy (w:tab/@w:leader)
+
+
+def merge_tabs(base, over) -> tuple:
+    """Word's tab-stop inheritance: a stop at a position replaces the inherited one there, a
+    `clear` removes it; the result is sorted by position with the clears dropped."""
+    stops = {round(t.pos_pt, 2): t for t in base}
+    for t in over:
+        stops[round(t.pos_pt, 2)] = t
+    return tuple(sorted((t for t in stops.values() if t.kind != "clear"), key=lambda t: t.pos_pt))
 
 
 @dataclass
@@ -60,6 +78,7 @@ class ParaProps:
     outline_level: int | None = None
     style_name: str | None = None
     section_break: bool = False   # this paragraph carries a <w:sectPr>; it is the last of its section
+    tabs: tuple = ()              # resolved TabStops (style chain, numbering level, own), sorted
 
 
 @dataclass

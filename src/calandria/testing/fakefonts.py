@@ -6,6 +6,7 @@ from __future__ import annotations
 class FakeFace:
     def __init__(self, family: str, bold: bool, italic: bool, char_w: float, lh: float, asc: float):
         self.family, self.bold, self.italic, self.synthetic = family, bold, italic, False
+        self.symbol = False
         self.key = f"{family}|{'B' if bold else ''}{'I' if italic else ''}"
         self.path, self.font_number = f"<fake:{self.key}>", 0
         self._cw, self._lh, self._asc = char_w, lh, asc

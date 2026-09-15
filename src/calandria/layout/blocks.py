@@ -11,11 +11,10 @@ inserted); an item that lost its numbering leads with the struck old marker inli
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 from ..diff.changes import Comparison
-from .lines import Line, Run, Spacing, break_lines, measure
+from .lines import Line, Run, Spacing, break_lines, measure, next_tab_stop  # noqa: F401 (re-exported)
 from .merged import Item
 from .pieces import LayoutOptions, Piece, row_pieces
 
@@ -63,10 +62,6 @@ class ParaBlock:
     @property
     def height(self) -> float:
         return sum(ln.height for ln in self.lines)
-
-
-def next_tab_stop(x: float, tab: float) -> float:
-    return (math.floor(x / tab + 1e-9) + 1) * tab
 
 
 def _cid_starts(marker: list[Run], lines: list[Line]) -> tuple[list[int], list[list[int]]]:
@@ -125,10 +120,17 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
         elif para.num.suff == "nothing":
             text_x = end
         else:
-            # No default tab stops (w:defaultTabStop 0): there is nothing to advance to, so the
-            # text starts where the marker ends.
-            text_x = (x if end <= x + 1e-9 else
-                      next_tab_stop(end, ctx.default_tab) if ctx.default_tab > 0 else max(end, x))
+            # The next stop after the marker: a custom stop of the paragraph (a level's "num" stop
+            # included), the hanging indent when the marker ends before it, else the next default
+            # stop. No default tab stops (w:defaultTabStop 0): there is nothing to advance to, so
+            # the text starts where the marker ends.
+            cands = [s.pos_pt for s in props.tabs if s.kind in ("left", "num") and s.pos_pt > end + 1e-9][:1]
+            if end <= x + 1e-9:
+                cands.append(x)
+            if cands:
+                text_x = min(cands)
+            else:
+                text_x = next_tab_stop(end, ctx.default_tab) if ctx.default_tab > 0 else max(end, x)
         first_dx = text_x - x
     else:
         first_dx = first_x - x
@@ -140,7 +142,8 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     right = props.ind_right_pt
     lines = break_lines(runs, max(MIN_LINE_PT, content_w - x - first_dx - right),
                         max(MIN_LINE_PT, content_w - x - right),
-                        spacing, fonts.face(font, bold, italic), size)
+                        spacing, fonts.face(font, bold, italic), size,
+                        first_x=x + first_dx, x=x, stops=props.tabs, default_tab=ctx.default_tab)
     cids, starts = _cid_starts(marker, lines)
 
     sb = props.space_before_pt or 0.0

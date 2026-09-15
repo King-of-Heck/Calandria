@@ -86,6 +86,12 @@ def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, con
     cx = x
     for r in line.runs:
         runs.append(_glyph(r, cx, ctx))
+        if r.tab and r.leader and r.w > 0:
+            # the leader: as many of its character as fit, ending at the stop (Word's dot leader)
+            dw = r.face.width(r.leader, r.size)
+            n = int(r.w / dw + 1e-6) if dw > 0 else 0
+            if n:
+                runs.append(_glyph(Run(r.leader * n, n * dw, r.piece, r.face, r.size), cx + r.w - n * dw, ctx))
         cx += r.w + (extra if r.is_space else 0.0)
     marker: list[GlyphRun] = []
     if first and blk.marker:
@@ -191,7 +197,8 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
         # Nothing was placed: the one empty page takes the body (last) section's geometry, which is
         # the page a reader of an empty document sees in Word.
         _new_page(pages, sections[-1], len(sections) - 1)
-    refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic) for k, f in faces.items()}
+    refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic, getattr(f, "symbol", False))
+            for k, f in faces.items()}
     # the options as requested (opts.side names the side); the narrowed run options are not stored
     return Layout(pages, refs, opts)
 

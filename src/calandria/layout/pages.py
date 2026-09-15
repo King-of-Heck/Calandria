@@ -80,6 +80,7 @@ class FontRef:
     bold: bool
     italic: bool
     synthetic: bool
+    symbol: bool = False      # a symbol-encoded face (Wingdings, Symbol): the viewer draws its outlines
 
 
 @dataclass

@@ -160,3 +160,30 @@ def test_justify_alignment_is_normalised():
 def test_next_tab_stop():
     assert next_tab_stop(0, 36) == 36 and next_tab_stop(35.9, 36) == 36
     assert next_tab_stop(36, 36) == 72 and next_tab_stop(78, 36) == 108
+
+
+def test_marker_text_starts_at_a_custom_stop_before_the_hanging_indent():
+    styles = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>',
+                    '<w:style w:type="paragraph" w:styleId="Tight"><w:pPr><w:tabs>'
+                    '<w:tab w:val="left" w:pos="600"/></w:tabs></w:pPr></w:style>')
+    body = P("item", NUMPR) + P("item", '<w:pStyle w:val="Tight"/>' + NUMPR)
+    c, items = _items(body, body, NUM, styles)
+    ctx = _ctx(c)
+    plain, tight = _block(items, 0, ctx), _block(items, 1, ctx)
+    assert (plain.x, plain.first_dx) == (36, 0)         # marker "1." ends at 28 < 36: the hanging indent
+    assert (tight.x, tight.first_dx) == (36, -6)        # the custom stop at 30 pt comes first
+
+
+def test_a_toc_line_lays_out_its_number_text_and_page_number():
+    styles = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>',
+                    '<w:style w:type="paragraph" w:styleId="TOC2"><w:pPr><w:tabs>'
+                    '<w:tab w:val="left" w:pos="800"/><w:tab w:val="right" w:leader="dot" w:pos="3000"/>'
+                    '</w:tabs><w:ind w:left="200"/></w:pPr></w:style>')
+    body = ('<w:p><w:pPr><w:pStyle w:val="TOC2"/></w:pPr><w:r><w:t>1.1</w:t><w:tab/>'
+            '<w:t>Definitions</w:t><w:tab/><w:t>12</w:t></w:r></w:p>')
+    c, items = _items(body, body, styles=styles)
+    blk = _block(items, 0, _ctx(c))
+    (ln,) = blk.lines
+    assert blk.x == 10 and [(r.text, r.w, r.leader) for r in ln.runs] == [
+        ("1.1", 15, None), ("\t", 15, None), ("Definitions", 55, None), ("\t", 45, "."), ("12", 10, None)]
+    assert blk.x + ln.width == 150                       # the page number ends at the right stop

@@ -94,7 +94,7 @@ def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, con
             marker.append(_glyph(r, mx, ctx))
             mx += r.w
     return PlacedLine(x, y, line.height, y + line.ascent, runs, marker, blk.changed,
-                      [blk.cid] if (first and blk.cid is not None) else [], blk.row_index)
+                      list(blk.cid_starts[li]) if li < len(blk.cid_starts) else [], blk.row_index)
 
 
 def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):

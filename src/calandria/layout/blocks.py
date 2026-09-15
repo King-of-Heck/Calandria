@@ -52,7 +52,8 @@ class ParaBlock:
     page_break_before: bool
     section: int
     changed: bool
-    cid: int | None
+    cids: list[int]                # passage numbers in the block, reading order
+    cid_starts: list[list[int]]    # per line: the numbers whose first glyph run is on it (gutter)
     row_index: int | None
 
     @property
@@ -68,6 +69,24 @@ def next_tab_stop(x: float, tab: float) -> float:
     return (math.floor(x / tab + 1e-9) + 1) * tab
 
 
+def _cid_starts(marker: list[Run], lines: list[Line]) -> tuple[list[int], list[list[int]]]:
+    """(all passage numbers in reading order, per-line first appearances): the marker's number on
+    the first line, then each text passage on the line where it begins (spec 14.4)."""
+    seen: list[int] = []
+    starts: list[list[int]] = []
+    for li, ln in enumerate(lines):
+        here: list[int] = []
+        for r in (marker if li == 0 else []) + ln.runs:
+            c = r.piece.cid
+            if c is not None and c not in seen:
+                seen.append(c)
+                here.append(c)
+        starts.append(here)
+    if not lines:
+        seen = [r.piece.cid for r in marker if r.piece.cid is not None]
+    return seen, starts
+
+
 def _base_style(pieces: list[Piece], ctx: Ctx):
     p = next((p for p in pieces if p.text.strip()), pieces[0] if pieces else None)
     if p is None:
@@ -81,7 +100,7 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
     font, size, bold, italic = _base_style(pieces, ctx)
-    cid = row.cid if row is not None else None
+    num_cid = row.num_cid if row is not None else None
     renumbered = row is not None and row.num_changed and bool(row.old_marker) and ctx.opts.side == "blackline"
 
     x = props.ind_left_pt
@@ -91,9 +110,9 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     if para.num is not None:
         mk: list[Piece] = []
         if renumbered:
-            mk.append(Piece(row.old_marker, "del", bold, italic, font=font, size=size, cid=cid))
-            mk.append(Piece(" ", "eq", bold, italic, font=font, size=size, cid=cid))
-        mk.append(Piece(para.num.marker, "ins" if renumbered else "eq", bold, italic, font=font, size=size, cid=cid))
+            mk.append(Piece(row.old_marker, "del", bold, italic, font=font, size=size, cid=num_cid))
+            mk.append(Piece(" ", "eq", bold, italic, font=font, size=size, cid=num_cid))
+        mk.append(Piece(para.num.marker, "ins" if renumbered else "eq", bold, italic, font=font, size=size, cid=num_cid))
         marker = measure(mk, fonts, ctx.default_font, ctx.default_size)
         mw = sum(r.w for r in marker)
         if para.num.jc == "right":
@@ -114,7 +133,7 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     else:
         first_dx = first_x - x
         if renumbered:
-            pieces = [Piece(row.old_marker + " ", "del", bold, italic, font=font, size=size, cid=cid)] + pieces
+            pieces = [Piece(row.old_marker + " ", "del", bold, italic, font=font, size=size, cid=num_cid)] + pieces
 
     runs = measure(pieces, fonts, ctx.default_font, ctx.default_size)
     spacing = Spacing(props.line_rule, props.line_spacing, props.line_exact_pt)
@@ -122,6 +141,7 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     lines = break_lines(runs, max(MIN_LINE_PT, content_w - x - first_dx - right),
                         max(MIN_LINE_PT, content_w - x - right),
                         spacing, fonts.face(font, bold, italic), size)
+    cids, starts = _cid_starts(marker, lines)
 
     sb = props.space_before_pt or 0.0
     sa = props.space_after_pt or 0.0
@@ -134,4 +154,4 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
                                    or row.num_changed)
     align = "justify" if props.align in ("justify", "distribute") else props.align
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
-                     props.page_break_before, item.section, changed, cid, item.row_index)
+                     props.page_break_before, item.section, changed, cids, starts, item.row_index)

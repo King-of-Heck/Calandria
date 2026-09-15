@@ -37,7 +37,7 @@ class Piece:
     size: float | None = None
     color: str | None = None
     fmt: bool = False              # inside a formatting-change range (only when formatting is shown)
-    cid: int | None = None
+    cid: int | None = None            # the passage number (spec 14.4)
 
     def style_key(self):
         return (self.mode, self.bold, self.italic, self.underline, self.font, self.size, self.color,
@@ -111,5 +111,5 @@ def row_pieces(cmp: Comparison, row: Row, opts: LayoutOptions) -> list[Piece]:
             continue
         if seg.m == "ins" and not opts.show_insertions:
             continue
-        out.extend(_slice(unit, start, start + n, seg.m, ranges if seg.m == "eq" else [], row.cid))
+        out.extend(_slice(unit, start, start + n, seg.m, ranges if seg.m == "eq" else [], seg.cid))
     return merge_pieces(out)

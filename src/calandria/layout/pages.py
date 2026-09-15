@@ -34,7 +34,7 @@ class PlacedLine:
     runs: list[GlyphRun]
     marker: list[GlyphRun]
     changed: bool
-    cid_starts: list[int]     # change numbers whose first line this is (gutter numbers)
+    cid_starts: list[int]     # passage numbers whose first glyph run is on this line (gutter numbers)
     row_index: int | None
 
 
@@ -55,7 +55,7 @@ class TableRowBox:
     h: float
     cells: list[CellBox]
     changed: bool
-    cids: list[int]           # change numbers of the row's changed cells (gutter numbers)
+    cids: list[int]           # passage numbers of the row's cells (gutter numbers)
 
 
 @dataclass

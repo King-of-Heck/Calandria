@@ -167,8 +167,8 @@ def test_a_page_tall_space_before_does_not_leave_a_blank_leading_page():
 def test_table_rows_carry_their_change_numbers():
     L = _lay(P("i") + TBL([["old value"]]), P("i") + TBL([["new value"]]))
     d = json.loads(json.dumps(L.to_dict()))
-    assert L.pages[0].table_rows[0].cids == [1]
-    assert d["pages"][0]["table_rows"][0]["cids"] == [1]
+    assert L.pages[0].table_rows[0].cids == [1, 2]        # "old" -> del 1, "new" -> ins 2 (per passage)
+    assert d["pages"][0]["table_rows"][0]["cids"] == [1, 2]
 
 
 def test_hidden_deletions_leave_no_deleted_runs():
@@ -304,3 +304,26 @@ def test_the_original_side_keeps_the_original_documents_character_formatting():
     assert not any(bold_of(black, "bbbb"))
     assert bold_of(orig, "bbbb") and all(bold_of(orig, "bbbb"))
     assert not any(bold_of(mod, "bbbb"))
+
+
+def test_a_passage_starting_on_a_later_line_puts_its_number_on_that_line():
+    words = " ".join(["aaaa"] * 30)                        # wraps well past one line at 5 pt a character
+    L = _lay(P(words + " bbbb cccc"), P(words + " bbbb dddd cccc"))
+    lines = L.pages[0].lines
+    at = next(i for i, ln in enumerate(lines) if any(g.mode == "ins" for g in ln.runs))
+    assert at > 0
+    assert [ln.cid_starts for ln in lines] == [[1] if i == at else [] for i in range(len(lines))]
+    # the inserted "dddd " is one passage but measure() still splits it into a word run and a
+    # trailing space run (both carry the same cid); filter to the non-whitespace run
+    assert [g.cid for ln in lines for g in ln.runs if g.mode == "ins" and g.text.strip()] == [1]
+
+
+def test_two_replacements_on_one_line_number_deletion_then_insertion():
+    # "value" and "now" are shared, so this pairs as one changed row (PAIR_THRESHOLD 0.5) instead
+    # of a whole-paragraph delete+insert
+    L = _lay(P("old value here now"), P("new value there now"))
+    (ln,) = L.pages[0].lines
+    assert ln.cid_starts == [1, 2, 3, 4]
+    assert [(g.text, g.mode, g.cid) for g in ln.runs if g.cid is not None] == \
+        [("old", "del", 1), ("new", "ins", 2), ("here", "del", 3), ("there", "ins", 4)]
+    assert all(g.cid is None for g in ln.runs if g.mode == "eq")     # the equal text is several runs

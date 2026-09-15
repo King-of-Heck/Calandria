@@ -45,7 +45,7 @@ def test_plain_paragraph():
     c, items = _items(P("aaaa bbbb"), P("aaaa bbbb"))
     b = _block(items, 0, _ctx(c))
     assert _texts(b) == ["aaaa bbbb"] and (b.x, b.first_dx, b.marker, b.marker_x) == (0, 0, [], 0)
-    assert b.height == 12 and not b.changed and b.cid is None and b.row_index == 0 and b.section == 0
+    assert b.height == 12 and not b.changed and b.cids == [] and b.cid_starts == [[]] and b.row_index == 0 and b.section == 0
     assert (b.space_before, b.space_after, b.align) == (0, 0, "left")
 
 
@@ -95,7 +95,8 @@ def test_renumbered_item_shows_old_and_new_markers():
     alpha = next(it for it in items if it.para.text == "Alpha")
     b = para_block(alpha, None, None, _ctx(c))
     assert [(r.text, r.piece.mode) for r in b.marker] == [("2.", "del"), (" ", "eq"), ("1.", "ins")]
-    assert b.first_dx == 36 and b.changed and b.cid == 2        # 25 pt marker ends at 43 -> stop 72
+    assert b.first_dx == 36 and b.changed and b.cids == [2] and b.cid_starts == [[2]]        # 25 pt marker ends at 43 -> stop 72
+    assert [r.piece.cid for r in b.marker] == [2, 2, 2]
 
 
 def test_numbered_to_plain_leads_with_the_struck_old_marker():
@@ -143,7 +144,7 @@ def test_exact_line_rule_and_keep_flags():
 def test_changed_rows_are_flagged_with_their_change_number():
     c, items = _items(P("same"), P("same") + P("added"))
     b = _block(items, 1, _ctx(c))
-    assert b.changed and b.cid == 1 and b.lines[0].runs[0].piece.mode == "ins"
+    assert b.changed and b.cids == [1] and b.cid_starts == [[1]] and b.lines[0].runs[0].piece.mode == "ins"
 
 
 def test_container_width_override_wraps_narrower():

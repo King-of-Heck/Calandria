@@ -6,7 +6,8 @@ ones spell the revised paragraph (the dense-rewrite coalescing duplicates a shar
 both, and both cursors advance over it). Walking the segments with one cursor per side therefore
 recovers where every segment sits in its source text, and the unit's per-character formatting
 spans are sliced at those offsets. Bold is per character here (the diff's per-token majority bold
-on Seg.b is a presentation choice of the reference row shape and is not used).
+on Seg.b is a presentation choice of the reference row shape and is not used), and a piece is bold
+when the run or its paragraph style says so: the style's bold is drawn, never compared.
 """
 from __future__ import annotations
 
@@ -95,7 +96,7 @@ def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid) -> list[Piece]:
         if sp is None:
             out.append(Piece(text, mode, fmt=fmt, cid=cid, tab=tab))
         else:
-            out.append(Piece(text, mode, sp.b, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid,
+            out.append(Piece(text, mode, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid,
                              sp.caps or sp.small_caps, tab))
     return out
 

@@ -1,5 +1,5 @@
 """Walks a Layout and emits Painter calls: runs and markers with their decorations, the table
-grid, change bars, gutter change numbers, and the pages themselves.
+grid, paragraph borders, change bars, gutter change numbers, and the pages themselves.
 
 Three painters take these calls: fpdf_sink.FpdfPainter (the PDF), viewer.svg.SvgPainter (the
 on-screen pages) and testing.recpaint.RecordingPainter (tests). run_style, cid_label,
@@ -142,6 +142,9 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
               side: str = "blackline") -> None:
     painter.page(page.w, page.h)
     draw_grid(page, painter)
+    for ln in page.lines:                 # paragraph borders, under the text like the grid
+        for q in ln.rules:
+            painter.line(q.x1, q.y1, q.x2, q.y2, q.width, q.color)
     plain = side != "blackline"
     marks_mode = MARKS_MODE.get(side) if (plain and opts.marks) else None
     for ln in page.lines:

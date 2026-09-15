@@ -1,5 +1,17 @@
 # Calandria changelog
 
+## v2.5.3 — Style bold and paragraph borders (2026-09-15)
+
+- Bold set by a paragraph style (a TOC level, a heading, a caption) is drawn in bold, as Word
+  shows it. Before, only a run's own bold was drawn, so "SECTION 1" in a table of contents whose
+  style is bold came out in regular weight. The comparison is unchanged: bold from a style is
+  drawn, never reported as a formatting change.
+- Paragraph borders (`w:pBdr`: top, bottom, left, right, on the paragraph or its style) are drawn
+  as rules in the pages and the PDF, at the border's width and colour, with Word's space between
+  the text and the line. Adjacent paragraphs with the same borders and indents share one box, as
+  in Word. Double, dashed and the other line styles draw as a single line. Before, borders were
+  not drawn at all (the two rules on the EPC template's cover were missing).
+
 ## v2.5.2 — Tabs do not size the line (2026-09-15)
 
 - A tab formatted larger than the text around it no longer makes its line taller, as in Word.

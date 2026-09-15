@@ -103,9 +103,10 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
     d = dict(para_rpr)
     own = read_rpr(rpr)
     d.update(own)
-    # Deferred: bold resolves from the run only (paragraph-style and w:rStyle bold are not yet
-    # applied); see tests/parity/KNOWN_DIVERGENCES.md.
-    return RunProps(bold=bool(own.get("bold", False)),
+    # The compared bold comes from the run alone (the reference engine's rule; see
+    # tests/parity/KNOWN_DIVERGENCES.md); the drawn bold (style_bold) resolves through the
+    # paragraph style like italic. w:rStyle is not applied to any property.
+    return RunProps(bold=bool(own.get("bold", False)), style_bold=bool(d.get("bold", False)),
                     italic=bool(d.get("italic", False)), underline=bool(d.get("underline", False)),
                     font=d.get("font") or ctx.styles.defaults["font"],
                     size_pt=d.get("size_pt") or ctx.styles.defaults["size_pt"], color=d.get("color"),
@@ -209,7 +210,9 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       keep_next=merged.get("keep_next", False), keep_lines=merged.get("keep_lines", False),
                       page_break_before=merged.get("page_break_before", False),
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
-                      style_name=style_name, tabs=tabs)
+                      style_name=style_name, tabs=tabs,
+                      border_top=merged.get("border_top"), border_bottom=merged.get("border_bottom"),
+                      border_left=merged.get("border_left"), border_right=merged.get("border_right"))
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

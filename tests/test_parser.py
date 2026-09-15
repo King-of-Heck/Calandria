@@ -292,3 +292,36 @@ def test_paragraph_tab_stops_merge_style_level_and_own():
     assert a.props.tabs == (TabStop(100.0, "center"), TabStop(467.5, "right", "dot"))
     assert b.props.tabs == (TabStop(72.0, "num"),)
     assert c.props.tabs == ()
+
+
+def test_bold_from_the_paragraph_style_is_drawn_not_compared():
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="TOC1">'
+              '<w:name w:val="toc 1"/><w:rPr><w:b/></w:rPr></w:style></w:styles>')
+    d = _doc('<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t>Section 1</w:t></w:r>'
+             '<w:r><w:rPr><w:b w:val="0"/></w:rPr><w:t>not</w:t></w:r>'
+             '<w:r><w:rPr><w:b/></w:rPr><w:t>own</w:t></w:r></w:p>' + P("plain"),
+             **{"word/styles.xml": styles})
+    a, b = d.blocks
+    # `bold` is the compared property and comes from the run alone (parity with the reference);
+    # `style_bold` is what is drawn.
+    assert [(r.props.bold, r.props.style_bold) for r in a.runs] == [(False, True), (False, False), (True, True)]
+    assert [(r.props.bold, r.props.style_bold) for r in b.runs] == [(False, False)]
+
+
+def test_paragraph_borders_from_own_ppr_and_style():
+    from calandria.model import Border
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Boxed">'
+              '<w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="0" w:color="FF0000"/>'
+              '<w:left w:val="double" w:sz="6" w:space="2" w:color="auto"/></w:pBdr></w:pPr></w:style></w:styles>')
+    d = _doc('<w:p><w:pPr><w:pStyle w:val="Boxed"/><w:pBdr>'
+             '<w:top w:val="single" w:sz="12" w:space="1" w:color="auto"/>'
+             '<w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:pBdr></w:pPr>'
+             '<w:r><w:t>boxed</w:t></w:r></w:p>' + P("plain"),
+             **{"word/styles.xml": styles})
+    a, b = d.blocks
+    pr = a.props
+    assert pr.border_top == Border(1.5, 1.0, None)            # w:sz is eighths of a point; auto = None
+    assert pr.border_bottom is None                           # the paragraph's "none" cancels the style's
+    assert pr.border_left == Border(0.75, 2.0, None)          # inherited; any line style draws as one line
+    assert pr.border_right is None
+    assert (b.props.border_top, b.props.border_bottom, b.props.border_left, b.props.border_right) == (None,) * 4

@@ -2,9 +2,10 @@
 
 Whitespace collapses to single spaces and the ends are trimmed exactly as Paragraph.text does, so
 the ranges produced here index into that text. A collapsed space keeps the first space's
-formatting except bold, which is OR-ed (a space between two bold words is bold). Bold comes from
-the run alone: paragraph-style and character-style bold are unresolved by design (see
-tests/parity/KNOWN_DIVERGENCES.md).
+formatting except bold, which is OR-ed (a space between two bold words is bold). The compared bold
+comes from the run alone: paragraph-style and character-style bold are unresolved by design (see
+tests/parity/KNOWN_DIVERGENCES.md). The paragraph style's bold rides along as style_bold, which is
+drawn but never compared (like caps).
 
 A run has one formatting, so its non-space text is one span (merged with the span before it when
 the formatting is the same); only a collapsed space can differ from its neighbours, when the
@@ -32,13 +33,14 @@ class FmtSpan:
     clr: str | None
     caps: bool = False           # drawn in capitals (w:caps / w:smallCaps); not a compared property
     small_caps: bool = False
+    style_bold: bool = False     # bold as drawn (the paragraph style's); not a compared property
 
     def same_fmt(self, o: "FmtSpan") -> bool:
         return (self.b == o.b and self.i == o.i and self.u == o.u and self.f == o.f
                 and self.z == o.z and self.clr == o.clr)
 
 
-# A span under construction: [s, e, b, i, u, f, z, clr, caps, small_caps] (mutable; e grows, b can be OR-ed).
+# A span under construction: [s, e, b, i, u, f, z, clr, caps, small_caps, style_bold] (mutable; e grows, b can be OR-ed).
 _S, _E, _B = 0, 1, 2
 
 
@@ -58,7 +60,8 @@ def _spans(p: Paragraph) -> list[list]:
 
     for run in p.runs:
         pr = run.props
-        fmt = (pr.bold, pr.italic, pr.underline, pr.font, pr.size_pt, pr.color, pr.caps, pr.small_caps)
+        fmt = (pr.bold, pr.italic, pr.underline, pr.font, pr.size_pt, pr.color, pr.caps, pr.small_caps,
+               pr.style_bold)
         parts = _WS_RUN.split(run.text)         # words and the whitespace groups between them
         for k, part in enumerate(parts):
             if k:                               # a whitespace group precedes every part but the first

@@ -54,6 +54,9 @@ class ParaBlock:
     cids: list[int]                # passage numbers in the block, reading order
     cid_starts: list[list[int]]    # per line: the numbers whose first glyph run is on it (gutter)
     row_index: int | None
+    borders: tuple = (None, None, None, None)   # (top, bottom, left, right) Border | None, as resolved
+    draw_top: bool = False         # the top border is drawn (and its height added to the first line);
+    draw_bottom: bool = False      # False when joined to the paragraph before / after (see _joins)
 
     @property
     def line_heights(self) -> list[float]:
@@ -87,6 +90,17 @@ def _base_style(pieces: list[Piece], ctx: Ctx):
     if p is None:
         return ctx.default_font, ctx.default_size, False, False
     return p.font or ctx.default_font, p.size or ctx.default_size, p.bold, p.italic
+
+
+def _borders(props) -> tuple:
+    return (props.border_top, props.border_bottom, props.border_left, props.border_right)
+
+
+def _joins(a, b) -> bool:
+    """Word draws adjacent paragraphs with the same borders and the same left and right indents as
+    one box: the border between them is not drawn (nor is its height taken)."""
+    return (b is not None and _borders(a) == _borders(b.para.props)
+            and a.ind_left_pt == b.para.props.ind_left_pt and a.ind_right_pt == b.para.props.ind_right_pt)
 
 
 def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None) -> ParaBlock:
@@ -146,6 +160,19 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
                         first_x=x + first_dx, x=x, stops=props.tabs, default_tab=ctx.default_tab)
     cids, starts = _cid_starts(marker, lines)
 
+    # Paragraph borders: the line and the space between it and the text sit inside the paragraph,
+    # so a top border adds to the first line (and pushes its baseline down) and a bottom border to
+    # the last; the planner sees only line heights and needs no other word.
+    borders = _borders(props)
+    draw_top = borders[0] is not None and not _joins(props, prev)
+    draw_bottom = borders[1] is not None and not _joins(props, nxt)
+    if lines and draw_top:
+        ext = borders[0].width_pt + borders[0].space_pt
+        lines[0].height += ext
+        lines[0].ascent += ext
+    if lines and draw_bottom:
+        lines[-1].height += borders[1].width_pt + borders[1].space_pt
+
     sb = props.space_before_pt or 0.0
     sa = props.space_after_pt or 0.0
     if props.contextual_spacing:
@@ -157,4 +184,5 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
                                    or row.num_changed)
     align = "justify" if props.align in ("justify", "distribute") else props.align
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
-                     props.page_break_before, item.section, changed, cids, starts, item.row_index)
+                     props.page_break_before, item.section, changed, cids, starts, item.row_index,
+                     borders, draw_top, draw_bottom)

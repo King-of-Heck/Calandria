@@ -10,7 +10,7 @@ from .blocks import Ctx, ParaBlock, para_block
 from .fonts import default_resolver
 from .lines import Line, Run
 from .merged import Item, merged_items
-from .pages import CellBox, FontRef, GlyphRun, Layout, Page, PlacedLine, TableRowBox
+from .pages import CellBox, FontRef, GlyphRun, Layout, Page, PlacedLine, Rule, TableRowBox
 from .pieces import LayoutOptions, visible
 from .planner import BlockSpec, Plan, plan_breaks
 from .sides import side_items, side_options
@@ -51,6 +51,9 @@ def _section_groups(items: list[Item], sections: list[Section]) -> list[tuple[in
             continue
         groups.append((it.section, [it]))
     return groups
+
+
+BLACK = "000000"        # a border whose colour is auto
 
 
 def _spec(b) -> BlockSpec:
@@ -100,7 +103,28 @@ def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, con
             marker.append(_glyph(r, mx, ctx))
             mx += r.w
     return PlacedLine(x, y, line.height, y + line.ascent, runs, marker, blk.changed,
-                      list(blk.cid_starts[li]) if li < len(blk.cid_starts) else [], blk.row_index)
+                      list(blk.cid_starts[li]) if li < len(blk.cid_starts) else [], blk.row_index,
+                      _rules(blk, first, last, base_x + blk.x, base_x + container_w - blk.right, y, line.height))
+
+
+def _rules(blk: ParaBlock, first: bool, last: bool, x1: float, x2: float, y: float, h: float) -> list[Rule]:
+    """The paragraph's border segments on one line: the top rule on the first line and the bottom
+    on the last (each centred half its width inside the line's edge, spanning the indents), the
+    left and right rules on every line over the line's height, `space` outside the text edge."""
+    top, bottom, left, right = blk.borders
+    out: list[Rule] = []
+    if first and blk.draw_top:
+        out.append(Rule(x1, y + top.width_pt / 2, x2, y + top.width_pt / 2, top.width_pt, top.color or BLACK))
+    if left is not None:
+        lx = x1 - left.space_pt - left.width_pt / 2
+        out.append(Rule(lx, y, lx, y + h, left.width_pt, left.color or BLACK))
+    if right is not None:
+        rx = x2 + right.space_pt + right.width_pt / 2
+        out.append(Rule(rx, y, rx, y + h, right.width_pt, right.color or BLACK))
+    if last and blk.draw_bottom:
+        yb = y + h - bottom.width_pt / 2
+        out.append(Rule(x1, yb, x2, yb, bottom.width_pt, bottom.color or BLACK))
+    return out
 
 
 def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):

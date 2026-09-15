@@ -123,3 +123,19 @@ def test_a_tab_inside_a_change_keeps_its_mode():
     (row,) = c.rows
     ps = row_pieces(c, row, LayoutOptions())
     assert [(p.text, p.mode, p.tab) for p in ps] == [("Name", "eq", 0), (" ", "ins", 1), ("Value", "ins", 0)]
+
+
+def test_style_bold_reaches_the_piece_as_bold_and_is_not_a_formatting_change():
+    from calandria.testing.makedocx import STYLES, W_NS
+    sty = STYLES(styles=f'<w:style w:type="paragraph" w:styleId="TOC1"><w:rPr><w:b/></w:rPr></w:style>')
+    body = PR(R("Section 1") + R(" plain", '<w:b w:val="0"/>'), ppr='<w:pStyle w:val="TOC1"/>')
+    a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": sty})))
+    b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body)})))    # no style: not bold
+    c = compare(a, a)
+    (row,) = c.rows
+    assert not row.fmt_changed
+    ps = row_pieces(c, row, LayoutOptions())
+    assert [(p.text, p.bold) for p in ps] == [("Section 1", True), (" plain", False)]
+    c2 = compare(a, b)                            # only the style's bold differs: no change at all
+    (row2,) = c2.rows
+    assert row2.type == "equal" and not row2.fmt_changed

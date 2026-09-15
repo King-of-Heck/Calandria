@@ -438,3 +438,15 @@ def test_a_tab_run_draws_its_decorations_but_no_text():
     fonts = {"Fake|": FontRef("<fake:Fake|>", 0, "Fake", False, False, False)}
     draw_runs(ln, [g], fonts, STANDARD, p)
     assert p.of("text") == [] and p.of("rule") and {(o[1], o[2]) for o in p.of("rule")} == {(10, 40)}
+
+
+def test_paragraph_borders_are_painted_as_lines_before_the_text():
+    ppr = ('<w:pBdr><w:top w:val="single" w:sz="8" w:space="4"/>'
+           '<w:left w:val="single" w:sz="4" w:space="0" w:color="FF0000"/></w:pBdr>')
+    body = P("boxed", ppr=ppr)
+    p = _page(_lay(body, body))
+    lines = p.of("line")
+    assert ("line", 72, 72.5, 540, 72.5, 1.0, BLACK) in lines
+    assert ("line", 71.75, 72, 71.75, 89, 0.5, "ff0000") in lines
+    kinds = [o[0] for o in p.ops]
+    assert kinds.index("line") < kinds.index("text")

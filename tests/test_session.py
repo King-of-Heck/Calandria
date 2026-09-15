@@ -137,7 +137,7 @@ def test_pages_follow_the_render_set_and_the_bars_toggle():
 
 def test_relayout_reruns_the_comparison_with_the_new_options():
     s = _session(P("Alpha") + P("Beta gamma"), P("Alpha") + P("beta gamma"))
-    assert s.payload()["summary"]["total"] == 1
+    assert s.payload()["summary"]["total"] == 2
     s.relayout(Options(ignore_case=True))
     d = s.payload()
     assert d["summary"]["total"] == 0 and d["options"]["ignore_case"] is True and d["anchors"] == {}

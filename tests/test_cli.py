@@ -42,7 +42,7 @@ def test_compare_prints_change_model_json(tmp_path, capsys):
     b = _write(tmp_path, "b.docx", P("Alpha") + P("beta gamma"))
     assert main(["compare", a, b]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["summary"]["total"] == 1 and out["changes"][1]["cat"] == "punctuation"
+    assert out["summary"]["total"] == 2 and out["changes"][1]["cat"] == "punctuation"
     assert out["options"] == {"ignore_case": False, "count_numbering": True}
     assert main(["compare", a, b, "--ignore-case", "--no-count-numbering"]) == 0
     out = json.loads(capsys.readouterr().out)

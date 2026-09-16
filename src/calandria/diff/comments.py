@@ -152,8 +152,11 @@ def _roots_and_replies(comments: dict) -> list:
 
 
 def compare_comments(a: Document, b: Document, cmp: Comparison) -> list[CommentChange]:
-    a_ids = set(a.comments)
-    b_ids = set(b.comments)
+    # Document order (dict insertion order), not a set: two comments that tie on every sort key
+    # below (same author, same anchored paragraph, both roots) must still land in a reproducible
+    # order -- a set's iteration order depends on Python's per-process string hash seed.
+    a_ids = list(a.comments)
+    b_ids = list(b.comments)
     # 1. match: greedy by (author, anchor overlap, text similarity).
     a_anchor = {cid: _anchor(a, cmp, cid, "a") for cid in a_ids}
     b_anchor = {cid: _anchor(b, cmp, cid, "b") for cid in b_ids}
@@ -163,10 +166,10 @@ def compare_comments(a: Document, b: Document, cmp: Comparison) -> list[CommentC
     b_para_row = {id(cmp.b_units[r.ni].para): k for k, r in enumerate(cmp.rows) if r.ni is not None}
     matched: dict = {}          # b_id -> a_id
     used_a: set = set()
-    for bid in sorted(b_ids, key=lambda x: (b.comments[x].author, _text(b.comments[x]))):
+    for bid in sorted(b_ids, key=lambda x: (b.comments[x].author, _text(b.comments[x]), x)):
         bc = b.comments[bid]
         best, bs = None, MATCH_THRESHOLD - 1e-9
-        for aid in a_ids - used_a:
+        for aid in (x for x in a_ids if x not in used_a):
             ac = a.comments[aid]
             if ac.author != bc.author:
                 continue

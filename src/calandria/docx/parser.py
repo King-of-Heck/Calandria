@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ..model import (Cell, Document, NoteRef, ParaProps, Paragraph, Row, Run, RunProps, Section, Table,
                      merge_tabs)
-from .ns import wq, wval, wbool, twips_to_pt
+from .ns import wq, wval, wbool, twips_to_pt, _num
 from .numbering import Numbering, NumberingCounter
 from .package import Package
 from .styles import Styles, read_ppr, read_rpr
@@ -12,6 +12,17 @@ _TRANSPARENT = {wq("hyperlink"), wq("smartTag"), wq("sdt"), wq("sdtContent"), wq
                 wq("ins"), wq("customXml"), wq("dir"), wq("bdo")}
 _SKIP = {wq("del"), wq("moveFrom"), wq("pPr"), wq("rPr"), wq("proofErr"), wq("bookmarkStart"),
          wq("bookmarkEnd"), wq("commentRangeStart"), wq("commentRangeEnd")}
+_WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+_R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+FIELDS = ("PAGE", "NUMPAGES")      # fields the layout fills live; their run text is the token {NAME}
+EMU_PER_PT = 12700.0
+
+
+def field_name(instr: str | None) -> str | None:
+    """The field's name from its instruction (" PAGE  \\* MERGEFORMAT " -> "PAGE") when it is one
+    the layout fills, else None."""
+    words = (instr or "").split()
+    return words[0].upper() if words and words[0].upper() in FIELDS else None
 
 
 class _Ctx:
@@ -23,6 +34,7 @@ class _Ctx:
         self.pending_section = False       # the pending break is a section break's, not a w:br
         self.sections: list[Section] = []
         self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
+        self.rels: dict[str, str] = {}
 
 
 def parse_docx(src) -> Document:
@@ -36,12 +48,13 @@ def parse_package(pkg: Package) -> Document:
     styles = Styles.parse(pkg.xml("word/styles.xml"))
     numbering = Numbering.parse(pkg.xml("word/numbering.xml"))
     ctx = _Ctx(styles, numbering)
+    ctx.rels = pkg.rels("word/document.xml")
     root = pkg.xml("word/document.xml")
     body = root.find(wq("body")) if root is not None else None
     blocks = _blocks(body, ctx) if body is not None else []
     if body is not None:
         sp = body.find(wq("sectPr"))
-        ctx.sections.append(_section(sp) if sp is not None else Section())
+        ctx.sections.append(_section(sp, ctx) if sp is not None else Section())
     if not ctx.sections:
         ctx.sections.append(Section())
     settings = pkg.xml("word/settings.xml")
@@ -51,11 +64,25 @@ def parse_package(pkg: Package) -> Document:
                         and wbool(settings.find(f"{wq('compat')}/{wq('doNotUseHTMLParagraphAutoSpacing')}")))
     footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
     endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
+    parts: dict = {}
+    for sec in ctx.sections:
+        for attr in ("header_default", "header_first", "header_even",
+                     "footer_default", "footer_first", "footer_even"):
+            name = getattr(sec, attr)
+            if name is None or name in parts:
+                continue
+            root_part = pkg.xml("word/" + name)
+            if root_part is None:
+                continue
+            ctx.pending_break = False
+            parts[name] = _blocks(root_part, ctx)
+            ctx.pending_break = False
+    ctx.pending_section = False
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
                     default_tab_pt=tab if tab is not None else 36.0,
                     footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers,
-                    html_spacing=html_spacing)
+                    html_spacing=html_spacing, parts=parts)
 
 
 def _notes(root, kind: str, ctx: _Ctx) -> dict:
@@ -98,9 +125,43 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
         if tag == wq("r"):
             props = _run_props(child.find(wq("rPr")), para_rpr, ctx)
             buf = []
+            fld = state.setdefault("field", None)
             for x in child:
-                if x.tag == wq("t") or x.tag == wq("delText"):
+                if x.tag == wq("fldChar"):
+                    kind = x.get(wq("fldCharType"))
+                    if kind == "begin":
+                        state["field"] = fld = {"instr": "", "phase": "instr", "props": props}
+                    elif kind == "separate" and fld is not None:
+                        fld["phase"] = "result"
+                        fld["props"] = None            # the first result run's formatting wins
+                    elif kind == "end" and fld is not None:
+                        name = field_name(fld["instr"])
+                        if name is not None:
+                            if buf:
+                                out.append(Run("".join(buf), props))
+                                buf = []
+                            fp = fld["props"] or props
+                            out.append(Run("{" + name + "}", RunProps(**{**fp.__dict__, "field": name})))
+                            state["text_seen"] = True
+                        state["field"] = fld = None
+                elif x.tag == wq("instrText"):
+                    if fld is not None and fld["phase"] == "instr":
+                        fld["instr"] += x.text or ""
+                elif x.tag == wq("t") or x.tag == wq("delText"):
+                    if fld is not None and fld["phase"] == "result" and field_name(fld["instr"]) is not None:
+                        if fld["props"] is None:
+                            fld["props"] = props
+                        continue                       # the cached result of a live field: replaced by the token
                     buf.append(x.text or "")
+                elif x.tag == wq("drawing"):
+                    ext = x.find(f".//{_WP}extent")
+                    if ext is not None:
+                        if buf:
+                            out.append(Run("".join(buf), props))
+                            buf = []
+                        cx, cy = _num(ext.get("cx")), _num(ext.get("cy"))
+                        out.append(Run("", RunProps(**{**props.__dict__, "image_w_pt": (cx or 0) / EMU_PER_PT,
+                                                       "image_h_pt": (cy or 0) / EMU_PER_PT})))
                 elif x.tag == wq("tab"):
                     buf.append("\t")
                 elif x.tag == wq("br"):
@@ -133,6 +194,12 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                 state["text_seen"] = True
             if text:
                 out.append(Run(text, props))
+        elif tag == wq("fldSimple") and field_name(child.get(wq("instr"))) is not None:
+            name = field_name(child.get(wq("instr")))
+            first = child.find(wq("r"))
+            props = _run_props(first.find(wq("rPr")) if first is not None else None, para_rpr, ctx)
+            out.append(Run("{" + name + "}", RunProps(**{**props.__dict__, "field": name})))
+            state["text_seen"] = True
         elif tag in _TRANSPARENT:
             _runs(child, ctx, para_rpr, out, state)
 
@@ -278,7 +345,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
         sp = ppr.find(wq("sectPr"))
         if sp is not None:
             p.props.section_break = True
-            section = _section(sp)
+            section = _section(sp, ctx)
             ctx.sections.append(section)
             # A section break stored on a paragraph takes effect AFTER that paragraph: the
             # following paragraph starts a new page. "continuous" flows on, and "nextColumn"
@@ -320,7 +387,7 @@ def _table(el, ctx: _Ctx) -> Table:
     return Table(rows, grid_pt=grid, ind_pt=ind)
 
 
-def _section(sp) -> Section:
+def _section(sp, ctx: _Ctx) -> Section:
     s = Section()
     sz = sp.find(wq("pgSz"))
     if sz is not None:
@@ -338,4 +405,19 @@ def _section(sp) -> Section:
                 setattr(s, key, abs(v))
     s.title_pg = wbool(sp.find(wq("titlePg")))
     s.type = wval(sp.find(wq("type")), "nextPage") or "nextPage"
+    for el in sp:
+        if el.tag in (wq("headerReference"), wq("footerReference")):
+            kind = "header" if el.tag == wq("headerReference") else "footer"
+            variant = el.get(wq("type")) or "default"
+            if variant not in ("default", "first", "even"):
+                continue
+            target = ctx.rels.get(el.get(_R_ID) or "")
+            if target:
+                setattr(s, f"{kind}_{variant}", target)
+    pn = sp.find(wq("pgNumType"))
+    if pn is not None:
+        start = pn.get(wq("start"))
+        if start is not None and start.lstrip("-").isdigit():
+            s.page_start = int(start)
+        s.page_fmt = pn.get(wq("fmt")) or "decimal"
     return s

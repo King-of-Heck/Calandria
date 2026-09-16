@@ -86,3 +86,67 @@ def FOOTNOTES(notes: dict[int, str]) -> str:
 
 def ENDNOTES(notes: dict[int, str]) -> str:
     return _notes("endnote", "endnoteRef", notes)
+
+
+WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+PKG_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
+REL_HDR = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+REL_FTR = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+
+
+def SECT(hdr: dict | None = None, ftr: dict | None = None, title_pg: bool = False, page_start: int | None = None,
+         page_fmt: str | None = None, type: str | None = None, extra: str = "") -> str:
+    """A <w:sectPr> (Letter, 1 in margins, header/footer 0.5 in). hdr/ftr: variant -> rId."""
+    refs = "".join(f'<w:headerReference w:type="{v}" r:id="{rid}"/>' for v, rid in (hdr or {}).items())
+    refs += "".join(f'<w:footerReference w:type="{v}" r:id="{rid}"/>' for v, rid in (ftr or {}).items())
+    t = f'<w:type w:val="{type}"/>' if type else ""
+    pn = ""
+    if page_start is not None or page_fmt:
+        pn = "<w:pgNumType" + (f' w:start="{page_start}"' if page_start is not None else "") + \
+             (f' w:fmt="{page_fmt}"' if page_fmt else "") + "/>"
+    tp = "<w:titlePg/>" if title_pg else ""
+    return (f'<w:sectPr xmlns:r="{R_NS}">{refs}{t}<w:pgSz w:w="12240" w:h="15840"/>'
+            f'<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720"/>'
+            f"{pn}{tp}{extra}</w:sectPr>")
+
+
+def HDR(body: str) -> str:
+    return f'<w:hdr xmlns:w="{W_NS}" xmlns:r="{R_NS}">{body}</w:hdr>'
+
+
+def FTR(body: str) -> str:
+    return f'<w:ftr xmlns:w="{W_NS}" xmlns:r="{R_NS}">{body}</w:ftr>'
+
+
+def RELS(mapping: dict[str, str]) -> str:
+    """word/_rels/document.xml.rels: rId -> part basename (header*.xml / footer*.xml)."""
+    rels = "".join(f'<Relationship Id="{rid}" Type="{REL_HDR if t.startswith("header") else REL_FTR}" Target="{t}"/>'
+                   for rid, t in mapping.items())
+    return f'<Relationships xmlns="{PKG_RELS}">{rels}</Relationships>'
+
+
+def SETTINGS(even_and_odd: bool = False) -> str:
+    return f'<w:settings xmlns:w="{W_NS}">{"<w:evenAndOddHeaders/>" if even_and_odd else ""}</w:settings>'
+
+
+def FLD(name: str, cached: str = "1", rpr: str = "") -> str:
+    """A simple field: <w:fldSimple w:instr=" NAME "> holding its cached result run."""
+    return f'<w:fldSimple w:instr=" {name} \\* MERGEFORMAT ">{R(cached, rpr)}</w:fldSimple>'
+
+
+def FLDC(name: str, cached: str = "1", rpr: str = "") -> str:
+    """The complex field form: begin / instrText / separate / result / end, one run each."""
+    r = f"<w:rPr>{rpr}</w:rPr>" if rpr else ""
+    return (f'<w:r>{r}<w:fldChar w:fldCharType="begin"/></w:r>'
+            f'<w:r>{r}<w:instrText xml:space="preserve"> {name}  \\* MERGEFORMAT </w:instrText></w:r>'
+            f'<w:r>{r}<w:fldChar w:fldCharType="separate"/></w:r>'
+            f'<w:r>{r}<w:t>{escape(cached)}</w:t></w:r>'
+            f'<w:r>{r}<w:fldChar w:fldCharType="end"/></w:r>')
+
+
+def IMG(cx_emu: int, cy_emu: int) -> str:
+    """A run holding an inline drawing of the given extent (no picture data)."""
+    return (f'<w:r><w:drawing><wp:inline xmlns:wp="{WP_NS}"><wp:extent cx="{cx_emu}" cy="{cy_emu}"/>'
+            f'<wp:docPr id="1" name="Picture 1"/></wp:inline></w:drawing></w:r>')

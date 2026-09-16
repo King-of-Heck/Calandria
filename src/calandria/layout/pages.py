@@ -86,6 +86,8 @@ class Page:
     section: int
     lines: list[PlacedLine] = field(default_factory=list)
     table_rows: list[TableRowBox] = field(default_factory=list)
+    label: str = ""           # the page's Word page number, formatted (what its PAGE fields show);
+                              # not serialised by Layout.to_dict: it is chrome, not page content
 
 
 @dataclass

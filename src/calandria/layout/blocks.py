@@ -36,6 +36,8 @@ class Ctx:
     maps: tuple | None = None  # table correspondence maps, built once per layout (see tables.table_maps)
     notes: dict = field(default_factory=dict)   # footnote key (first row index) -> its ParaBlocks (engine.build_blocks)
     html_spacing: bool = True  # Document.html_spacing: the larger of space after / before between paragraphs
+    hf_items: dict = field(default_factory=dict)  # (stream, part) -> header/footer Items (chrome.hf_groups)
+    parts: dict = field(default_factory=dict)     # (stream, part) -> its ParaBlocks at this width (chrome.part_blocks)
 
 
 @dataclass
@@ -131,6 +133,10 @@ def _note_lead(item: Item, row, pieces: list[Piece], ctx: Ctx) -> list[Piece]:
 def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None) -> ParaBlock:
     para, row, props = item.para, item.row, item.para.props
     pieces = row_pieces(ctx.cmp, row, ctx.opts) if row is not None else []
+    if row is None:
+        # an empty paragraph holding an inline image keeps the image's box (the logo headers)
+        pieces = [Piece("", "eq", image_w=r.props.image_w_pt or 0.0, image_h=r.props.image_h_pt or 0.0)
+                  for r in para.runs if r.props.image_w_pt]
     if row is not None and item.note is not None and (prev is None or prev.note != item.note):
         pieces = _note_lead(item, row, pieces, ctx) + pieces
     content_w = ctx.content_w if avail_w is None else avail_w

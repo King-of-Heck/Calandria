@@ -23,7 +23,7 @@ def _header(c) -> str:
     who = c.initials or c.author
     date = (c.date or "")[:10]        # ISO date, day precision
     head = f"{who} - {date}" if date else who
-    return ("✓ " + head) if c.done else head
+    return ("\u2713 " + head) if c.done else head
 
 
 def _face(ctx: Ctx):
@@ -76,7 +76,9 @@ def build_bubbles(cmp, ctx: Ctx, col_w: float) -> list:
 
 def _anchor_positions(layout, cmp) -> dict:
     """Anchor paragraph identity -> (page, baseline y, right end x) of the first body line that
-    lays that paragraph out."""
+    lays that paragraph out. Keyed by BOTH the a-side and b-side paragraph of each row (mirroring
+    diff/comments.py::_body_order), so a removed comment -- whose anchor.para is the ORIGINAL-side
+    Paragraph -- still resolves when that row survives as equal/changed (the common case)."""
     out: dict = {}
     for page in layout.pages:
         for ln in page.lines:
@@ -85,30 +87,46 @@ def _anchor_positions(layout, cmp) -> dict:
             if not 0 <= ln.row_index < len(cmp.rows):
                 continue
             row = cmp.rows[ln.row_index]
+            keys = []
             if row.ni is not None:
-                u = cmp.b_units[row.ni]
-            elif row.oi is not None:
-                u = cmp.a_units[row.oi]
-            else:
+                keys.append(id(cmp.b_units[row.ni].para))
+            if row.oi is not None:
+                keys.append(id(cmp.a_units[row.oi].para))
+            if not keys:
                 continue
-            key = id(u.para)
-            if key not in out:
-                anchor_x = max((g.x + g.w for g in ln.runs), default=ln.x)
-                out[key] = (page, ln.baseline, anchor_x)
+            pos = None
+            for key in keys:
+                if key not in out:
+                    if pos is None:
+                        anchor_x = max((g.x + g.w for g in ln.runs), default=ln.x)
+                        pos = (page, ln.baseline, anchor_x)
+                    out[key] = pos
     return out
 
 
 def place_bubbles(layout, cmp, bubbles) -> None:
     """Resolve each bubble to the page + baseline of its anchor paragraph, then pack the bubbles of
-    a page top-to-bottom (monotonic y, no overlap) and append the PlacedComments to page.comments."""
+    a page top-to-bottom (monotonic y, no overlap) and append the PlacedComments to page.comments.
+    A comment with an unresolved anchor (no anchor paragraph, e.g. a threaded reply, or an anchor
+    that isn't a body paragraph at all) inherits the most recently resolved position instead of
+    falling back to page 0 -- comments arrive in reading order with replies right after their
+    parent, so that position is the parent's."""
     if not layout.pages:
         return
     anchor_pos = _anchor_positions(layout, cmp)
     default = (layout.pages[0], layout.pages[0].margin_top, 0.0)
     by_page: dict = {}
+    last_resolved = None
     for c, bubble in bubbles:
         para = c.anchor.para if c.anchor is not None else None
-        page, base_y, ax = anchor_pos.get(id(para), default) if para is not None else default
+        resolved = anchor_pos.get(id(para)) if para is not None else None
+        if resolved is not None:
+            page, base_y, ax = resolved
+            last_resolved = resolved
+        elif last_resolved is not None:
+            page, base_y, ax = last_resolved
+        else:
+            page, base_y, ax = default
         by_page.setdefault(page.number, []).append((bubble, base_y, ax, page))
     for _num, items in by_page.items():
         items.sort(key=lambda t: t[1])              # by anchor baseline

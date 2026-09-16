@@ -1,5 +1,26 @@
 # Calandria changelog
 
+## v2.7.0 — Headers and footers (2026-09-15)
+
+- Headers and footers are compared, as they are displayed: for every section, the header and
+  footer Word shows on its first, odd and even pages (linked to the previous section when the
+  section sets none), blank ones dropped, repeated ones once, in document order. Changes in them
+  are counted like body changes, listed with the location Header or Footer, and the location
+  filter has both.
+- Headers and footers are drawn on every page where Word draws them: the header at the header
+  distance from the top, the footer above the footer distance from the bottom, the right variant
+  per page (first page, even, odd). A header or footer taller than the room above or below the
+  margin pushes the body, as in Word. PAGE and NUMPAGES fields show the page's own number
+  (numbering restarts and roman or letter formats honoured) and the page total; a page number
+  is never a change.
+- A changed header shows its redline on every page it appears on; the change bar and margin
+  number sit on the first of those pages, and the change list goes there.
+- An inline image in an otherwise empty paragraph keeps its box (the template's logo headers are
+  as tall as in Word); the picture itself is not drawn.
+- Known limits: a table inside a header is laid out as its cells' paragraphs stacked; a header
+  change inside a continuous section shows from the next page; Word's red notice for a changed
+  first-page or link-to-previous setting is not produced.
+
 ## v2.6.1 — Paragraph spacing as Word adds it (2026-09-15)
 
 - The space between two paragraphs is the larger of the first one's space after and the second

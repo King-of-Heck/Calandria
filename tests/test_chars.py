@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -120,15 +120,29 @@ def _old_fmt_spans(p):
     return out
 
 
+def _merge_adjacent(spans):
+    # a field run is always its own span (by design, see FmtSpan.field); the old oracle knew
+    # nothing of fields and would have merged it with an identically-formatted neighbour
+    out = []
+    for sp in spans:
+        if out and out[-1].e == sp.s and out[-1].same_fmt(sp):
+            out[-1] = replace(out[-1], e=sp.e)
+        else:
+            out.append(sp)
+    return out
+
+
 def _same_as_old(p):
-    from dataclasses import replace
     bold, spans = char_fmt(p)
     compared = [replace(s, style_bold=False, field=None) for s in spans]  # the old walk knew only the compared fields
-    assert (bold, compared) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
+    assert (bold, _merge_adjacent(compared)) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
     assert "".join(ch.c for ch in _old_collapsed_chars(p)) == p.text
     if spans:
         assert spans[0].s == 0 and spans[-1].e == len(p.text)
-        assert all(a.e == b.s and not a.same_fmt(b) for a, b in zip(spans, spans[1:]))
+        # adjacent spans are never re-mergeable *except* across a field boundary: a field run is
+        # always its own span even when it matches its neighbour's comparable formatting
+        assert all(a.e == b.s and (a.field is not None or b.field is not None or not a.same_fmt(b))
+                   for a, b in zip(spans, spans[1:]))
     else:
         assert p.text == ""
 

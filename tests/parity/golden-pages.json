@@ -47,6 +47,12 @@
   "digest": "6d0e6e02b108b2ec",
   "redline": 1
  },
+ "gen-hf": {
+  "a": 8,
+  "b": 8,
+  "digest": "46d719b26b4b15e6",
+  "redline": 8
+ },
  "gen-latin1": {
   "a": 1,
   "b": 1,

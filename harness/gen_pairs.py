@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from calandria.testing.makedocx import DOC, ENDNOTES, ENREF, FNREF, FOOTNOTES, P, PR, R, STYLES, TBL, make_docx  # noqa: E402
+from calandria.testing.makedocx import (DOC, ENDNOTES, ENREF, FLD, FNREF, FOOTNOTES, FTR, HDR, P, PR, R, RELS, SECT,
+                                        SETTINGS, STYLES, TBL, make_docx)  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests" / "corpus"
@@ -78,6 +79,39 @@ def _notes_pair():
     return a, b
 
 
+# Headers and footers: three sections. 1: title page, cover header changed, running header shared,
+# footer with a PAGE field. 2: no references (inherits); B adds an even header (even/odd is on).
+# 3: a tall header that pushes the body, a blank footer part, numbering restarts.
+_HF_BODY = "".join(P(f"Section one paragraph {i} with enough words to fill a line of the page.") for i in range(60))
+_HF_S1 = "".join(PR(R(f"Section two paragraph {i}.")) for i in range(120))
+_HF_S3 = "".join(P(f"Section three paragraph {i}.") for i in range(120))
+
+
+def _hf_body(even_ref: dict) -> str:
+    return (_HF_BODY
+            + PR(R("End of section one."), ppr=SECT(hdr={"default": "rId1", "first": "rId2"}, ftr={"default": "rId3"},
+                                                   title_pg=True, page_start=1))
+            + _HF_S1 + PR(R("End of section two."), ppr=SECT(hdr=even_ref))
+            + _HF_S3 + SECT(hdr={"default": "rId5"}, ftr={"default": "rId6"}, page_start=1))
+
+
+_HF_RELS = RELS({"rId1": "header1.xml", "rId2": "header2.xml", "rId3": "footer1.xml", "rId4": "header3.xml",
+                 "rId5": "header4.xml", "rId6": "footer2.xml"})
+_HF_TALL = "".join(P(f"Tall header line {i}", ppr='<w:spacing w:after="120"/>') for i in range(4))
+
+
+def _hf_pair():
+    common = {"word/styles.xml": _DEFAULTS, "word/_rels/document.xml.rels": _HF_RELS,
+              "word/settings.xml": SETTINGS(even_and_odd=True),
+              "word/header1.xml": HDR(P("Running head")),
+              "word/footer1.xml": FTR(PR(R("Page ") + FLD("PAGE"), ppr='<w:jc w:val="center"/>')),
+              "word/header3.xml": HDR(P("Even side")),
+              "word/header4.xml": HDR(_HF_TALL), "word/footer2.xml": FTR(P(""))}
+    a = {**common, "word/document.xml": DOC(_hf_body({})), "word/header2.xml": HDR(P("Cover A"))}
+    b = {**common, "word/document.xml": DOC(_hf_body({"even": "rId4"})), "word/header2.xml": HDR(P("Cover B"))}
+    return a, b
+
+
 PAIRS = {
     "fmt": _pair(_FMT_A, _FMT_B),
     "table": _pair(_TABLE_A, _TABLE_B),
@@ -87,6 +121,7 @@ PAIRS = {
     "empty": _pair(_EMPTY_A, _EMPTY_B),
     "latin1": _pair(_LATIN1_A, _LATIN1_B),
     "notes": _notes_pair(),
+    "hf": _hf_pair(),
 }
 
 

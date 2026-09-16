@@ -114,6 +114,20 @@ def change_marks(lay: Layout, passages=()) -> tuple[dict[int, dict], list[list]]
     return anchors, marks
 
 
+def comment_anchor_map(lay: Layout) -> dict[int, dict]:
+    """cid -> {"page", "top", "left", "width", "height"} of each comment's own bubble box on the
+    blackline layout (the only layout that draws comment bubbles) -- the viewer's click-to-scroll
+    target for a comment row, and the rectangle it flashes there, mirroring `change_marks`'s
+    anchors for a passage."""
+    out: dict[int, dict] = {}
+    for pg in lay.pages:
+        for pc in pg.comments:
+            if pc.bubble.cid is not None:
+                out.setdefault(pc.bubble.cid, {"page": pg.number, "top": round(pc.y, 2), "left": round(pc.x, 2),
+                                               "width": round(pc.w, 2), "height": round(pc.bubble.height, 2)})
+    return out
+
+
 def row_map(lay: Layout) -> dict[int, dict]:
     """rows[k] = {"page", "top", "height"} of the first line of comparison row k on this layout
     (spec §12.2): the scroll sync's map between the sides."""
@@ -284,9 +298,9 @@ class Session:
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name},
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
-                "passages": d["passages"],
+                "passages": d["passages"], "comments": d["comments"],
                 "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),
-                "anchors": anchors, "marks": marks_,
+                "anchors": anchors, "marks": marks_, "comment_anchors": comment_anchor_map(self.layout),
                 "render_sets": list(RENDER_SETS),
                 "render_set_styles": {k: v.to_dict() for k, v in RENDER_SETS.items()},
                 **self.pages(render_set, change_bars, marks, sides)}

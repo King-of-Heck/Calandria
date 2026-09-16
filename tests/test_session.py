@@ -9,7 +9,7 @@ from calandria.layout.fonts import default_dirs
 from calandria.server.session import (OPTION_KEYS, BadDocument, Options, Session, change_marks, check_render,
                                       parse_options)
 from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, STYLES, TBL, make_docx
 
 FR = FakeResolver()
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -121,6 +121,29 @@ def test_payload_of_a_one_line_insertion():
     assert d["report_lines"][0] == "Original: a.docx" and d["report_lines"][2] == "Compared: 2026-09-09 14:05"
     assert d["report_lines"][3] == "Rendering set: Standard"
     assert d["changed_pages"] == [1]
+    json.dumps(d)
+
+
+def test_payload_carries_comments_and_a_click_to_scroll_anchor_for_each():
+    """The viewer's Comments filter renders data.comments and jumps to data.comment_anchors[cid] --
+    both must reach the payload, and the anchor must place the bubble on the page it landed on."""
+    a_bytes = make_docx({"word/document.xml": DOC(P("The fox jumps.")), "word/styles.xml": STY})
+    b_bytes = make_docx({
+        "word/document.xml": DOC(PR(R("The ") + CRANGE("0", "fox") + R(" jumps."))),
+        "word/styles.xml": STY,
+        "word/_rels/document.xml.rels": CRELS(comments=True),
+        "word/comments.xml": COMMENTS([{"id": "0", "author": "Ada", "initials": "AL",
+                                        "date": "2026-09-16T00:00:00Z", "paras": [("p1", "Which fox?")]}]),
+    })
+    s = Session(fonts=FR, clock=lambda: WHEN)
+    s.load("a.docx", a_bytes, "b.docx", b_bytes)
+    d = s.payload()
+    assert len(d["comments"]) == 1
+    c = d["comments"][0]
+    assert (c["cid"], c["state"], c["author"]) == (1, "added", "Ada")
+    a = d["comment_anchors"][c["cid"]]
+    assert a["page"] == 1
+    assert a["top"] >= 0 and a["left"] > 0 and a["width"] > 0 and a["height"] > 0
     json.dumps(d)
 
 

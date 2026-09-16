@@ -176,9 +176,37 @@ function renderComments() {
                    `<span class="no">C${c.cid ?? ""}</span>` +
                    `<span class="chead">${esc(head)}</span>` +
                    `<span class="text">${text}</span>`;
+    // Only a numbered comment (one the diff flagged, not an "unchanged" one) has a bubble to jump
+    // to -- it is the only kind the panel gives a C-label to begin with.
+    if (c.cid !== null && c.cid !== undefined) li.addEventListener("click", () => goComment(c, li));
     ol.appendChild(li);
   });
   $("listCount").textContent = list.length ? `${list.length} comments` : "No comments";
+}
+
+// Scrolls #pages to a comment's own bubble (comments are drawn only on the blackline) and flashes
+// its box, mirroring go()'s blackline jump for a passage -- but comments have no shared `visible`/
+// `current` state of their own (refilter() leaves those alone in the Comments view), so this only
+// tracks which row and which bubble are "current" locally, in the DOM.
+function goComment(c, li) {
+  for (const other of $("changes").querySelectorAll("li.current")) other.classList.remove("current");
+  li.classList.add("current");
+  for (const r of $("pages").querySelectorAll("rect.hl")) r.remove();
+  const a = data.comment_anchors && data.comment_anchors[String(c.cid)];
+  if (!a) { flash("This comment has no page position"); return; }
+  const page = $("pages").querySelector(`.page[data-page="${a.page}"]`);
+  if (!page) return;
+  const svg = page.querySelector("svg");
+  const scale = svg.getBoundingClientRect().height / pageSize(svg).h;
+  $("pages").scrollTo({ top: page.offsetTop + a.top * scale - 80, behavior: "smooth" });
+  syncFrom("blackline");
+  const r = document.createElementNS(SVG_NS, "rect");
+  r.setAttribute("class", "hl");
+  r.setAttribute("x", String(a.left));
+  r.setAttribute("y", String(a.top));
+  r.setAttribute("width", String(a.width));
+  r.setAttribute("height", String(a.height));
+  svg.insertBefore(r, svg.firstChild);
 }
 
 function refilter() {
@@ -249,7 +277,10 @@ function status() {
 }
 
 function go(i) {
-  if (!visible.length) return;
+  // The Comments view keeps its own row/bubble state (goComment) and never touches `visible`, so
+  // the toolbar buttons, the keys and #goto -- which all land here -- must no-op while it is
+  // active instead of navigating (or highlighting) the passage list it left stale.
+  if (isCommentView() || !visible.length) return;
   i = Math.max(0, Math.min(visible.length - 1, i));
   const ol = $("changes");
   const was = ol.querySelector("li.current");

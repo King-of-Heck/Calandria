@@ -108,14 +108,23 @@ def _anchor(doc: Document, cmp: Comparison, cid: str, side: str) -> Anchor | Non
 
 def _body_order(cmp: Comparison) -> dict:
     """Paragraph identity -> its position in reading order (revised body first, then deleted rows in
-    row order), so comments sort where their anchor sits."""
+    row order), so comments sort where their anchor sits. An original paragraph that pairs with a
+    revised one (the row has both `oi` and `ni`) shares that revised paragraph's reading position --
+    the common case for a removed comment on an "equal"/"changed" row -- and a purely deleted
+    paragraph sorts after the revised body, in row order."""
     order: dict = {}
     for k, u in enumerate(cmp.b_units):
         order.setdefault(id(u.para), k)
     base = len(cmp.b_units)
     for r in cmp.rows:
-        if r.type == "deleted":
-            order.setdefault(id(cmp.a_units[r.oi].para), base + r.oi)
+        if r.oi is None:
+            continue
+        a_para = cmp.a_units[r.oi].para
+        if r.ni is not None:
+            pos = order.get(id(cmp.b_units[r.ni].para), base + r.oi)
+        else:
+            pos = base + r.oi
+        order.setdefault(id(a_para), pos)
     return order
 
 
@@ -148,6 +157,10 @@ def compare_comments(a: Document, b: Document, cmp: Comparison) -> list[CommentC
     # 1. match: greedy by (author, anchor overlap, text similarity).
     a_anchor = {cid: _anchor(a, cmp, cid, "a") for cid in a_ids}
     b_anchor = {cid: _anchor(b, cmp, cid, "b") for cid in b_ids}
+    # row-correspondence maps: an anchor paragraph's identity -> the comparison row it sits in, so
+    # the original and revised anchors can be compared across the two separate document parses.
+    a_para_row = {id(cmp.a_units[r.oi].para): k for k, r in enumerate(cmp.rows) if r.oi is not None}
+    b_para_row = {id(cmp.b_units[r.ni].para): k for k, r in enumerate(cmp.rows) if r.ni is not None}
     matched: dict = {}          # b_id -> a_id
     used_a: set = set()
     for bid in sorted(b_ids, key=lambda x: (b.comments[x].author, _text(b.comments[x]))):
@@ -159,8 +172,10 @@ def compare_comments(a: Document, b: Document, cmp: Comparison) -> list[CommentC
                 continue
             score = sim(norm(_text(ac), False), norm(_text(bc), False))
             ba, bb_ = a_anchor.get(aid), b_anchor.get(bid)
-            if ba is not None and bb_ is not None and ba.para is bb_.para:
-                score += 0.5        # same anchored paragraph: a strong signal
+            ra = a_para_row.get(id(ba.para)) if ba is not None else None
+            rb = b_para_row.get(id(bb_.para)) if bb_ is not None else None
+            if ra is not None and ra == rb:
+                score += 0.5        # same anchored body row: a strong signal
             if score > bs:
                 best, bs = aid, score
         if best is not None:

@@ -88,3 +88,33 @@ def test_reading_order_follows_the_body_anchor_position():
                        {"id": "1", "author": "Amy", "paras": [("p1", "on first")]}])
     ccs = _cc(a, b)
     assert [c.author for c in ccs] == ["Amy", "Zed"]     # id 1 anchors first in the body
+
+
+def test_a_removed_comment_on_an_unchanged_paragraph_sorts_at_its_body_position():
+    # P1 is unchanged (an "equal" row) and carries a removed comment (original side only); P2 is
+    # edited (a "changed" row) and carries an added comment (revised side only). The removed
+    # comment's anchor sits on P1, so it must sort BEFORE the added comment on P2 -- not fall
+    # through to the end-of-body fallback just because its row type isn't "deleted".
+    a = _doc(PR(CRANGE("0", "Alpha") + R(" text.")) + PR(R("Beta original.")),
+             comments=[{"id": "0", "author": "Amy", "paras": [("p0", "on first")]}])
+    b = _doc(PR(R("Alpha text.")) + PR(CRANGE("1", "Beta") + R(" revised.")),
+             comments=[{"id": "1", "author": "Zed", "paras": [("p1", "on second")]}])
+    ccs = _cc(a, b)
+    assert [c.author for c in ccs] == ["Amy", "Zed"]
+    assert [c.state for c in ccs] == ["removed", "added"]
+
+
+def test_matching_uses_the_shared_anchor_row_to_disambiguate_near_tie_text():
+    # Two original comments by the same author with near-identical text, anchored on two
+    # different (unchanged) paragraphs. The revised counterparts are textually CLOSER to the
+    # other original comment than to their true anchor-paragraph partner, so plain text
+    # similarity alone pairs them backwards. The anchor signal (same comparison row) must win.
+    a = _doc(PR(CRANGE("0", "Para") + R(" one text.")) + PR(CRANGE("1", "Para") + R(" two text.")),
+             comments=[{"id": "0", "author": "A", "paras": [("c0", "alpha bravo charlie delta echo")]},
+                       {"id": "1", "author": "A", "paras": [("c1", "alpha bravo charlie golf india")]}])
+    b = _doc(PR(CRANGE("10", "Para") + R(" one text.")) + PR(CRANGE("11", "Para") + R(" two text.")),
+             comments=[{"id": "10", "author": "A", "paras": [("c10", "alpha bravo charlie golf hotel")]},
+                       {"id": "11", "author": "A", "paras": [("c11", "alpha bravo charlie delta foxtrot")]}])
+    ccs = _cc(a, b)
+    assert [c.old_id for c in ccs] == ["0", "1"]
+    assert [c.new_id for c in ccs] == ["10", "11"]

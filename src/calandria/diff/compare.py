@@ -18,6 +18,8 @@ def compare(a: Document, b: Document, *, ignore_case: bool = False,
             count_numbering: bool = True) -> Comparison:
     cmp = compare_units(units(a), units(b), ignore_case=ignore_case, count_numbering=count_numbering)
     cmp.a_doc, cmp.b_doc = a, b
+    from .comments import compare_comments
+    cmp.comments = compare_comments(a, b, cmp)
     return cmp
 
 

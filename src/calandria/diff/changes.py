@@ -104,6 +104,7 @@ class Comparison:
     # around it is shared -- an inserted note's mark is inserted, a deleted note's deleted
     note_modes: dict = field(default_factory=dict)
     note_rows: dict = field(default_factory=dict)    # (side, NoteRef) -> index of the note's first row
+    comments: list = field(default_factory=list)     # diff.comments.CommentChange, in reading order
 
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]

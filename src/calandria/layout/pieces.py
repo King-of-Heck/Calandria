@@ -43,6 +43,7 @@ class Piece:
     tab: int = 0                   # this piece is a tab: the number of stops to advance (its text is
                                    # the collapsed space it became, or "" before the first word)
     rise: bool = False             # a footnote/endnote reference mark: drawn small, above the baseline
+    note: int | None = None        # a reference mark: the index of the note's first comparison row
 
     def style_key(self):
         return (self.mode, self.bold, self.italic, self.underline, self.font, self.size, self.color,
@@ -66,7 +67,7 @@ def merge_pieces(pieces: list[Piece]) -> list[Piece]:
             out[-1].text += p.text
         elif p.text or p.tab:
             out.append(Piece(p.text, p.mode, p.bold, p.italic, p.underline, p.font, p.size, p.color,
-                             p.fmt, p.cid, p.caps, p.tab, p.rise))
+                             p.fmt, p.cid, p.caps, p.tab, p.rise, p.note))
     return out
 
 
@@ -78,9 +79,10 @@ def _mark(unit: Unit, ref, at: int, mode: str, side: str, cmp: Comparison) -> Pi
     m = cmp.note_modes.get((side, ref), mode) if mode == "eq" else mode
     doc = cmp.a_doc if side == "a" else cmp.b_doc
     text = str(doc.note_numbers.get(ref, "?")) if doc is not None else "?"
+    key = cmp.note_rows.get((side, ref))
     if sp is None:
-        return Piece(text, m, rise=True)
-    return Piece(text, m, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, rise=True)
+        return Piece(text, m, rise=True, note=key)
+    return Piece(text, m, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, rise=True, note=key)
 
 
 def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, refs=(), cmp: Comparison | None = None) -> list[Piece]:

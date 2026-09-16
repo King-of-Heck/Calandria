@@ -103,6 +103,7 @@ class Comparison:
     # (side, NoteRef) -> "ins" | "del" | "eq": how a note's reference mark is drawn when the text
     # around it is shared -- an inserted note's mark is inserted, a deleted note's deleted
     note_modes: dict = field(default_factory=dict)
+    note_rows: dict = field(default_factory=dict)    # (side, NoteRef) -> index of the note's first row
 
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]

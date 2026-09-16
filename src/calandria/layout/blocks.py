@@ -17,6 +17,7 @@ from ..diff.changes import Comparison
 from .lines import Line, Run, Spacing, break_lines, measure, next_tab_stop  # noqa: F401 (re-exported)
 from .merged import Item
 from .pieces import LayoutOptions, Piece, row_pieces
+from .planner import NOTE_SEP_PT
 
 MIN_LINE_PT = 40.0    # never wrap into a column narrower than this
 
@@ -33,6 +34,7 @@ class Ctx:
     default_tab: float
     faces: dict = field(default_factory=dict)   # face key -> face object, filled by the placer
     maps: tuple | None = None  # table correspondence maps, built once per layout (see tables.table_maps)
+    notes: dict = field(default_factory=dict)   # footnote key (first row index) -> its ParaBlocks (engine.build_blocks)
 
 
 @dataclass
@@ -57,6 +59,9 @@ class ParaBlock:
     borders: tuple = (None, None, None, None)   # (top, bottom, left, right) Border | None, as resolved
     draw_top: bool = False         # the top border is drawn (and its height added to the first line);
     draw_bottom: bool = False      # False when joined to the paragraph before / after (see _joins)
+    stream: str = "body"           # body | footnote | endnote
+    note_sep: bool = False         # the note separator: one empty line carrying the rule
+    line_notes: list | None = None # per line: the footnote keys first referenced on it (engine)
 
     @property
     def line_heights(self) -> list[float]:
@@ -201,4 +206,15 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     align = "justify" if props.align in ("justify", "distribute") else props.align
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
                      props.page_break_before, item.section, changed, cids, starts, item.row_index,
-                     borders, draw_top, draw_bottom)
+                     borders, draw_top, draw_bottom, item.stream)
+
+
+def sep_block(section: int, stream: str) -> ParaBlock:
+    """The note separator (Word's short rule above the footnotes, or above the endnotes): one
+    empty line of NOTE_SEP_PT with the rule drawn by the placer; kept with what follows."""
+    return ParaBlock([Line([], 0.0, 0, NOTE_SEP_PT, NOTE_SEP_PT / 2)], 0.0, 0.0, 0.0, "left", [], 0.0, 0.0, 0.0,
+                     True, False, False, section, False, [], [[]], None, stream=stream, note_sep=True)
+
+
+def note_height(blocks: list[ParaBlock]) -> float:
+    return sum(pb.space_before + pb.height + pb.space_after for pb in blocks)

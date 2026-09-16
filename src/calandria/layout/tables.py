@@ -51,6 +51,7 @@ class TableRowBlock:
     keep_next: bool = False
     keep_lines: bool = False
     page_break_before: bool = False
+    line_notes: list | None = None    # one entry: the footnote keys first referenced in the row (engine)
 
     @property
     def line_heights(self) -> list[float]:

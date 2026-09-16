@@ -50,6 +50,7 @@ class PlacedLine:
     cid_starts: list[int]     # passage numbers whose first glyph run is on this line (gutter numbers)
     row_index: int | None
     rules: list[Rule] = field(default_factory=list)   # the paragraph's border segments on this line
+    stream: str = "body"      # body | footnote | endnote
 
 
 @dataclass
@@ -124,6 +125,8 @@ class Layout:
             if ln.rules:              # only when present, so a border-free page model reads as before
                 d["rules"] = [{"x1": r(q.x1), "y1": r(q.y1), "x2": r(q.x2), "y2": r(q.y2), "w": r(q.width),
                                "clr": q.color} for q in ln.rules]
+            if ln.stream != "body":
+                d["stream"] = ln.stream
             return d
 
         def trow(t: TableRowBox) -> dict:

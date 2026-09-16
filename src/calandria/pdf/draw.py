@@ -138,6 +138,41 @@ def draw_grid(page: Page, painter) -> None:
 
 MARKS_MODE = {"original": "del", "modified": "ins"}
 
+COMMENT_STATE_CAT = {"added": "ins", "removed": "del", "edited": None, "unchanged": None}
+BUBBLE_BORDER = 0.5
+CONNECTOR_W = 0.5
+BRACKET_W = 0.75
+BRACKET_LEN = 4.0
+NEUTRAL = "888888"
+
+
+def draw_comments(page: Page, fonts: dict[str, FontRef], rs: RenderSet, painter, number_face) -> None:
+    """The comment column for one page: each PlacedComment's bubble box, border, connector back
+    to its anchor, an anchor bracket, and the header/text lines. `bubble.lines` were built by
+    layout.comments.build_bubbles/_stack at the bubble's OWN origin (top-left 0,0, padding baked
+    in) before packing knew the final position, so every line is translated by (pc.x, pc.y)
+    before it is drawn -- that is the only adaptation packing needs at draw time."""
+    for pc in page.comments:
+        b = pc.bubble
+        cat = COMMENT_STATE_CAT.get(b.state)
+        fill = tint(rs.category(cat, False).color) if cat else "f4f4f4"
+        edge = rs.category(cat, False).color if cat else NEUTRAL
+        painter.box(pc.x, pc.y, pc.w, b.height, fill)
+        # border: four thin lines
+        x2, y2 = pc.x + pc.w, pc.y + b.height
+        for (x1, y1, x3, y3) in ((pc.x, pc.y, x2, pc.y), (pc.x, y2, x2, y2),
+                                  (pc.x, pc.y, pc.x, y2), (x2, pc.y, x2, y2)):
+            painter.line(x1, y1, x3, y3, BUBBLE_BORDER, edge)
+        # connector from the anchor to the bubble's left edge
+        painter.line(pc.anchor_x, pc.anchor_y, pc.x, pc.y + b.height / 2, CONNECTOR_W, edge)
+        # anchor bracket at the anchored body range (the first cut brackets the anchor point only)
+        painter.rule(pc.anchor_x, pc.anchor_x + BRACKET_LEN, pc.anchor_y + 1, BRACKET_W, edge)
+        # header + text lines: translate from the bubble's own origin to its packed position
+        for ln in b.lines:
+            moved = replace(ln, top=pc.y + ln.top, baseline=pc.y + ln.baseline,
+                             runs=[replace(g, x=pc.x + g.x) for g in ln.runs])
+            draw_runs(moved, moved.runs, fonts, rs, painter, plain=True)
+
 
 def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOptions, painter, number_face,
               side: str = "blackline") -> None:
@@ -151,6 +186,7 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
     for ln in page.lines:
         draw_runs(ln, ln.marker, fonts, rs, painter, plain, marks_mode)
         draw_runs(ln, ln.runs, fonts, rs, painter, plain, marks_mode)
+    draw_comments(page, fonts, rs, painter, number_face)
     if plain:
         return                       # a side shows no gutter numbers and no change bars
     # One label per baseline: the cells of a table row are separate lines on one baseline, and each

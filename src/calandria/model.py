@@ -33,6 +33,11 @@ class RunProps:
     style_bold: bool = False     # bold as drawn: the paragraph style's bold unless the run turns it off.
                                  # `bold` (the run's own w:b) is the compared property (parity with the reference).
     note: NoteRef | None = None  # this (empty) run is a footnote/endnote reference mark
+    field: str | None = None     # "PAGE" | "NUMPAGES": the run is that field; its text is the literal token
+    field_text: str | None = None     # that field's cached result text ("" when it has none): what is drawn
+                                      # where the layout has no live value (the body); never compared
+    image_w_pt: float | None = None   # an inline image (w:drawing): the run has no text and holds this box
+    image_h_pt: float | None = None
 
 
 @dataclass
@@ -161,6 +166,16 @@ class Section:
     # "nextColumn", "evenPage", "oddPage". Every value except continuous/nextColumn starts the
     # following paragraph on a new page. Appended last so positional construction stays stable.
     type: str = "nextPage"
+    # Header/footer parts named by this section's sectPr (part basename under word/, e.g.
+    # "header1.xml"), per variant; None = not referenced (Word links to the previous section).
+    header_default: str | None = None
+    header_first: str | None = None
+    header_even: str | None = None
+    footer_default: str | None = None
+    footer_first: str | None = None
+    footer_even: str | None = None
+    page_start: int | None = None    # w:pgNumType/@w:start: page numbering restarts here
+    page_fmt: str = "decimal"        # w:pgNumType/@w:fmt
 
 
 @dataclass
@@ -178,6 +193,7 @@ class Document:
     # first's space after and the second's space before applies, not the sum. The compatibility
     # setting w:doNotUseHTMLParagraphAutoSpacing restores the sum.
     html_spacing: bool = True
+    parts: dict = field(default_factory=dict)          # header/footer part basename -> its blocks
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

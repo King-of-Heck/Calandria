@@ -24,6 +24,7 @@ class GlyphRun:
     fmt: bool            # inside a formatting-change range
     cid: int | None
     rise: float = 0.0    # points above the line's baseline (a note reference mark)
+    field: str | None = None    # "PAGE" | "NUMPAGES": this run is that field
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,8 @@ class Page:
     section: int
     lines: list[PlacedLine] = field(default_factory=list)
     table_rows: list[TableRowBox] = field(default_factory=list)
+    label: str = ""           # the page's Word page number, formatted (what its PAGE fields show);
+                              # not serialised by Layout.to_dict: it is chrome, not page content
 
 
 @dataclass

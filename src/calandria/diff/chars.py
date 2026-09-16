@@ -34,6 +34,8 @@ class FmtSpan:
     caps: bool = False           # drawn in capitals (w:caps / w:smallCaps); not a compared property
     small_caps: bool = False
     style_bold: bool = False     # bold as drawn (the paragraph style's); not a compared property
+    field: str | None = None     # "PAGE" | "NUMPAGES": a field run is always its own span
+    field_text: str | None = None     # that field's cached result text; drawn where there is no live value
 
     def same_fmt(self, o: "FmtSpan") -> bool:
         return (self.b == o.b and self.i == o.i and self.u == o.u and self.f == o.f
@@ -61,7 +63,7 @@ def _spans(p: Paragraph) -> list[list]:
     for run in p.runs:
         pr = run.props
         fmt = (pr.bold, pr.italic, pr.underline, pr.font, pr.size_pt, pr.color, pr.caps, pr.small_caps,
-               pr.style_bold)
+               pr.style_bold, pr.field, pr.field_text)
         parts = _WS_RUN.split(run.text)         # words and the whitespace groups between them
         for k, part in enumerate(parts):
             if k:                               # a whitespace group precedes every part but the first

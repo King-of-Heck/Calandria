@@ -61,11 +61,14 @@ class TableRowBlock:
 def table_maps(cmp) -> tuple[dict[int, int], dict[tuple[int, int], tuple[int, int]]]:
     """Original-side -> revised-side table and row correspondence, from the paired rows: an
     original table (row) maps to the revised table (row) holding any paragraph the two still
-    share. Unmapped ones exist only in the original (a deleted table or a deleted row)."""
+    share. Unmapped ones exist only in the original (a deleted table or a deleted row).
+
+    Only body rows take part: a header or footer table counts its own table indices from 0 within
+    its part, so its Locs would claim body coordinates."""
     tmap: dict[int, int] = {}
     rmap: dict[tuple[int, int], tuple[int, int]] = {}
     for r in cmp.rows:
-        if r.oi is None or r.ni is None:
+        if r.oi is None or r.ni is None or cmp.unit_for(r).stream != "body":
             continue
         la, lb = cmp.a_units[r.oi].loc, cmp.b_units[r.ni].loc
         if la is None or lb is None:

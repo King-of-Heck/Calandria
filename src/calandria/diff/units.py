@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterator
 
+from ..docx.hf import displayed
 from ..model import Document, NoteRef, Paragraph, Table, iter_paragraphs
 from .chars import FmtSpan, char_fmt, note_marks, tab_marks
 
@@ -27,8 +28,9 @@ class Loc:
 
 @dataclass(frozen=True)
 class Where:
-    stream: str = "body"             # body | footnote | endnote
+    stream: str = "body"             # body | footnote | endnote | header | footer
     note: NoteRef | None = None      # the note this paragraph belongs to
+    part: str | None = None          # the header/footer part this paragraph belongs to
 
 
 BODY = Where()
@@ -48,6 +50,7 @@ class Unit:
     stream: str = "body"
     note: NoteRef | None = None
     note_refs: list = field(default_factory=list)       # (offset in text, NoteRef) of the paragraph's marks
+    part: str | None = None
 
 
 def walk(doc: Document) -> Iterator[tuple[Paragraph, Loc | None, Where]]:
@@ -82,6 +85,22 @@ def walk(doc: Document) -> Iterator[tuple[Paragraph, Loc | None, Where]]:
                         yield from with_notes(p, Loc(ti, ri, ci, cols))
             ti += 1
 
+    for kind in ("header", "footer"):
+        entries, _alias = displayed(doc, kind)
+        for name, blocks in entries:
+            where = Where(kind, None, name)
+            ti = 0
+            for b in blocks:
+                if isinstance(b, Paragraph):
+                    yield b, None, where
+                elif isinstance(b, Table):
+                    cols = len(b.grid_pt) or max((len(r.cells) for r in b.rows), default=0)
+                    for ri, row in enumerate(b.rows):
+                        for ci, cell in enumerate(row.cells):
+                            for p in iter_paragraphs(cell.blocks):
+                                yield p, Loc(ti, ri, ci, cols), where
+                    ti += 1
+
 
 def units(doc: Document) -> list[Unit]:
     out: list[Unit] = []
@@ -91,7 +110,7 @@ def units(doc: Document) -> list[Unit]:
         bold, spans = char_fmt(p)
         lead, marks = tab_marks(p)
         out.append(Unit(len(out), p.text, p.num.marker if p.num else "", bold, spans, loc, p, lead, marks,
-                        where.stream, where.note, note_marks(p)))
+                        where.stream, where.note, note_marks(p), where.part))
     return out
 
 

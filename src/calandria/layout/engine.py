@@ -5,13 +5,16 @@ from collections import Counter
 
 from ..diff.changes import Comparison
 from ..diff.compare import compare
+from ..docx.hf import VARIANTS, SectionHf, displayed, page_number, resolve
 from ..model import Document, Section
-from .blocks import Ctx, ParaBlock, collapse_spacing, note_height, para_block, sep_block
+from .blocks import Ctx, collapse_spacing, note_height, para_block, sep_block
+from .chrome import STREAMS, Chrome, hf_groups
 from .fonts import default_resolver
-from .lines import Line, Run
+from .lines import Run
 from .merged import Item, merged_items
-from .pages import CellBox, FontRef, GlyphRun, Layout, Page, PlacedLine, Rule, TableRowBox
+from .pages import CellBox, FontRef, Layout, Page, TableRowBox
 from .pieces import LayoutOptions, visible
+from .placeline import place_line
 from .planner import NOTE_SEP_PT, BlockSpec, Plan, plan_breaks
 from .sides import side_items, side_options
 from .tables import (MIN_CELL_W, PAD_X, PAD_Y, TableRowBlock, ctx_maps, table_blocks, table_maps,
@@ -127,9 +130,6 @@ def _section_groups(items: list[Item], sections: list[Section]) -> list[tuple[in
     return groups
 
 
-BLACK = "000000"        # a border whose colour is auto
-
-
 def _spec(b, ctx: Ctx) -> BlockSpec:
     notes = None
     if b.line_notes and any(b.line_notes):
@@ -138,8 +138,7 @@ def _spec(b, ctx: Ctx) -> BlockSpec:
                      notes)
 
 
-SEP_LEN = 144.0        # the note separator rule: 2 inches from the left margin (Word)
-SEP_WIDTH = 0.75
+NO_HF = SectionHf({v: None for v in VARIANTS}, {v: None for v in VARIANTS})   # a document with no sections
 
 
 def _new_page(pages: list[Page], sec: Section, section_idx: int) -> Page:
@@ -147,70 +146,6 @@ def _new_page(pages: list[Page], sec: Section, section_idx: int) -> Page:
               sec.margin_right_pt, sec.margin_bottom_pt, section_idx)
     pages.append(pg)
     return pg
-
-
-def _glyph(r: Run, x: float, ctx: Ctx) -> GlyphRun:
-    ctx.faces.setdefault(r.face.key, r.face)
-    p = r.piece
-    return GlyphRun(r.text, x, r.w, r.face.key, r.size, p.bold, p.italic, p.underline, p.color, p.mode, p.fmt, p.cid,
-                    r.rise)
-
-
-def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, container_w: float, ctx: Ctx) -> PlacedLine:
-    first = li == 0
-    x0 = base_x + blk.x + (blk.first_dx if first else 0.0)
-    avail = container_w - blk.x - blk.right - (blk.first_dx if first else 0.0)
-    last = li == len(blk.lines) - 1
-    x, extra = x0, 0.0
-    if blk.align == "center":
-        x = x0 + max(0.0, (avail - line.width) / 2)
-    elif blk.align == "right":
-        x = x0 + max(0.0, avail - line.width)
-    elif blk.align == "justify" and not last and line.gaps > 0:
-        extra = max(0.0, (avail - line.width) / line.gaps)
-    runs: list[GlyphRun] = []
-    cx = x
-    for r in line.runs:
-        runs.append(_glyph(r, cx, ctx))
-        if r.tab and r.leader and r.w > 0:
-            # the leader: as many of its character as fit, ending at the stop (Word's dot leader)
-            dw = r.face.width(r.leader, r.size)
-            n = int(r.w / dw + 1e-6) if dw > 0 else 0
-            if n:
-                runs.append(_glyph(Run(r.leader * n, n * dw, r.piece, r.face, r.size), cx + r.w - n * dw, ctx))
-        cx += r.w + (extra if r.is_space else 0.0)
-    marker: list[GlyphRun] = []
-    if first and blk.marker:
-        mx = base_x + blk.marker_x
-        for r in blk.marker:
-            marker.append(_glyph(r, mx, ctx))
-            mx += r.w
-    rules = _rules(blk, first, last, base_x + blk.x, base_x + container_w - blk.right, y, line.height)
-    if blk.note_sep:
-        rules.append(Rule(base_x, y + NOTE_SEP_PT / 2, base_x + SEP_LEN, y + NOTE_SEP_PT / 2, SEP_WIDTH, BLACK))
-    return PlacedLine(x, y, line.height, y + line.ascent, runs, marker, blk.changed,
-                      list(blk.cid_starts[li]) if li < len(blk.cid_starts) else [], blk.row_index,
-                      rules, blk.stream)
-
-
-def _rules(blk: ParaBlock, first: bool, last: bool, x1: float, x2: float, y: float, h: float) -> list[Rule]:
-    """The paragraph's border segments on one line: the top rule on the first line and the bottom
-    on the last (each centred half its width inside the line's edge, spanning the indents), the
-    left and right rules on every line over the line's height, `space` outside the text edge."""
-    top, bottom, left, right = blk.borders
-    out: list[Rule] = []
-    if first and blk.draw_top:
-        out.append(Rule(x1, y + top.width_pt / 2, x2, y + top.width_pt / 2, top.width_pt, top.color or BLACK))
-    if left is not None:
-        lx = x1 - left.space_pt - left.width_pt / 2
-        out.append(Rule(lx, y, lx, y + h, left.width_pt, left.color or BLACK))
-    if right is not None:
-        rx = x2 + right.space_pt + right.width_pt / 2
-        out.append(Rule(rx, y, rx, y + h, right.width_pt, right.color or BLACK))
-    if last and blk.draw_bottom:
-        yb = y + h - bottom.width_pt / 2
-        out.append(Rule(x1, yb, x2, yb, bottom.width_pt, bottom.color or BLACK))
-    return out
 
 
 def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):
@@ -227,24 +162,24 @@ def _place_row(blk: TableRowBlock, page: Page, x: float, y: float, ctx: Ctx):
     page.table_rows.append(TableRowBox(x, y, blk.w, blk.height, boxes, blk.changed, list(blk.cids)))
 
 
-def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list[Page], ctx: Ctx):
+def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list[Page], ctx: Ctx,
+           chrome: Chrome):
     brk = Counter((b.block, b.line) for b in plan.breaks)
-    ml, mt = sec.margin_left_pt, sec.margin_top_pt
-    bottom = sec.page_h_pt - sec.margin_bottom_pt
+    ml = sec.margin_left_pt
     # Pages are created lazily: a planned break before the very first block (a page-tall space
-    # before, say) must not leave a blank leading page behind.
-    st = {"page": None, "y": mt, "top": True}
+    # before, say) must not leave a blank leading page behind. st["pi"] counts every page the
+    # planner started (blank ones are materialised by new_pages), so it is the index the planner's
+    # avail_of saw and the one the chrome answers for.
+    st = {"page": None, "y": chrome.top(0), "top": True, "pi": 0}
 
     def page() -> Page:
-        # Lazy materialisation (see above) means a planned break that lands before any content is
-        # placed never creates a page here, so the placer's running page index can end up one
-        # behind the planner's own count for this section. Harmless while avail_of is a constant
-        # (every page the planner assumed is the same height as every page this creates), but it
-        # will need reconciling before a per-page avail_of lands (footnote reserve, header/footer
-        # chrome) and the two indices must agree on which page a given break actually falls on.
         if st["page"] is None:
             st["page"] = _new_page(pages, sec, section_idx)
+            chrome.draw(st["page"], st["pi"])
         return st["page"]
+
+    def bottom() -> float:
+        return chrome.bottom(st["pi"])
 
     pending: list[int] = []          # footnote keys to set at the foot of the current page
 
@@ -263,7 +198,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
         if not pending:
             return
         pg = page()
-        y = bottom - reserve()
+        y = bottom() - reserve()
         sep = sep_block(section_idx, "footnote")
         pg.lines.append(place_line(sep, 0, sep.lines[0], ml, y, ctx.content_w, ctx))
         y += NOTE_SEP_PT
@@ -278,7 +213,8 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
 
     def new_page():
         close_page()
-        st["page"], st["y"], st["top"] = None, mt, True
+        st["pi"] += 1
+        st["page"], st["y"], st["top"] = None, chrome.top(st["pi"]), True
 
     def new_pages(n: int):
         # The planner can break more than once at the same point; each break starts its own page,
@@ -295,7 +231,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
             st["y"] += blk.space_before
         if isinstance(blk, TableRowBlock):
             keys = blk.line_notes[0] if blk.line_notes else []
-            if st["y"] + blk.height + brings(keys) > bottom - reserve() + 1e-6 and not st["top"]:
+            if st["y"] + blk.height + brings(keys) > bottom() - reserve() + 1e-6 and not st["top"]:
                 new_page()
             _place_row(blk, page(), ml + blk.x, st["y"], ctx)
             pending.extend(keys)
@@ -306,7 +242,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
                 if li > 0:
                     new_pages(brk[(bi, li)])
                 keys = blk.line_notes[li] if blk.line_notes else []
-                if st["y"] + line.height + brings(keys) > bottom - reserve() + 1e-6 and not st["top"]:
+                if st["y"] + line.height + brings(keys) > bottom() - reserve() + 1e-6 and not st["top"]:
                     new_page()          # safety net; the planner should have broken earlier
                 page().lines.append(place_line(blk, li, line, ml, st["y"], ctx.content_w, ctx))
                 pending.extend(keys)
@@ -316,7 +252,27 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
     close_page()
 
 
+def _ctx(cmp: Comparison, run_opts, fonts, sec: Section, doc: Document, faces: dict, maps, hf_items: dict) -> Ctx:
+    return Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
+               sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
+               doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
+               html_spacing=doc.html_spacing, hf_items=hf_items)
+
+
 def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
+    lay, flags = _layout(cmp, opts, None)
+    if "NUMPAGES" in flags:
+        # The total is only known once every page exists, and a header or footer shows it: lay the
+        # document out again with it, so the number is in place before anything is measured. The
+        # second pass can in principle reach a different page count (the wider total breaking a
+        # header line differently); we take that count rather than chase it with a third pass.
+        lay, _ = _layout(cmp, opts, lay.page_count)
+    return lay
+
+
+def _layout(cmp: Comparison, opts: LayoutOptions | None, total: int | None) -> tuple[Layout, set]:
+    """One layout pass. `total` is the page count NUMPAGES shows, unknown (None) in the first pass.
+    Returns the layout and the flags the pass raised ("NUMPAGES" when a part carries that field)."""
     opts = opts or LayoutOptions()
     if cmp.b_doc is None or cmp.a_doc is None:
         raise ValueError("layout needs a Comparison from compare(a, b) (documents attached)")
@@ -324,30 +280,43 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
     fonts = opts.fonts or default_resolver()
     doc = cmp.b_doc
     sections = doc.sections or [Section()]
-    items = side_items(merged_items(cmp), cmp, opts.side)
+    all_items = side_items(merged_items(cmp), cmp, opts.side)
+    items = [it for it in all_items if it.stream not in STREAMS]
+    hf_items = hf_groups(all_items)
+    sec_hf = resolve(doc)
+    aliases = {k: displayed(doc, k)[1] for k in STREAMS}
+    seen: set = set()                           # (stream, part) already marked, across the whole layout
+    flags: set = set()                          # shared with every Chrome of the pass
+    pages_total = str(total) if total is not None else None
+    number = 0                                  # Word page number of the last page placed
     pages: list[Page] = []
     faces: dict = {}
     maps = table_maps(cmp)      # one correspondence build for the whole layout
     for leader, group in _section_groups(items, sections):
         sec = sections[min(leader, len(sections) - 1)]
-        ctx = Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
-                  sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
-                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
-                  html_spacing=doc.html_spacing)
+        ctx = _ctx(cmp, run_opts, fonts, sec, doc, faces, maps, hf_items)
         blocks = build_blocks(group, ctx)
         if not blocks:
             continue
-        avail = ctx.avail_h
-        plan = plan_breaks([_spec(b, ctx) for b in blocks], lambda p, a=avail: a)
-        _place(blocks, plan, sec, leader, pages, ctx)
+        chrome = Chrome(sec, sec_hf[min(leader, len(sec_hf) - 1)] if sec_hf else NO_HF, doc, aliases,
+                        ctx, page_number(sec, 0, number), seen, pages_total, flags)
+        before = len(pages)
+        plan = plan_breaks([_spec(b, ctx) for b in blocks], lambda p, c=chrome: c.bottom(p) - c.top(p))
+        _place(blocks, plan, sec, leader, pages, ctx, chrome)
+        if len(pages) > before:
+            number = chrome.number(len(pages) - before - 1)
     if not pages:
         # Nothing was placed: the one empty page takes the body (last) section's geometry, which is
-        # the page a reader of an empty document sees in Word.
-        _new_page(pages, sections[-1], len(sections) - 1)
+        # the page a reader of an empty document sees in Word, and carries that section's chrome.
+        sec = sections[-1]
+        ctx = _ctx(cmp, run_opts, fonts, sec, doc, faces, maps, hf_items)
+        chrome = Chrome(sec, sec_hf[-1] if sec_hf else NO_HF, doc, aliases, ctx,
+                        page_number(sec, 0, 0), seen, pages_total, flags)
+        chrome.draw(_new_page(pages, sec, len(sections) - 1), 0)
     refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic, getattr(f, "symbol", False))
             for k, f in faces.items()}
     # the options as requested (opts.side names the side); the narrowed run options are not stored
-    return Layout(pages, refs, opts)
+    return Layout(pages, refs, opts), flags
 
 
 def layout_document(doc: Document, opts: LayoutOptions | None = None) -> Layout:

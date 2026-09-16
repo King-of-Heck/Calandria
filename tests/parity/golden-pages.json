@@ -2,7 +2,7 @@
  "bench": {
   "a": 2,
   "b": 3,
-  "digest": "eed7d5cbff52d747",
+  "digest": "3abf881128ff0ae2",
   "redline": 3
  },
  "big200": {
@@ -46,6 +46,12 @@
   "b": 1,
   "digest": "6d0e6e02b108b2ec",
   "redline": 1
+ },
+ "gen-hf": {
+  "a": 8,
+  "b": 8,
+  "digest": "46d719b26b4b15e6",
+  "redline": 8
  },
  "gen-latin1": {
   "a": 1,

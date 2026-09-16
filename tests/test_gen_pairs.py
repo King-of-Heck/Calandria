@@ -13,7 +13,7 @@ import gen_pairs  # noqa: E402
 def test_every_pair_parses_and_compares(tmp_path):
     pairs = gen_pairs.write_all(tmp_path)
     assert [p["alias"] for p in pairs] == ["gen-fmt", "gen-table", "gen-punct", "gen-dense", "gen-longcap",
-                                           "gen-empty", "gen-latin1", "gen-notes"]
+                                           "gen-empty", "gen-latin1", "gen-notes", "gen-hf"]
     manifest = json.loads((tmp_path / "manifest.gen.json").read_text("utf8"))
     assert manifest["pairs"] == pairs
     for p in pairs:
@@ -36,3 +36,13 @@ def test_longcap_pair_is_above_the_inline_cap():
     a, _b = gen_pairs.PAIRS["longcap"]
     d = parse_docx(io.BytesIO(gen_pairs.build(a)))
     assert len(tokenize(d.blocks[0].text)) > INLINE_TOKEN_CAP
+
+
+def test_hf_pair_has_two_changed_header_rows_and_no_footer_change():
+    a, b = gen_pairs.PAIRS["hf"]
+    c = compare(parse_docx(io.BytesIO(gen_pairs.build(a))), parse_docx(io.BytesIO(gen_pairs.build(b))))
+    streams = [c.unit_for(r).stream for r in c.rows if r.type != "equal"]
+    # the cover replacement (deletion + insertion = 2 passages) and the added even header (1)
+    assert sorted(streams) == ["header", "header"] and c.summary["total"] == 3
+    d = parse_docx(io.BytesIO(gen_pairs.build(b)))
+    assert d.even_and_odd and d.sections[2].page_start == 1 and len(d.sections) == 3

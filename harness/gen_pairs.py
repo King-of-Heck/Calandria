@@ -8,8 +8,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from calandria.testing.makedocx import (DOC, ENDNOTES, ENREF, FLD, FNREF, FOOTNOTES, FTR, HDR, P, PR, R, RELS, SECT,
-                                        SETTINGS, STYLES, TBL, make_docx)  # noqa: E402
+from calandria.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, ENDNOTES, ENREF,
+                                        FLD, FNREF, FOOTNOTES, FTR, HDR, P, PR, R, RELS, SECT, SETTINGS,
+                                        STYLES, TBL, make_docx)  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests" / "corpus"
@@ -112,6 +113,45 @@ def _hf_pair():
     return a, b
 
 
+# Comments: an edited + resolved comment, an added comment with a threaded reply, a comment on a
+# clause that is deleted, a comment on inserted text, and two comments on one paragraph (packing).
+_CM_A = (PR(R("The Supplier delivers the goods within ") + CRANGE("0", "thirty days") + R("."))
+         + PR(R("Payment is due on receipt."))
+         + PR(R("This clause ") + CRANGE("1", "will be removed") + R("."))
+         + PR(R("Governing law applies.")))
+_CM_B = (PR(R("The Supplier delivers the goods within ") + CRANGE("0", "thirty days") + R("."))
+         + PR(R("Payment is due on ") + CRANGE("2", "receipt") + CREF("6") + R("."))
+         + PR(R("Governing law applies. ") + CRANGE("3", "New inserted clause") + R("."))
+         + PR(R("Two ") + CRANGE("4", "comments") + R(" on ") + CRANGE("5", "one line") + R(".")))
+_CM_CA = COMMENTS([{"id": "0", "author": "Ada", "initials": "AL", "date": "2026-09-10T09:00:00Z",
+                    "paras": [("a0", "Confirm the delivery window.")]},
+                   {"id": "1", "author": "Ada", "initials": "AL", "date": "2026-09-10T09:05:00Z",
+                    "paras": [("a1", "This clause is going.")]}])
+_CM_CB = COMMENTS([{"id": "0", "author": "Ada", "initials": "AL", "date": "2026-09-10T09:00:00Z",
+                    "paras": [("b0", "Confirm the delivery window is business days.")]},   # edited
+                   {"id": "2", "author": "Bo", "initials": "BO", "date": "2026-09-11T10:00:00Z",
+                    "paras": [("b2", "Define receipt.")]},
+                   {"id": "6", "author": "Ada", "initials": "AL", "date": "2026-09-11T10:05:00Z",
+                    "paras": [("b6", "Agreed - delivery to the office.")]},               # reply to 2
+                   {"id": "3", "author": "Bo", "initials": "BO", "date": "2026-09-11T11:00:00Z",
+                    "paras": [("b3", "New clause note.")]},
+                   {"id": "4", "author": "Ada", "initials": "AL", "date": "2026-09-11T12:00:00Z",
+                    "paras": [("b4", "First on line.")]},
+                   {"id": "5", "author": "Ada", "initials": "AL", "date": "2026-09-11T12:01:00Z",
+                    "paras": [("b5", "Second on line.")]}])
+_CM_EXB = COMMENTS_EX([{"paraId": "b0", "done": True},      # the edited comment is resolved in B
+                       {"paraId": "b6", "parent": "b2"}])    # the reply threads under comment 2
+
+
+def _comments_pair():
+    a = {"word/document.xml": DOC(_CM_A), "word/styles.xml": _DEFAULTS,
+         "word/_rels/document.xml.rels": CRELS(comments=True), "word/comments.xml": _CM_CA}
+    b = {"word/document.xml": DOC(_CM_B), "word/styles.xml": _DEFAULTS,
+         "word/_rels/document.xml.rels": CRELS(comments=True, comments_ex=True),
+         "word/comments.xml": _CM_CB, "word/commentsExtended.xml": _CM_EXB}
+    return a, b
+
+
 PAIRS = {
     "fmt": _pair(_FMT_A, _FMT_B),
     "table": _pair(_TABLE_A, _TABLE_B),
@@ -122,6 +162,7 @@ PAIRS = {
     "latin1": _pair(_LATIN1_A, _LATIN1_B),
     "notes": _notes_pair(),
     "hf": _hf_pair(),
+    "comments": _comments_pair(),
 }
 
 

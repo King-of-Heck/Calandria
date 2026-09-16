@@ -13,7 +13,7 @@ import gen_pairs  # noqa: E402
 def test_every_pair_parses_and_compares(tmp_path):
     pairs = gen_pairs.write_all(tmp_path)
     assert [p["alias"] for p in pairs] == ["gen-fmt", "gen-table", "gen-punct", "gen-dense", "gen-longcap",
-                                           "gen-empty", "gen-latin1", "gen-notes", "gen-hf"]
+                                           "gen-empty", "gen-latin1", "gen-notes", "gen-hf", "gen-comments"]
     manifest = json.loads((tmp_path / "manifest.gen.json").read_text("utf8"))
     assert manifest["pairs"] == pairs
     for p in pairs:
@@ -46,3 +46,15 @@ def test_hf_pair_has_two_changed_header_rows_and_no_footer_change():
     assert sorted(streams) == ["header", "header"] and c.summary["total"] == 3
     d = parse_docx(io.BytesIO(gen_pairs.build(b)))
     assert d.even_and_odd and d.sections[2].page_start == 1 and len(d.sections) == 3
+
+
+def test_comments_pair_covers_add_remove_edit_thread_and_resolve():
+    a, b = gen_pairs.PAIRS["comments"]
+    c = compare(parse_docx(io.BytesIO(gen_pairs.build(a))), parse_docx(io.BytesIO(gen_pairs.build(b))))
+    flagged = [cc for cc in c.comments if cc.state != "unchanged"]
+    counts = {k: sum(cc.state == k for cc in flagged) for k in ("added", "removed", "edited")}
+    assert counts == {"added": 5, "removed": 1, "edited": 1}      # 2,6,3,4,5 added; 1 removed; 0 edited
+    assert any(cc.done for cc in c.comments)                       # the resolved comment
+    assert any(cc.depth == 1 for cc in c.comments)                # the reply
+    assert c.summary["total"] == c.summary["insertions"] + c.summary["deletions"] + \
+        c.summary["numbering_changes"]                            # comments never entered the count

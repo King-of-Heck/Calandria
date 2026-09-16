@@ -7,7 +7,7 @@ import { pageSize, flash, state } from "./app.js";
 import { linesOf, textOf } from "./copy.js";
 import { highlightSides, leadPane } from "./panes.js";
 import { syncFrom } from "./sync.js";
-import { changeText } from "./rowtext.js";
+import { changeText, esc } from "./rowtext.js";
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -25,6 +25,8 @@ let solo = null;                      // the one category shown, or null for all
 let hasTables = false;                // any change inside a table (the table glyph is shown only then)
 let menuEntry = null;                 // the entry the row menu is open for
 let menuRow = null;                   // the row to give the focus back to
+
+const COMMENT_STATE = { added: "Added", removed: "Removed", edited: "Edited", unchanged: "" };
 
 export function initChanges() {
   document.addEventListener("calandria:loaded", (e) => { data = e.detail; build(); });
@@ -153,7 +155,41 @@ function matchesTile(en, tile) {
   return tile === null || en.category === tile;
 }
 
+function isCommentView() { return $("fLocation").value === "comment"; }
+
+// Comments are not passages: they arrive as data.comments (their own list, never inside
+// entries/rows), so the Comments filter renders that list directly instead of filtering entries.
+function renderComments() {
+  const ol = $("changes");
+  ol.innerHTML = "";
+  ol.classList.remove("tables");
+  const list = (data.comments || []);
+  list.forEach((c) => {
+    const li = document.createElement("li");
+    li.className = "comment " + c.state;
+    li.style.marginLeft = `${c.depth * 12}px`;          // replies indented under their parent
+    const head = (c.initials || c.author) + (c.date ? " · " + c.date.slice(0, 10) : "") + (c.done ? " ✓" : "");
+    const text = c.segments.map((s) =>
+      s.m === "ins" ? `<ins>${esc(s.t)}</ins>` :
+      s.m === "del" ? `<del>${esc(s.t)}</del>` : esc(s.t)).join("");
+    li.innerHTML = `<span class="badge">${COMMENT_STATE[c.state] || c.state}</span>` +
+                   `<span class="no">C${c.cid ?? ""}</span>` +
+                   `<span class="chead">${esc(head)}</span>` +
+                   `<span class="text">${text}</span>`;
+    ol.appendChild(li);
+  });
+  $("listCount").textContent = list.length ? `${list.length} comments` : "No comments";
+}
+
 function refilter() {
+  if (isCommentView()) {
+    markTiles();                 // leaves the tiles as-is; comments are uncounted
+    renderComments();
+    current = -1;
+    highlight(-1);
+    status();
+    return;
+  }
   const loc = $("fLocation").value;
   visible = entries.filter((en) => matchesTile(en, solo) && (loc === "all" || en.loc === loc));
   current = -1;

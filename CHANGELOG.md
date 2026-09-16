@@ -1,5 +1,17 @@
 # Calandria changelog
 
+## v2.8.0 — Comments (2026-09-16)
+
+- Comments are compared as displayed: matched by identity across the two documents (a durable id,
+  then anchor overlap plus author, then text similarity), classified added / removed / edited /
+  unchanged, threaded (a reply follows its parent), and their text diffed like body text. They are
+  an uncounted, navigable side list — never a row in the change list, never part of the counted
+  summary.
+- Drawn as right-margin bubbles on the page holding their anchor, with a connector to the anchored
+  text and a bracket around it; a resolved comment shows a check mark.
+- The viewer's location filter gains a Comments entry, listing every comment change with its
+  author, initials, date, resolved state and diffed text, indented by reply depth.
+
 ## v2.7.0 — Headers and footers (2026-09-15)
 
 - Headers and footers are compared, as they are displayed: for every section, the header and

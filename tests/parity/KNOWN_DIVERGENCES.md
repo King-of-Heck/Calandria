@@ -209,3 +209,17 @@ never a change; a body paragraph holding such a field carries the token in the c
 differs from the reference there and is allowed per pair when hit (none in the corpus). The drawn
 text is a different matter: where the layout has no live page number (the body, a note) a field
 draws the result Word cached in the file, so the page reads as Word wrote it.
+
+## (q) Comments
+
+The reference has no comment stream at all -- SorkWhare drops `word/comments.xml` on export, so
+comments are simply absent from its change list. Calandria compares comments (v2.8.0): matched by
+identity across the two documents (a durable id, then anchor overlap plus author, then text
+similarity plus author), classified added / removed / edited / unchanged, threaded (replies follow
+their parent, `depth` counts the chain), and diffed with the same inline machinery as body text.
+They hang off `Comparison.comments`, a list of their own that never enters the body LCS: `rows`,
+`summary` and `passages` are untouched by them, so `harness/changes.body_rows` and
+`harness/flatten.flatten` need no projection change -- the counted summary is identical to the
+reference for every pair. In the viewer, comments are an uncounted, navigable side list (the
+Comments location filter) and right-margin bubbles on the page, never a row in the change list or
+a page.

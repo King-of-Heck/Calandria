@@ -104,3 +104,16 @@ def test_page_number_restarts_and_continues():
                                          (0, "lowerRoman", "0")])
 def test_format_number(n, fmt, out):
     assert format_number(n, fmt) == out
+
+
+def test_displayed_keys_an_image_only_part_by_its_image_boxes():
+    parts = {"header1.xml": HDR(PR(IMG(914400, 914400))),      # a logo
+             "header2.xml": HDR(PR(IMG(914400, 914400))),      # the same logo again: one entry
+             "header3.xml": HDR(PR(IMG(457200, 914400)))}      # a narrower logo: its own entry
+    body = (PR(R("s1"), ppr=SECT(hdr={"default": _rid(parts, "header1.xml")}))
+            + PR(R("s2"), ppr=SECT(hdr={"default": _rid(parts, "header2.xml")}))
+            + P("s3") + SECT(hdr={"default": _rid(parts, "header3.xml")}))
+    entries, alias = displayed(_doc(body, parts), "header")
+    assert [name for name, _ in entries] == ["header1.xml", "header3.xml"]
+    assert alias == {"header1.xml": "header1.xml", "header2.xml": "header1.xml",
+                     "header3.xml": "header3.xml"}

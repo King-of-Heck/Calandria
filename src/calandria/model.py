@@ -34,6 +34,8 @@ class RunProps:
                                  # `bold` (the run's own w:b) is the compared property (parity with the reference).
     note: NoteRef | None = None  # this (empty) run is a footnote/endnote reference mark
     field: str | None = None     # "PAGE" | "NUMPAGES": the run is that field; its text is the literal token
+    field_text: str | None = None     # that field's cached result text ("" when it has none): what is drawn
+                                      # where the layout has no live value (the body); never compared
     image_w_pt: float | None = None   # an inline image (w:drawing): the run has no text and holds this box
     image_h_pt: float | None = None
 

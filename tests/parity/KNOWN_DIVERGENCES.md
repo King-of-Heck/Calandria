@@ -205,5 +205,7 @@ stream and one footer stream, diffed like the body. The harness projects header/
 paragraphs out exactly as note rows (`harness/changes.body_rows`, `harness/flatten`); the compared
 summary keys are recounted over body rows. PAGE and NUMPAGES fields are the tokens `{PAGE}` /
 `{NUMPAGES}` in the text everywhere (the reference keeps the cached number), so a page number is
-never a change; a body paragraph holding such a field would differ from the reference in text and
-is allowed per pair when hit (none in the corpus).
+never a change; a body paragraph holding such a field carries the token in the compared text, so it
+differs from the reference there and is allowed per pair when hit (none in the corpus). The drawn
+text is a different matter: where the layout has no live page number (the body, a note) a field
+draws the result Word cached in the file, so the page reads as Word wrote it.

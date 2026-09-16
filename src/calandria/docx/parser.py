@@ -33,6 +33,7 @@ class _Ctx:
         self.pending_break = False
         self.pending_section = False       # the pending break is a section break's, not a w:br
         self.sections: list[Section] = []
+        self.in_part = False               # parsing a header/footer part: a stray sectPr there is not a section
         self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
         self.rels: dict[str, str] = {}
 
@@ -65,7 +66,8 @@ def parse_package(pkg: Package) -> Document:
     footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
     endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
     parts: dict = {}
-    for sec in ctx.sections:
+    ctx.in_part = True
+    for sec in list(ctx.sections):
         for attr in ("header_default", "header_first", "header_even",
                      "footer_default", "footer_first", "footer_even"):
             name = getattr(sec, attr)
@@ -77,6 +79,7 @@ def parse_package(pkg: Package) -> Document:
             ctx.pending_break = False
             parts[name] = _blocks(root_part, ctx)
             ctx.pending_break = False
+    ctx.in_part = False
     ctx.pending_section = False
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
@@ -130,7 +133,8 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                 if x.tag == wq("fldChar"):
                     kind = x.get(wq("fldCharType"))
                     if kind == "begin":
-                        state["field"] = fld = {"instr": "", "phase": "instr", "props": props}
+                        state["field"] = fld = {"instr": "", "phase": "instr", "props": props,
+                                                "result": []}
                     elif kind == "separate" and fld is not None:
                         fld["phase"] = "result"
                         fld["props"] = None            # the first result run's formatting wins
@@ -141,7 +145,9 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                                 out.append(Run("".join(buf), props))
                                 buf = []
                             fp = fld["props"] or props
-                            out.append(Run("{" + name + "}", RunProps(**{**fp.__dict__, "field": name})))
+                            out.append(Run("{" + name + "}",
+                                           RunProps(**{**fp.__dict__, "field": name,
+                                                       "field_text": "".join(fld["result"])})))
                             state["text_seen"] = True
                         state["field"] = fld = None
                 elif x.tag == wq("instrText"):
@@ -151,7 +157,9 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                     if fld is not None and fld["phase"] == "result" and field_name(fld["instr"]) is not None:
                         if fld["props"] is None:
                             fld["props"] = props
-                        continue                       # the cached result of a live field: replaced by the token
+                        # the cached result of a live field: replaced by the token, kept as field_text
+                        fld["result"].append(x.text or "")
+                        continue
                     buf.append(x.text or "")
                 elif x.tag == wq("drawing"):
                     ext = x.find(f".//{_WP}extent")
@@ -194,11 +202,12 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                 state["text_seen"] = True
             if text:
                 out.append(Run(text, props))
-        elif tag == wq("fldSimple") and field_name(child.get(wq("instr"))) is not None:
-            name = field_name(child.get(wq("instr")))
+        elif tag == wq("fldSimple") and (fs_name := field_name(child.get(wq("instr")))) is not None:
             first = child.find(wq("r"))
             props = _run_props(first.find(wq("rPr")) if first is not None else None, para_rpr, ctx)
-            out.append(Run("{" + name + "}", RunProps(**{**props.__dict__, "field": name})))
+            cached = "".join(t.text or "" for r in child.findall(wq("r")) for t in r.findall(wq("t")))
+            out.append(Run("{" + fs_name + "}",
+                           RunProps(**{**props.__dict__, "field": fs_name, "field_text": cached})))
             state["text_seen"] = True
         elif tag in _TRANSPARENT:
             _runs(child, ctx, para_rpr, out, state)
@@ -343,7 +352,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
 
     if ppr is not None:
         sp = ppr.find(wq("sectPr"))
-        if sp is not None:
+        if sp is not None and not ctx.in_part:
             p.props.section_break = True
             section = _section(sp, ctx)
             ctx.sections.append(section)

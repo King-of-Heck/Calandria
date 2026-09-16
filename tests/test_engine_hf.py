@@ -4,11 +4,12 @@ from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout, layout_document
 from calandria.layout.pieces import LayoutOptions
+from calandria.layout.tables import table_maps
 from calandria.pdf.draw import bar_intervals, changed_pages
 from calandria.server.session import change_marks
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import (DOC, FLD, FTR, HDR, IMG, P, PR, R, RELS, SECT, SETTINGS, STYLES,
-                                        make_docx)
+                                        TBL, make_docx)
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -206,3 +207,21 @@ def test_an_empty_document_still_shows_its_header():
     d1 = _doc(P("") + SECT(hdr={"default": "rId1"}), header1=P("Head"))     # one empty paragraph
     L1 = layout_document(d1, LayoutOptions(fonts=FR))
     assert L1.page_count == 1 and _texts(L1.pages[0], "header") == ["Head"]
+
+
+def test_a_header_table_stays_out_of_the_body_table_maps():
+    body = TBL([["body cell"]]) + P("after") + SECT(hdr={"default": "rId1"})
+    head = TBL([["h one"], ["h two"]])                  # two rows: body coordinates it must not claim
+    a, b = _doc(body, header1=head), _doc(body, header1=head)
+    cmp = compare(a, b)
+    assert table_maps(cmp) == ({0: 0}, {(0, 0): (0, 0)})       # the body table's one row, nothing else
+    L = _lay(a, b)
+    assert _texts(L.pages[0], "header") == ["h one", "h two"]
+    assert "body cell" in _texts(L.pages[0], "body")
+
+
+def test_a_body_page_field_draws_its_cached_number():
+    d = _doc(PR(R("See page ") + FLD("PAGE", "7")))
+    L = layout_document(d, LayoutOptions(fonts=FR))
+    (ln,) = [x for x in L.pages[0].lines if x.stream == "body"]
+    assert "".join(g.text for g in ln.runs) == "See page 7"

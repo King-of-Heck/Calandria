@@ -68,14 +68,19 @@ def is_blank(blocks: list) -> bool:
 
 
 def _content_key(blocks: list) -> tuple:
-    return tuple(p.text for p in iter_paragraphs(blocks) if _has_content(p))
+    """The content two parts must share to be one displayed entry: each paragraph's text and the
+    boxes of its inline images (an image-only paragraph has no text, so its logo's size is all
+    that tells two such parts apart)."""
+    return tuple((p.text, tuple((r.props.image_w_pt, r.props.image_h_pt)
+                                for r in p.runs if r.props.image_w_pt))
+                 for p in iter_paragraphs(blocks) if _has_content(p))
 
 
 def displayed(doc: Document, kind: str) -> tuple[list[tuple[str, list]], dict[str, str | None]]:
     """(entries, alias): entries = (part name, blocks) per distinct displayed content in document
     order; alias = every resolved part name of the kind -> the entry name carrying its content, or
-    None when the part is blank (an image-only paragraph counts as content, so it is not blank but
-    keys as empty text)."""
+    None when the part is blank (an image-only paragraph counts as content: it is not blank, and it
+    keys by its image boxes)."""
     entries: list[tuple[str, list]] = []
     alias: dict[str, str | None] = {}
     by_key: dict[tuple, str] = {}
@@ -88,7 +93,7 @@ def displayed(doc: Document, kind: str) -> tuple[list[tuple[str, list]], dict[st
             if is_blank(blocks):
                 alias[name] = None
                 continue
-            key = _content_key(blocks) or ("img",)     # an image-only part: one content for all such parts
+            key = _content_key(blocks)
             if key not in by_key:
                 by_key[key] = name
                 entries.append((name, blocks))

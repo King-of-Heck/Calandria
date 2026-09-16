@@ -144,6 +144,11 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
         # A field's text before anything is measured, so the tab stops, leaders, alignment and the
         # line breaking all see the page number Word shows (chrome.part_blocks, one build per page).
         pieces = [replace(p, text=fields[p.field]) if p.field in fields else p for p in pieces]
+    else:
+        # No live values (the body, a note): a field draws the result Word cached in the file. The
+        # compared text keeps the token -- a page number is never a change.
+        pieces = [replace(p, text=p.field_text) if p.field is not None and p.field_text is not None else p
+                  for p in pieces]
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
     font, size, bold, italic = _base_style(pieces, ctx, props)

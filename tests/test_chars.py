@@ -134,7 +134,7 @@ def _merge_adjacent(spans):
 
 def _same_as_old(p):
     bold, spans = char_fmt(p)
-    compared = [replace(s, style_bold=False, field=None) for s in spans]  # the old walk knew only the compared fields
+    compared = [replace(s, style_bold=False, field=None, field_text=None) for s in spans]  # the old walk knew only the compared fields
     assert (bold, _merge_adjacent(compared)) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
     assert "".join(ch.c for ch in _old_collapsed_chars(p)) == p.text
     if spans:

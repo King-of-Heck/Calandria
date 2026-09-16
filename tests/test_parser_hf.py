@@ -87,3 +87,21 @@ def test_inline_image_is_an_empty_run_with_its_box():
 
 def test_even_and_odd_setting_helper():
     assert _doc(P("x"), **{"word/settings.xml": SETTINGS(even_and_odd=True)}).even_and_odd is True
+
+
+def test_a_page_field_keeps_its_cached_result_as_field_text():
+    d = _doc(PR(R("Page ") + FLD("PAGE", "7")) + PR(FLDC("NUMPAGES", "9")) + PR('<w:fldSimple w:instr=" PAGE "/>'))
+    simple, complex_, empty = (b.runs[-1] for b in d.blocks[:3])
+    assert (simple.text, simple.props.field, simple.props.field_text) == ("{PAGE}", "PAGE", "7")
+    assert (complex_.text, complex_.props.field, complex_.props.field_text) == ("{NUMPAGES}", "NUMPAGES", "9")
+    assert (empty.text, empty.props.field, empty.props.field_text) == ("{PAGE}", "PAGE", "")
+    assert d.blocks[0].text == "Page {PAGE}"          # the compared text keeps the token
+
+
+def test_a_section_break_inside_a_header_part_is_not_a_section():
+    body = P("one") + P("two") + SECT(hdr={"default": "rId1"})
+    d = _doc(body, **{"word/_rels/document.xml.rels": RELS({"rId1": "header1.xml"}),
+                      "word/header1.xml": HDR(PR(R("Head"), ppr=SECT()) + P("more"))})
+    assert len(d.sections) == 1                        # the body's own section, and no phantom
+    assert d.parts["header1.xml"][0].text == "Head"
+    assert d.parts["header1.xml"][0].props.section_break is False

@@ -27,7 +27,7 @@ class Ctx:
     cmp: Comparison
     opts: LayoutOptions
     fonts: object
-    content_w: float           # page width minus left and right margins
+    content_w: float           # page width minus left and right margins, narrowed by the comment column
     avail_h: float             # page height minus top and bottom margins
     default_font: str | None
     default_size: float
@@ -38,6 +38,7 @@ class Ctx:
     html_spacing: bool = True  # Document.html_spacing: the larger of space after / before between paragraphs
     hf_items: dict = field(default_factory=dict)  # (stream, part) -> header/footer Items (chrome.hf_groups)
     parts: dict = field(default_factory=dict)     # (stream, part) -> its ParaBlocks at this width (chrome.part_blocks)
+    chrome_w: float | None = None   # full content width for headers/footers (None -> use content_w)
 
 
 @dataclass

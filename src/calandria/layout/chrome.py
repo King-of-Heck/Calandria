@@ -47,8 +47,9 @@ def part_blocks(stream: str, part: str | None, ctx: Ctx, values: dict[str, str])
     key = (stream, part, values.get("PAGE"), values.get("NUMPAGES"))
     if key not in ctx.parts:
         its = ctx.hf_items.get((stream, part), [])
+        chrome_w = ctx.chrome_w if ctx.chrome_w is not None else ctx.content_w
         blocks = [para_block(it, its[j - 1] if j else None, its[j + 1] if j + 1 < len(its) else None, ctx,
-                             fields=values)
+                             avail_w=chrome_w, fields=values)
                   for j, it in enumerate(its)
                   if (ctx.opts.show_equal if it.row is None else visible(it.row, ctx.opts))]
         ctx.parts[key] = collapse_spacing(blocks, ctx)
@@ -134,7 +135,8 @@ class Chrome:
             for pb in blocks:
                 y += pb.space_before
                 for li, line in enumerate(pb.lines):
-                    pl = place_line(pb, li, line, self.sec.margin_left_pt, y, self.ctx.content_w, self.ctx)
+                    chrome_w = self.ctx.chrome_w if self.ctx.chrome_w is not None else self.ctx.content_w
+                    pl = place_line(pb, li, line, self.sec.margin_left_pt, y, chrome_w, self.ctx)
                     pl.stream = stream
                     if not marked:
                         strip_marks(pl)

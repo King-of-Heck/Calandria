@@ -254,11 +254,12 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
 
 
 def _ctx(cmp: Comparison, run_opts, fonts, sec: Section, doc: Document, faces: dict, maps, hf_items: dict) -> Ctx:
+    full_w = sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt
     return Ctx(cmp, run_opts, fonts,
-               sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt - reserved_width(cmp),
+               full_w - reserved_width(cmp),
                sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
                doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
-               html_spacing=doc.html_spacing, hf_items=hf_items)
+               html_spacing=doc.html_spacing, hf_items=hf_items, chrome_w=full_w)
 
 
 def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:

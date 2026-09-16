@@ -150,3 +150,72 @@ def IMG(cx_emu: int, cy_emu: int) -> str:
     """A run holding an inline drawing of the given extent (no picture data)."""
     return (f'<w:r><w:drawing><wp:inline xmlns:wp="{WP_NS}"><wp:extent cx="{cx_emu}" cy="{cy_emu}"/>'
             f'<wp:docPr id="1" name="Picture 1"/></wp:inline></w:drawing></w:r>')
+
+
+W14_NS = "http://schemas.microsoft.com/office/word/2010/wordml"
+W15_NS = "http://schemas.microsoft.com/office/word/2012/wordml"
+REL_COMMENTS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+REL_COMMENTS_EX = "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"
+REL_PEOPLE = "http://schemas.microsoft.com/office/2011/relationships/people"
+
+
+def CRANGE(cid: str, text: str, rpr: str = "") -> str:
+    """A run of `text` wrapped by commentRangeStart/End for comment id `cid` (the anchored span),
+    followed by the commentReference run."""
+    return (f'<w:commentRangeStart w:id="{cid}"/>{R(text, rpr)}<w:commentRangeEnd w:id="{cid}"/>'
+            f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="{cid}"/></w:r>')
+
+
+def CREF(cid: str) -> str:
+    """A bare commentReference run (a point anchor: no range)."""
+    return f'<w:r><w:commentReference w:id="{cid}"/></w:r>'
+
+
+def _cpara(paraid: str, text: str) -> str:
+    return f'<w:p w14:paraId="{paraid}"><w:r><w:t xml:space="preserve">{escape(text)}</w:t></w:r></w:p>'
+
+
+def COMMENTS(comments: list[dict]) -> str:
+    """word/comments.xml. Each dict: id, author, initials (optional), date (optional),
+    paras = list of (paraId, text). One <w:comment> per dict."""
+    body = ""
+    for c in comments:
+        attrs = f'w:id="{c["id"]}" w:author="{escape(c.get("author", ""))}"'
+        if c.get("date"):
+            attrs += f' w:date="{c["date"]}"'
+        if c.get("initials"):
+            attrs += f' w:initials="{escape(c["initials"])}"'
+        paras = "".join(_cpara(pid, t) for pid, t in c["paras"])
+        body += f"<w:comment {attrs}>{paras}</w:comment>"
+    return f'<w:comments xmlns:w="{W_NS}" xmlns:w14="{W14_NS}">{body}</w:comments>'
+
+
+def COMMENTS_EX(entries: list[dict]) -> str:
+    """word/commentsExtended.xml. Each dict: paraId, parent (optional paraIdParent), done (bool)."""
+    body = ""
+    for e in entries:
+        a = f'w15:paraId="{e["paraId"]}"'
+        if e.get("parent"):
+            a += f' w15:paraIdParent="{e["parent"]}"'
+        if e.get("done"):
+            a += ' w15:done="1"'
+        body += f"<w15:commentEx {a}/>"
+    return f'<w15:commentsEx xmlns:w15="{W15_NS}">{body}</w15:commentsEx>'
+
+
+def PEOPLE(names: list[str]) -> str:
+    """word/people.xml (author identities; content not otherwise used by the reader)."""
+    ppl = "".join(f'<w15:person w15:author="{escape(n)}"/>' for n in names)
+    return f'<w15:people xmlns:w15="{W15_NS}">{ppl}</w15:people>'
+
+
+def CRELS(comments=False, comments_ex=False, people=False, start=1) -> str:
+    """word/_rels/document.xml.rels wiring the comment parts (rIds from `start`)."""
+    rels, i = "", start
+    for want, target, typ in ((comments, "comments.xml", REL_COMMENTS),
+                              (comments_ex, "commentsExtended.xml", REL_COMMENTS_EX),
+                              (people, "people.xml", REL_PEOPLE)):
+        if want:
+            rels += f'<Relationship Id="rId{i}" Type="{typ}" Target="{target}"/>'
+            i += 1
+    return f'<Relationships xmlns="{PKG_RELS}">{rels}</Relationships>'

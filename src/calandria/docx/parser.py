@@ -11,7 +11,7 @@ from .styles import Styles, read_ppr, read_rpr
 _TRANSPARENT = {wq("hyperlink"), wq("smartTag"), wq("sdt"), wq("sdtContent"), wq("fldSimple"),
                 wq("ins"), wq("customXml"), wq("dir"), wq("bdo")}
 _SKIP = {wq("del"), wq("moveFrom"), wq("pPr"), wq("rPr"), wq("proofErr"), wq("bookmarkStart"),
-         wq("bookmarkEnd"), wq("commentRangeStart"), wq("commentRangeEnd")}
+         wq("bookmarkEnd")}
 _WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
 _R_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
 FIELDS = ("PAGE", "NUMPAGES")      # fields the layout fills live; their run text is the token {NAME}
@@ -36,6 +36,9 @@ class _Ctx:
         self.in_part = False               # parsing a note or a header/footer part: a stray sectPr there is not a section
         self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
         self.rels: dict[str, str] = {}
+        self.comment_anchors: dict = {}     # w:comment id -> docx.comments.CommentAnchor
+        self.para_markers: list = []        # (cid, which, raw_offset) collected in _runs, folded in _paragraph
+        self.raw_len = 0                    # concatenated raw run text length so far in this paragraph
 
 
 def parse_docx(src) -> Document:
@@ -66,6 +69,8 @@ def parse_package(pkg: Package) -> Document:
     ctx.in_part = True
     footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
     endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
+    from .comments import read_comments
+    comments = read_comments(pkg, ctx)
     parts: dict = {}
     for sec in list(ctx.sections):
         for attr in ("header_default", "header_first", "header_even",
@@ -85,7 +90,8 @@ def parse_package(pkg: Package) -> Document:
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
                     default_tab_pt=tab if tab is not None else 36.0,
                     footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers,
-                    html_spacing=html_spacing, parts=parts)
+                    html_spacing=html_spacing, parts=parts,
+                    comments=comments, comment_anchors=ctx.comment_anchors)
 
 
 def _notes(root, kind: str, ctx: _Ctx) -> dict:
@@ -142,12 +148,16 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                         name = field_name(fld["instr"])
                         if name is not None:
                             if buf:
-                                out.append(Run("".join(buf), props))
+                                flushed = "".join(buf)
+                                out.append(Run(flushed, props))
+                                ctx.raw_len += len(flushed)
                                 buf = []
                             fp = fld["props"] or props
-                            out.append(Run("{" + name + "}",
+                            token = "{" + name + "}"
+                            out.append(Run(token,
                                            RunProps(**{**fp.__dict__, "field": name,
                                                        "field_text": "".join(fld["result"])})))
+                            ctx.raw_len += len(token)
                             state["text_seen"] = True
                         state["field"] = fld = None
                 elif x.tag == wq("instrText"):
@@ -165,7 +175,9 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                     ext = x.find(f".//{_WP}extent")
                     if ext is not None:
                         if buf:
-                            out.append(Run("".join(buf), props))
+                            flushed = "".join(buf)
+                            out.append(Run(flushed, props))
+                            ctx.raw_len += len(flushed)
                             buf = []
                         cx, cy = _num(ext.get("cx")), _num(ext.get("cy"))
                         out.append(Run("", RunProps(**{**props.__dict__, "image_w_pt": (cx or 0) / EMU_PER_PT,
@@ -191,24 +203,45 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                     # run anchors it at this point of the paragraph. w:footnoteRef (the note's own
                     # number inside its body) is not read: the layout draws it from note_numbers.
                     if buf:
-                        out.append(Run("".join(buf), props))
+                        flushed = "".join(buf)
+                        out.append(Run(flushed, props))
+                        ctx.raw_len += len(flushed)
                         buf = []
                     ref = NoteRef("footnote" if x.tag == wq("footnoteReference") else "endnote",
                                   int(x.get(wq("id")) or 0))
                     ctx.note_numbers.setdefault(ref, 1 + sum(1 for r in ctx.note_numbers if r.kind == ref.kind))
                     out.append(Run("", RunProps(**{**props.__dict__, "note": ref})))
+                elif x.tag == wq("commentReference"):
+                    # The mark: no text of its own. Record the anchor at the current raw offset
+                    # (a comment marker never emits a run or text of its own).
+                    if buf:
+                        flushed = "".join(buf)
+                        out.append(Run(flushed, props))
+                        ctx.raw_len += len(flushed)
+                        buf = []
+                    cid = x.get(wq("id"))
+                    if cid is not None:
+                        ctx.para_markers.append((cid, "ref", ctx.raw_len))
             text = "".join(buf)
             if text.strip():
                 state["text_seen"] = True
             if text:
                 out.append(Run(text, props))
+            ctx.raw_len += len(text)
         elif tag == wq("fldSimple") and (fs_name := field_name(child.get(wq("instr")))) is not None:
             first = child.find(wq("r"))
             props = _run_props(first.find(wq("rPr")) if first is not None else None, para_rpr, ctx)
             cached = "".join(t.text or "" for r in child.findall(wq("r")) for t in r.findall(wq("t")))
-            out.append(Run("{" + fs_name + "}",
+            token = "{" + fs_name + "}"
+            out.append(Run(token,
                            RunProps(**{**props.__dict__, "field": fs_name, "field_text": cached})))
+            ctx.raw_len += len(token)
             state["text_seen"] = True
+        elif tag in (wq("commentRangeStart"), wq("commentRangeEnd")):
+            cid = child.get(wq("id"))
+            if cid is not None:
+                which = "start" if tag == wq("commentRangeStart") else "end"
+                ctx.para_markers.append((cid, which, ctx.raw_len))
         elif tag in _TRANSPARENT:
             _runs(child, ctx, para_rpr, out, state)
 
@@ -228,6 +261,8 @@ def _run_props(rpr, para_rpr: dict, ctx: _Ctx) -> RunProps:
 
 
 def _paragraph(el, ctx: _Ctx) -> Paragraph:
+    ctx.raw_len = 0        # concatenated raw run text length so far (for comment anchor offsets)
+    ctx.para_markers = []  # (cid, which, offset) markers collected in _runs, folded in below once p exists
     ppr = el.find(wq("pPr"))
     style_id = wval(ppr.find(wq("pStyle"))) if ppr is not None else None
     # resolved_ppr(None) (no pStyle) resolves through Word's default paragraph style chain,
@@ -334,6 +369,12 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       mark_font=mark.get("font") or ctx.styles.defaults["font"],
                       mark_size_pt=mark.get("size_pt") or ctx.styles.defaults["size_pt"])
     p = Paragraph(runs, props, num)
+    if ctx.para_markers:
+        from .comments import CommentAnchor
+        for cid, which, off in ctx.para_markers:
+            a = ctx.comment_anchors.setdefault(cid, CommentAnchor())
+            setattr(a, which, (p, off))
+        ctx.para_markers = []
     own_break = ctx.pending_break              # this paragraph's own trailing w:br (set by _runs)
 
     if p.is_empty:

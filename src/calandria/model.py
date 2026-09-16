@@ -21,6 +21,18 @@ class NoteRef:
 
 
 @dataclass
+class Comment:
+    id: str                       # w:comment/@w:id
+    author: str
+    initials: str
+    date: str                     # w:date as written ("" when absent)
+    paras: list                   # the comment's blocks (paragraphs), parsed like a note body
+    para_ids: list                # w14:paraId of each paragraph, in order
+    parent_id: str | None = None  # w15:paraIdParent of the first paragraph (the parent's last paraId)
+    done: bool = False            # w15:done set on any of this comment's paraIds
+
+
+@dataclass
 class RunProps:
     bold: bool = False
     italic: bool = False
@@ -194,6 +206,8 @@ class Document:
     # setting w:doNotUseHTMLParagraphAutoSpacing restores the sum.
     html_spacing: bool = True
     parts: dict = field(default_factory=dict)          # header/footer part basename -> its blocks
+    comments: dict = field(default_factory=dict)        # w:comment id -> Comment
+    comment_anchors: dict = field(default_factory=dict)  # w:comment id -> CommentAnchor (docx.comments)
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

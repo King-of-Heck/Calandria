@@ -1,10 +1,20 @@
 """OOXML namespace constants and small attribute helpers."""
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 PKG_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
+W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
+W15 = "http://schemas.microsoft.com/office/word/2012/wordml"
 
 
 def wq(tag: str) -> str:
     return f"{{{W}}}{tag}"
+
+
+def w14q(tag: str) -> str:
+    return f"{{{W14}}}{tag}"
+
+
+def w15q(tag: str) -> str:
+    return f"{{{W15}}}{tag}"
 
 
 def wval(el, default=None):

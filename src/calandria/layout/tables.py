@@ -168,7 +168,7 @@ def table_blocks(group: list[Item], ctx: Ctx) -> list:
         paras_all = [p for c in cells for p in c.paras]
         changed = any(p.changed for p in paras_all)
         cids = list(dict.fromkeys(c for p in paras_all for c in p.cids))
-        pbb = gi == 0 and bool(its[0].para.props.page_break_before)
+        pbb = gi == 0 and bool(its[0].para.props.page_break_before) and not its[0].para.props.section_page_break
         if h > ctx.avail_h - 12:
             # Page-tall: an unsplittable row cannot render; degrade to stacked paragraphs.
             for n, it in enumerate(its):

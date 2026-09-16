@@ -474,3 +474,14 @@ def test_spacing_collapses_inside_table_cells_too():
     L = _lay(body, body)
     a, b = L.pages[0].lines
     assert b.top - (a.top + a.height) == 12
+
+
+def test_empty_paragraphs_at_the_top_of_a_section_do_not_push_its_first_text_a_page_further():
+    sect = '<w:sectPr><w:type w:val="nextPage"/><w:pgSz w:w="12240" w:h="15840"/></w:sectPr>'
+    body = P("toc end") + f'<w:p><w:pPr>{sect}</w:pPr></w:p>' + "<w:p/>" + P("Schedule") + LETTER
+    L = _lay(body, body)
+    assert L.page_count == 2
+    assert [(ln.top, "".join(g.text for g in ln.runs)) for ln in L.pages[1].lines] == [(72, ""), (84, "Schedule")]
+    real = P("toc end") + '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' + "<w:p/>" + P("Schedule")
+    L2 = _lay(real, real)
+    assert L2.page_count == 2 and "".join(g.text for g in L2.pages[1].lines[-1].runs) == "Schedule"

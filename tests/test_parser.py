@@ -373,3 +373,12 @@ def test_html_paragraph_auto_spacing_is_on_unless_the_compat_setting_turns_it_of
     assert _doc(P("x")).html_spacing is True
     settings = (f'<w:settings xmlns:w="{W_NS}"><w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat></w:settings>')
     assert _doc(P("x"), **{"word/settings.xml": settings}).html_spacing is False
+
+
+def test_a_section_break_s_page_break_is_marked_as_the_section_s_own():
+    sect = '<w:sectPr><w:type w:val="nextPage"/></w:sectPr>'
+    d = _doc(P("one") + f'<w:p><w:pPr>{sect}</w:pPr></w:p>' + "<w:p/>" + P("two") +
+             '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' + P("three"))
+    one, sb, empty, two, brk, three = d.blocks
+    assert two.props.page_break_before and two.props.section_page_break          # travelled from the sectPr
+    assert three.props.page_break_before and not three.props.section_page_break  # a real w:br

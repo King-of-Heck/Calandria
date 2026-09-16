@@ -211,7 +211,8 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
                                    or row.num_changed)
     align = "justify" if props.align in ("justify", "distribute") else props.align
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
-                     props.page_break_before, item.section, changed, cids, starts, item.row_index,
+                     props.page_break_before and not props.section_page_break, item.section, changed, cids, starts,
+                     item.row_index,
                      borders, draw_top, draw_bottom, item.stream)
 
 

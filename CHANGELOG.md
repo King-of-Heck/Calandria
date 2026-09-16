@@ -8,6 +8,12 @@
   paragraphs with both values set came out taller than in Word; on the EPC template's cover that
   pushed its last line onto a blank page once the cover's footnote took its room. Measured against
   Word's own PDF of the template: the cover's lines now sit within a point of Word's.
+- Empty paragraphs at the start of a section no longer push the section's first text a page
+  further: the page a section break starts was being charged twice. On the EPC template this
+  removes the blank page before the list of schedules; the template alone now lays out at 199
+  pages against Word's 198.
+- An empty paragraph is as tall as its paragraph mark says (its style's font and size), as in
+  Word, instead of the document default size.
 
 ## v2.6.0 — Footnotes and endnotes (2026-09-15)
 

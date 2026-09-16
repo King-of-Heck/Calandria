@@ -93,6 +93,10 @@ class ParaProps:
     keep_next: bool = False
     keep_lines: bool = False
     page_break_before: bool = False
+    # page_break_before came from the section break before this paragraph (the reference's
+    # reading, kept for parity); the layout starts the section's page itself and ignores it,
+    # so empty paragraphs at the top of a section do not push the first text a page further.
+    section_page_break: bool = False
     contextual_spacing: bool = False
     outline_level: int | None = None
     style_name: str | None = None

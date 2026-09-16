@@ -20,6 +20,7 @@ class _Ctx:
         self.numbering = numbering
         self.counter = NumberingCounter(numbering)
         self.pending_break = False
+        self.pending_section = False       # the pending break is a section break's, not a w:br
         self.sections: list[Section] = []
         self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
 
@@ -233,7 +234,9 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     # break that lands after this paragraph's own text (which is destined for the NEXT
     # paragraph) gets misattributed to this one instead.
     had_pending = ctx.pending_break
+    from_section = had_pending and ctx.pending_section
     ctx.pending_break = False
+    ctx.pending_section = False
 
     runs: list[Run] = []
     state = {"text_seen": False, "break_before": False}
@@ -255,6 +258,7 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       mark_font=mark.get("font") or ctx.styles.defaults["font"],
                       mark_size_pt=mark.get("size_pt") or ctx.styles.defaults["size_pt"])
     p = Paragraph(runs, props, num)
+    own_break = ctx.pending_break              # this paragraph's own trailing w:br (set by _runs)
 
     if p.is_empty:
         # Empty: no distinction between "before" and "after" text (there is none), so any
@@ -262,9 +266,11 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
         # that only reaches _runs from a skipped subtree (e.g. inside w:del) never sets
         # break_before or pending_break in the first place, so it correctly does not travel.
         ctx.pending_break = had_pending or state["break_before"] or ctx.pending_break
+        ctx.pending_section = from_section and not state["break_before"] and not own_break
     else:
         if state["break_before"] or had_pending:
             p.props.page_break_before = True
+            p.props.section_page_break = from_section and not state["break_before"]
         # else: ctx.pending_break already holds whatever this paragraph's own trailing
         # break (if any) set during _runs, correctly destined for the NEXT paragraph.
 
@@ -278,6 +284,8 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
             # following paragraph starts a new page. "continuous" flows on, and "nextColumn"
             # only starts a new column, so neither breaks the page.
             if section.type not in ("continuous", "nextColumn"):
+                if not ctx.pending_break:          # a real break already travelling keeps its nature
+                    ctx.pending_section = True
                 ctx.pending_break = True
     return p
 

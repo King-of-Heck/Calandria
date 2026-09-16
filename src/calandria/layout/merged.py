@@ -18,8 +18,9 @@ class Item:
     section: int                 # index into doc.sections
     row: Row | None = None       # None for an empty revised paragraph
     row_index: int | None = None
-    stream: str = "body"         # body | footnote | endnote (see units.walk)
+    stream: str = "body"         # body | footnote | endnote | header | footer (see units.walk)
     note: NoteRef | None = None
+    part: str | None = None
 
 
 def merged_items(cmp: Comparison) -> list[Item]:
@@ -37,18 +38,25 @@ def merged_items(cmp: Comparison) -> list[Item]:
             r = rows[state["emitted"]]
             if r.ni is None:
                 u = cmp.a_units[r.oi]
-                out.append(Item(u.para, u.loc, "a", state["section"], r, state["emitted"], u.stream, u.note))
+                out.append(Item(u.para, u.loc, "a", state["section"], r, state["emitted"], u.stream, u.note, u.part))
             state["emitted"] += 1
 
     ni = 0
     for para, loc, where in walk(cmp.b_doc):
         if para.is_empty:
-            out.append(Item(para, loc, "b", state["section"], stream=where.stream, note=where.note))
+            out.append(Item(para, loc, "b", state["section"], stream=where.stream, note=where.note, part=where.part))
         else:
             k = by_ni[ni]
             ni += 1
             flush_deleted(k)
-            out.append(Item(para, loc, "b", state["section"], rows[k], k, where.stream, where.note))
+            row = rows[k]
+            if where.stream in ("header", "footer") and row.type == "changed":
+                # a header/footer never shows a single inline-merged paragraph (there is no one
+                # page to draw it on): the original part's paragraph is its own deleted item, the
+                # revised part's its own inserted-looking item, side by side in stream order.
+                ou = cmp.a_units[row.oi]
+                out.append(Item(ou.para, ou.loc, "a", state["section"], row, k, ou.stream, ou.note, ou.part))
+            out.append(Item(para, loc, "b", state["section"], row, k, where.stream, where.note, where.part))
             state["emitted"] = max(state["emitted"], k + 1)
         if para.props.section_break:
             # Deletions that stood after the closing paragraph but before the next revised one
@@ -56,4 +64,25 @@ def merged_items(cmp: Comparison) -> list[Item]:
             flush_deleted(by_ni.get(ni, len(rows)))
             state["section"] += 1
     flush_deleted(len(rows))
+    _attach_deleted_parts(out)
     return out
+
+
+def _attach_deleted_parts(items: list[Item]) -> None:
+    """A deleted header/footer row (side "a") carries an original part name that means nothing on
+    the revised side; it is shown with the revised part it sits next to in the merged order: the
+    last revised part of its stream before it, else the first one after it, else None (the stream
+    has no revised part: the deleted header shows on pages that have none)."""
+    first_b: dict[str, str] = {}
+    for it in items:
+        if it.stream in ("header", "footer") and it.side == "b" and it.part is not None:
+            first_b.setdefault(it.stream, it.part)
+    cur: dict[str, str] = {}
+    for it in items:
+        if it.stream not in ("header", "footer"):
+            continue
+        if it.side == "b":
+            if it.part is not None:
+                cur[it.stream] = it.part
+        else:
+            it.part = cur.get(it.stream, first_b.get(it.stream))

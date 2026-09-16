@@ -171,3 +171,14 @@ def test_a_raised_piece_measures_small_and_carries_its_rise():
     assert (r.text, r.size, r.rise, r.w) == ("12", 6.5, 3.5, 6.5)     # 0.65 x size, raised 0.35 x size
     (n,) = measure([Piece("x", "eq", size=10)], FR, "Fake", 10)
     assert n.rise == 0.0
+
+
+def test_image_run_sizes_the_line_by_its_box():
+    from calandria.layout.lines import Spacing, break_lines, measure
+    from calandria.layout.pieces import Piece
+    from calandria.testing.fakefonts import FakeResolver
+    fr = FakeResolver()
+    runs = measure([Piece("ab", "eq", size=10), Piece("", "eq", image_w=50.0, image_h=40.0)], fr, "Fake", 10)
+    assert [(r.text, r.w, r.image_h) for r in runs] == [("ab", 10.0, 0.0), ("", 50.0, 40.0)]
+    (ln,) = break_lines(runs, 200, 200, Spacing(), fr.face("Fake", False, False), 10)
+    assert ln.height == 40.0 and ln.width == 60.0

@@ -78,6 +78,11 @@ def _note_groups(items: list[Item]) -> list[tuple[str, int, list[Item]]]:
         if it.stream == "body":
             flush()
             continue
+        if it.stream in ("header", "footer"):
+            # drawn on the page's own header/footer area, not in the body flow (a later stream);
+            # dropped here so it never rides along as a stray endnote block.
+            flush()
+            continue
         if run and (run[-1].stream, run[-1].note, run[-1].side) != (it.stream, it.note, it.side):
             flush()
         run.append(it)
@@ -153,7 +158,7 @@ def _glyph(r: Run, x: float, ctx: Ctx) -> GlyphRun:
     ctx.faces.setdefault(r.face.key, r.face)
     p = r.piece
     return GlyphRun(r.text, x, r.w, r.face.key, r.size, p.bold, p.italic, p.underline, p.color, p.mode, p.fmt, p.cid,
-                    r.rise)
+                    r.rise, p.field)
 
 
 def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, container_w: float, ctx: Ctx) -> PlacedLine:

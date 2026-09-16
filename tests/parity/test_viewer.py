@@ -34,7 +34,10 @@ def test_payload_pages_anchors_and_marks_agree_with_the_layout_and_the_changes(p
         root = ET.fromstring(svg)
         page = s.layout.pages[i]
         assert root.get("viewBox") == f"0 0 {page.w:.2f} {page.h:.2f}", (pair["alias"], i)
-    cids = {p["cid"] for p in d["passages"]}
+    # a header/footer passage has no anchor yet: headers and footers are compared (Task 3) but not
+    # yet drawn on the page (a later stream), so they are projected out here exactly as the parity
+    # harness projects them out of its body-only change list.
+    cids = {p["cid"] for p in d["passages"] if d["changes"][p["row"]]["stream"] not in ("header", "footer")}
     assert set(d["anchors"]) == cids, (pair["alias"], sorted(set(d["anchors"]) ^ cids))
     for page, top, height, mcids in d["marks"]:
         assert 1 <= page <= d["page_count"] and height > 0 and set(mcids) <= cids, (pair["alias"], page, mcids)

@@ -43,6 +43,7 @@ class Run:
     tab: bool = False            # a tab: its width is the advance to the stop, set by break_lines
     leader: str | None = None    # the stop's leader character, drawn across the tab's width
     rise: float = 0.0            # points above the baseline (a reference mark)
+    image_h: float = 0.0         # an inline image: the box's height, which sizes the line
 
     @property
     def is_space(self) -> bool:
@@ -74,6 +75,9 @@ def measure(pieces: list[Piece], fonts, default_font, default_size: float) -> li
     for p in pieces:
         face = fonts.face(p.font or default_font, p.bold, p.italic)
         size = p.size or default_size
+        if p.image_w:                # an inline image: an empty run as wide as its box, as tall as it
+            out.append(Run("", p.image_w, p, face, size, image_h=p.image_h))
+            continue
         if p.tab:
             out.extend(Run("\t", 0.0, p, face, size, tab=True) for _ in range(p.tab))
             continue
@@ -122,6 +126,8 @@ def line_height(runs: list[Run], spacing: Spacing, default_face, default_size: f
     else:
         natural = default_face.line_height(default_size)
         desc = default_face.descent(default_size)
+    imgs = max((r.image_h for r in runs if r.image_h), default=0.0)
+    natural = max(natural, imgs)
     h = natural
     if spacing.rule == "exact" and spacing.exact_pt is not None:
         h = spacing.exact_pt

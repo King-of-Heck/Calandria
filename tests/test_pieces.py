@@ -175,3 +175,16 @@ def test_a_mark_inside_a_deleted_segment_comes_from_the_original():
     ps = row_pieces(c, row, LayoutOptions())
     marks = [(p.text, p.mode) for p in ps if p.rise]
     assert marks == [("1", "del")]
+
+
+def test_field_run_is_its_own_piece_carrying_the_field():
+    from calandria.testing.makedocx import FLD, PR, R
+    import io
+    from calandria.docx.parser import parse_docx
+    from calandria.testing.makedocx import DOC, make_docx
+    from calandria.diff.compare import compare
+    from calandria.layout.pieces import LayoutOptions, row_pieces
+    d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Page ") + FLD("PAGE", "7") + R(" end")))})))
+    c = compare(d, d)
+    ps = row_pieces(c, c.rows[0], LayoutOptions())
+    assert [(p.text, p.field) for p in ps] == [("Page ", None), ("{PAGE}", "PAGE"), (" end", None)]

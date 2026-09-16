@@ -24,7 +24,7 @@ def test_to_dict_is_json_serializable_and_complete():
     assert ch["old_marker"] is None
     assert d["changes"][0] == {"type": "equal", "cids": [], "num_cid": None, "cat": None, "oi": 0, "ni": 0,
                                "loc": None, "marker": "", "old_marker": None, "num_changed": False,
-                               "stream": "body", "note": None,
+                               "stream": "body", "note": None, "part": None,
                                "fmt_changed": False, "fmt_descs": [],
                                "segments": [{"m": "eq", "t": "Alpha", "b": False, "cid": None}]}
     assert d["passages"] == [{"cid": 1, "category": "insertion", "row": 1}]

@@ -48,15 +48,55 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
     o_tok = [content_tokens(t) for t in o_t]
     r_tok = [content_tokens(t) for t in r_t]
 
+    # units() always yields body + note paragraphs before any header/footer ones: the two are
+    # diffed as separate problems (a_split/b_split are where header/footer starts on each side)
+    # so a header/footer paragraph -- unmatched by construction, since it never equals or pairs
+    # with a body one -- never disturbs the prefix/suffix trim an LCS run on a big document
+    # falls back to (see lcs.DP_CELL_CAP): appending it must never renumber or reorder a single
+    # body row.
+    a_split = next((i for i, u in enumerate(orig) if u.stream in ("header", "footer")), len(orig))
+    b_split = next((i for i, u in enumerate(rev) if u.stream in ("header", "footer")), len(rev))
+
+    rows: list[Row] = []
+    for a0, a1, b0, b1 in ((0, a_split, 0, b_split), (a_split, len(orig), b_split, len(rev))):
+        _append_rows(orig, rev, o_t, r_t, o_tok, r_tok, a0, a1, b0, b1, rows)
+
+    summary = empty_summary()
+    passages: list[Passage] = []
+    for k, r in enumerate(rows):
+        if r.num_changed:
+            summary["numbering"] += 1        # every renumbered row, counted or not: the gate's key
+        if r.type == "equal":
+            if r.fmt_changed:
+                summary["formatting"] += 1
+        else:
+            summary["punctuation" if r.cat == "punctuation" else "content"] += 1
+        ps = row_passages(r, k, len(passages) + 1, count_numbering)
+        for p in ps:
+            summary[_PLURAL[p.category]] += 1
+        passages += ps
+    summary["total"] = len(passages)
+    modes, first = _note_index(rows, orig, rev)
+    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering, passages,
+                      note_modes=modes, note_rows=first)
+
+
+def _append_rows(orig: list[Unit], rev: list[Unit], o_t: list[str], r_t: list[str], o_tok, r_tok,
+                 a0: int, a1: int, b0: int, b1: int, rows: list[Row]) -> None:
+    """The rows of orig[a0:a1] vs rev[b0:b1], appended to `rows` with indices into the full
+    (unsliced) orig/rev -- one independent LCS problem, so nothing outside the range can affect
+    it, or be affected by it."""
     segs: list[tuple[str, list[tuple[int, int]]]] = []
     # a note paragraph never equals or pairs with a body paragraph: the LCS keys carry the stream
-    for tag, i, j in lcs_ops(_stream_keys(orig, o_t), _stream_keys(rev, r_t)):
+    o_keys = _stream_keys(orig[a0:a1], o_t[a0:a1])
+    r_keys = _stream_keys(rev[b0:b1], r_t[b0:b1])
+    for tag, i, j in lcs_ops(o_keys, r_keys):
+        i, j = i + a0, j + b0
         if segs and segs[-1][0] == tag:
             segs[-1][1].append((i, j))
         else:
             segs.append((tag, [(i, j)]))
 
-    rows: list[Row] = []
     s = 0
     while s < len(segs):
         tag, items = segs[s]
@@ -95,42 +135,51 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
                 paired.append((di, best))
             else:
                 paired.append((di, -1))
-        done: set[int] = set()
-        for di, ji in paired:
-            if ji >= 0:
-                ou, ru = orig[di], rev[ji]
-                row = Row("changed", di, ji, safe_inline(ou.text, ru.text, ou.bold_runs, ru.bold_runs),
-                          cat=categorize(o_t[di], r_t[ji]))
-                _mark_num(row, ou, ru)
-                rows.append(row)
-                done.add(ji)
-            else:
-                ou = orig[di]
-                rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
-        for ji in ins:
-            if ji not in done:
-                ru = rev[ji]
-                rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
-        s += 1
-
-    summary = empty_summary()
-    passages: list[Passage] = []
-    for k, r in enumerate(rows):
-        if r.num_changed:
-            summary["numbering"] += 1        # every renumbered row, counted or not: the gate's key
-        if r.type == "equal":
-            if r.fmt_changed:
-                summary["formatting"] += 1
+        if used:
+            # some di paired with a same-stream ji: a real edit script, already in the right
+            # order (dels in di order, any leftover ins trailing in ji order).
+            done: set[int] = set()
+            for di, ji in paired:
+                if ji >= 0:
+                    ou, ru = orig[di], rev[ji]
+                    row = Row("changed", di, ji, safe_inline(ou.text, ru.text, ou.bold_runs, ru.bold_runs),
+                              cat=categorize(o_t[di], r_t[ji]))
+                    _mark_num(row, ou, ru)
+                    rows.append(row)
+                    done.add(ji)
+                else:
+                    ou = orig[di]
+                    rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
+            for ji in ins:
+                if ji not in done:
+                    ru = rev[ji]
+                    rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
         else:
-            summary["punctuation" if r.cat == "punctuation" else "content"] += 1
-        ps = row_passages(r, k, len(passages) + 1, count_numbering)
-        for p in ps:
-            summary[_PLURAL[p.category]] += 1
-        passages += ps
-    summary["total"] = len(passages)
-    modes, first = _note_index(rows, orig, rev)
-    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering, passages,
-                      note_modes=modes, note_rows=first)
+            # nothing paired at all: a wholesale replacement, possibly spanning streams that
+            # never pair with each other (body vs. header/footer/note). Group by stream, in the
+            # order each stream is first met, a stream's deletions before its own insertions --
+            # a body deletion never separates a header deletion from its own insertion.
+            streams_order: list[str] = []
+            by_stream_del: dict[str, list[int]] = {}
+            for di, _ in paired:
+                st = orig[di].stream
+                by_stream_del.setdefault(st, []).append(di)
+                if st not in streams_order:
+                    streams_order.append(st)
+            by_stream_ins: dict[str, list[int]] = {}
+            for ji in ins:
+                st = rev[ji].stream
+                by_stream_ins.setdefault(st, []).append(ji)
+                if st not in streams_order:
+                    streams_order.append(st)
+            for st in streams_order:
+                for di in by_stream_del.get(st, ()):
+                    ou = orig[di]
+                    rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
+                for ji in by_stream_ins.get(st, ()):
+                    ru = rev[ji]
+                    rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
+        s += 1
 
 
 def _note_index(rows: list[Row], orig: list[Unit], rev: list[Unit]) -> tuple[dict, dict]:

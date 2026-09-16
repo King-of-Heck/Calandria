@@ -44,10 +44,13 @@ class Piece:
                                    # the collapsed space it became, or "" before the first word)
     rise: bool = False             # a footnote/endnote reference mark: drawn small, above the baseline
     note: int | None = None        # a reference mark: the index of the note's first comparison row
+    field: str | None = None       # "PAGE" | "NUMPAGES": this piece is a field run; its text is the token
+    image_w: float = 0.0           # an inline image: this piece has no text and is this wide a box
+    image_h: float = 0.0
 
     def style_key(self):
         return (self.mode, self.bold, self.italic, self.underline, self.font, self.size, self.color,
-                self.fmt, self.cid, self.caps, self.tab, self.rise)
+                self.fmt, self.cid, self.caps, self.tab, self.rise, self.field, self.image_w, self.image_h)
 
 
 def visible(row: Row, opts: LayoutOptions) -> bool:
@@ -63,11 +66,11 @@ def visible(row: Row, opts: LayoutOptions) -> bool:
 def merge_pieces(pieces: list[Piece]) -> list[Piece]:
     out: list[Piece] = []
     for p in pieces:
-        if out and out[-1].style_key() == p.style_key() and not p.tab and not p.rise:
+        if out and out[-1].style_key() == p.style_key() and not p.tab and not p.rise and not p.image_w:
             out[-1].text += p.text
-        elif p.text or p.tab:
+        elif p.text or p.tab or p.image_w:
             out.append(Piece(p.text, p.mode, p.bold, p.italic, p.underline, p.font, p.size, p.color,
-                             p.fmt, p.cid, p.caps, p.tab, p.rise, p.note))
+                             p.fmt, p.cid, p.caps, p.tab, p.rise, p.note, p.field, p.image_w, p.image_h))
     return out
 
 
@@ -124,7 +127,7 @@ def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, refs=(), cmp: Com
             out.append(Piece(text, mode, fmt=fmt, cid=cid, tab=tab))
         else:
             out.append(Piece(text, mode, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid,
-                             sp.caps or sp.small_caps, tab))
+                             sp.caps or sp.small_caps, tab, field=sp.field))
     for off in sorted(marks):                       # marks at the very end of the text
         for ref, side in marks[off]:
             out.append(_mark(unit, ref, off, mode, side, cmp))

@@ -123,7 +123,7 @@ def _old_fmt_spans(p):
 def _same_as_old(p):
     from dataclasses import replace
     bold, spans = char_fmt(p)
-    compared = [replace(s, style_bold=False) for s in spans]      # the old walk knew only the compared fields
+    compared = [replace(s, style_bold=False, field=None) for s in spans]  # the old walk knew only the compared fields
     assert (bold, compared) == (_old_bold_runs(p), _old_fmt_spans(p)), p.runs
     assert "".join(ch.c for ch in _old_collapsed_chars(p)) == p.text
     if spans:

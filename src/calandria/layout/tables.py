@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..diff.units import table_by_ti
-from .blocks import Ctx, ParaBlock, para_block
+from .blocks import collapse_spacing, Ctx, ParaBlock, para_block
 from .merged import Item
 from .pieces import visible
 
@@ -155,10 +155,10 @@ def table_blocks(group: list[Item], ctx: Ctx) -> list:
             cx, cw = col_x[c0], max(0.0, col_x[c1] - col_x[c0])
             gc += span
             cell_items = by_ci.get(ci, [])
-            paras = [para_block(it, cell_items[j - 1] if j else None,
-                                cell_items[j + 1] if j + 1 < len(cell_items) else None,
-                                ctx, avail_w=max(MIN_CELL_W, cw - 2 * PAD_X))
-                     for j, it in enumerate(cell_items)]
+            paras = collapse_spacing([para_block(it, cell_items[j - 1] if j else None,
+                                                 cell_items[j + 1] if j + 1 < len(cell_items) else None,
+                                                 ctx, avail_w=max(MIN_CELL_W, cw - 2 * PAD_X))
+                                      for j, it in enumerate(cell_items)], ctx)
             cells.append(CellLayout(cx, cw, paras, cell.v_merge == "continue"))
         h = max((c.height for c in cells), default=0.0) + 2 * PAD_Y
         if mrow.height_rule == "exact" and mrow.height_pt:

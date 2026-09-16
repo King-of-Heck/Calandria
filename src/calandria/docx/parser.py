@@ -46,12 +46,15 @@ def parse_package(pkg: Package) -> Document:
     settings = pkg.xml("word/settings.xml")
     eao = settings is not None and wbool(settings.find(wq("evenAndOddHeaders")))
     tab = twips_to_pt(wval(settings.find(wq("defaultTabStop")))) if settings is not None else None
+    html_spacing = not (settings is not None
+                        and wbool(settings.find(f"{wq('compat')}/{wq('doNotUseHTMLParagraphAutoSpacing')}")))
     footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
     endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
                     default_tab_pt=tab if tab is not None else 36.0,
-                    footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers)
+                    footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers,
+                    html_spacing=html_spacing)
 
 
 def _notes(root, kind: str, ctx: _Ctx) -> dict:

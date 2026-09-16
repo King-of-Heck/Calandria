@@ -170,6 +170,10 @@ class Document:
     footnotes: dict = field(default_factory=dict)      # note id -> the note's blocks (separators excluded)
     endnotes: dict = field(default_factory=dict)
     note_numbers: dict = field(default_factory=dict)   # NoteRef -> displayed number (body reference order, per kind)
+    # Word's HTML paragraph auto spacing (the default): between two paragraphs the LARGER of the
+    # first's space after and the second's space before applies, not the sum. The compatibility
+    # setting w:doNotUseHTMLParagraphAutoSpacing restores the sum.
+    html_spacing: bool = True
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

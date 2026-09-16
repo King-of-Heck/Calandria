@@ -35,6 +35,7 @@ class Ctx:
     faces: dict = field(default_factory=dict)   # face key -> face object, filled by the placer
     maps: tuple | None = None  # table correspondence maps, built once per layout (see tables.table_maps)
     notes: dict = field(default_factory=dict)   # footnote key (first row index) -> its ParaBlocks (engine.build_blocks)
+    html_spacing: bool = True  # Document.html_spacing: the larger of space after / before between paragraphs
 
 
 @dataclass
@@ -212,6 +213,18 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
                      props.page_break_before, item.section, changed, cids, starts, item.row_index,
                      borders, draw_top, draw_bottom, item.stream)
+
+
+def collapse_spacing(blocks: list, ctx: Ctx) -> list:
+    """Word's HTML paragraph auto spacing (Document.html_spacing, the default): the gap between
+    two consecutive blocks is the larger of the first's space after and the second's space
+    before. The first's space after is kept as it is and the second's space before is reduced by
+    it, so the planner's own rules (space before dropped at an automatic page top, space after
+    kept) still see one value each. Returns `blocks`."""
+    if ctx.html_spacing:
+        for prev, b in zip(blocks, blocks[1:]):
+            b.space_before = max(0.0, b.space_before - prev.space_after)
+    return blocks
 
 
 def sep_block(section: int, stream: str) -> ParaBlock:

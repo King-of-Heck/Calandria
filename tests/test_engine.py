@@ -452,3 +452,25 @@ def test_a_deleted_note_floats_on_the_original_side_only():
     assert [ln.stream for ln in orig.pages[0].lines] == ["body", "footnote", "footnote"]
     mod = layout(c, LayoutOptions(fonts=FR, side="modified"))
     assert [ln.stream for ln in mod.pages[0].lines] == ["body"]
+
+
+def test_the_larger_of_space_after_and_space_before_separates_paragraphs():
+    from calandria.testing.makedocx import W_NS
+    body = (P("a", ppr='<w:spacing w:after="240"/>') + P("b", ppr='<w:spacing w:before="720"/>')
+            + P("c", ppr='<w:spacing w:before="100"/>') + "<w:p/>" + P("d", ppr='<w:spacing w:before="600"/>'))
+    L = _lay(body, body)
+    # a(12 after) b(36 before): 36 not 48; b(0 after) c(5 before): 5; c(0 after) empty(0): 0; empty(0) d(30): 30
+    assert [ln.top for ln in L.pages[0].lines] == [72, 120, 137, 149, 191]
+    off = '<w:settings xmlns:w="{}"><w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat></w:settings>'.format(W_NS)
+    d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": STY, "word/settings.xml": off})))
+    L2 = layout(compare(d, d), LayoutOptions(fonts=FR))
+    assert [ln.top for ln in L2.pages[0].lines] == [72, 132, 149, 161, 203]     # the sum, as before
+
+
+def test_spacing_collapses_inside_table_cells_too():
+    body = ('<w:tbl><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid><w:tr><w:tc>'
+            + P("a", ppr='<w:spacing w:after="240"/>') + P("b", ppr='<w:spacing w:before="240"/>')
+            + '</w:tc></w:tr></w:tbl>')
+    L = _lay(body, body)
+    a, b = L.pages[0].lines
+    assert b.top - (a.top + a.height) == 12

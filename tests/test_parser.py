@@ -367,3 +367,9 @@ def test_the_paragraph_mark_takes_the_style_font_and_size_then_its_own():
     assert (a.props.mark_font, a.props.mark_size_pt) == ("Arial", 10.0)     # the style's
     assert (b.props.mark_font, b.props.mark_size_pt) == ("Arial", 18.0)     # its own mark size over the style's
     assert (c.props.mark_font, c.props.mark_size_pt) == ("Arial", 10.0)
+
+
+def test_html_paragraph_auto_spacing_is_on_unless_the_compat_setting_turns_it_off():
+    assert _doc(P("x")).html_spacing is True
+    settings = (f'<w:settings xmlns:w="{W_NS}"><w:compat><w:doNotUseHTMLParagraphAutoSpacing/></w:compat></w:settings>')
+    assert _doc(P("x"), **{"word/settings.xml": settings}).html_spacing is False

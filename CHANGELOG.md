@@ -1,5 +1,14 @@
 # Calandria changelog
 
+## v2.6.1 — Paragraph spacing as Word adds it (2026-09-15)
+
+- The space between two paragraphs is the larger of the first one's space after and the second
+  one's space before, as Word lays it out (Word's HTML paragraph auto spacing, on unless the
+  document's compatibility settings turn it off). Before, the two were added, so a run of
+  paragraphs with both values set came out taller than in Word; on the EPC template's cover that
+  pushed its last line onto a blank page once the cover's footnote took its room. Measured against
+  Word's own PDF of the template: the cover's lines now sit within a point of Word's.
+
 ## v2.6.0 — Footnotes and endnotes (2026-09-15)
 
 - Footnotes and endnotes are compared. A note that was edited, added or removed shows as a

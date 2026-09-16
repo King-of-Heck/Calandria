@@ -11,7 +11,7 @@ inserted); an item that lost its numbering leads with the struck old marker inli
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from ..diff.changes import Comparison
 from .lines import Line, Run, Spacing, break_lines, measure, next_tab_stop  # noqa: F401 (re-exported)
@@ -130,7 +130,8 @@ def _note_lead(item: Item, row, pieces: list[Piece], ctx: Ctx) -> list[Piece]:
             Piece(" ", mode, p0.bold, p0.italic, font=p0.font, size=p0.size, color=p0.color)]
 
 
-def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None) -> ParaBlock:
+def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None,
+               fields: dict[str, str] | None = None) -> ParaBlock:
     para, row, props = item.para, item.row, item.para.props
     pieces = row_pieces(ctx.cmp, row, ctx.opts) if row is not None else []
     if row is None:
@@ -139,6 +140,10 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
                   for r in para.runs if r.props.image_w_pt]
     if row is not None and item.note is not None and (prev is None or prev.note != item.note):
         pieces = _note_lead(item, row, pieces, ctx) + pieces
+    if fields:
+        # A field's text before anything is measured, so the tab stops, leaders, alignment and the
+        # line breaking all see the page number Word shows (chrome.part_blocks, one build per page).
+        pieces = [replace(p, text=fields[p.field]) if p.field in fields else p for p in pieces]
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
     font, size, bold, italic = _base_style(pieces, ctx, props)

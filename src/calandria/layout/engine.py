@@ -8,13 +8,13 @@ from ..diff.compare import compare
 from ..docx.hf import VARIANTS, SectionHf, displayed, page_number, resolve
 from ..model import Document, Section
 from .blocks import Ctx, collapse_spacing, note_height, para_block, sep_block
-from .chrome import STREAMS, Chrome, fill_fields, hf_groups
+from .chrome import STREAMS, Chrome, hf_groups
 from .fonts import default_resolver
 from .lines import Run
 from .merged import Item, merged_items
 from .pages import CellBox, FontRef, Layout, Page, TableRowBox
 from .pieces import LayoutOptions, visible
-from .placeline import BLACK, SEP_LEN, SEP_WIDTH, _glyph, _rules, place_line  # noqa: F401 (re-exported)
+from .placeline import place_line
 from .planner import NOTE_SEP_PT, BlockSpec, Plan, plan_breaks
 from .sides import side_items, side_options
 from .tables import (MIN_CELL_W, PAD_X, PAD_Y, TableRowBlock, ctx_maps, table_blocks, table_maps,
@@ -252,7 +252,27 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
     close_page()
 
 
+def _ctx(cmp: Comparison, run_opts, fonts, sec: Section, doc: Document, faces: dict, maps, hf_items: dict) -> Ctx:
+    return Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
+               sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
+               doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
+               html_spacing=doc.html_spacing, hf_items=hf_items)
+
+
 def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
+    lay, flags = _layout(cmp, opts, None)
+    if "NUMPAGES" in flags:
+        # The total is only known once every page exists, and a header or footer shows it: lay the
+        # document out again with it, so the number is in place before anything is measured. The
+        # second pass can in principle reach a different page count (the wider total breaking a
+        # header line differently); we take that count rather than chase it with a third pass.
+        lay, _ = _layout(cmp, opts, lay.page_count)
+    return lay
+
+
+def _layout(cmp: Comparison, opts: LayoutOptions | None, total: int | None) -> tuple[Layout, set]:
+    """One layout pass. `total` is the page count NUMPAGES shows, unknown (None) in the first pass.
+    Returns the layout and the flags the pass raised ("NUMPAGES" when a part carries that field)."""
     opts = opts or LayoutOptions()
     if cmp.b_doc is None or cmp.a_doc is None:
         raise ValueError("layout needs a Comparison from compare(a, b) (documents attached)")
@@ -266,40 +286,37 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
     sec_hf = resolve(doc)
     aliases = {k: displayed(doc, k)[1] for k in STREAMS}
     seen: set = set()                           # (stream, part) already marked, across the whole layout
-    chromes: list[Chrome] = []
+    flags: set = set()                          # shared with every Chrome of the pass
+    pages_total = str(total) if total is not None else None
     number = 0                                  # Word page number of the last page placed
     pages: list[Page] = []
     faces: dict = {}
     maps = table_maps(cmp)      # one correspondence build for the whole layout
     for leader, group in _section_groups(items, sections):
         sec = sections[min(leader, len(sections) - 1)]
-        ctx = Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
-                  sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
-                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
-                  html_spacing=doc.html_spacing, hf_items=hf_items)
+        ctx = _ctx(cmp, run_opts, fonts, sec, doc, faces, maps, hf_items)
         blocks = build_blocks(group, ctx)
         if not blocks:
             continue
         chrome = Chrome(sec, sec_hf[min(leader, len(sec_hf) - 1)] if sec_hf else NO_HF, doc, aliases,
-                        ctx, page_number(sec, 0, number), seen)
+                        ctx, page_number(sec, 0, number), seen, pages_total, flags)
         before = len(pages)
         plan = plan_breaks([_spec(b, ctx) for b in blocks], lambda p, c=chrome: c.bottom(p) - c.top(p))
         _place(blocks, plan, sec, leader, pages, ctx, chrome)
         if len(pages) > before:
             number = chrome.number(len(pages) - before - 1)
-        chromes.append(chrome)
     if not pages:
         # Nothing was placed: the one empty page takes the body (last) section's geometry, which is
-        # the page a reader of an empty document sees in Word.
-        _new_page(pages, sections[-1], len(sections) - 1)
-    total = str(len(pages))
-    for chrome in chromes:                      # NUMPAGES: only now is the total known
-        for pl, align in chrome.numpages_lines:
-            fill_fields(pl, {"NUMPAGES": total}, chrome.ctx.faces, align)
+        # the page a reader of an empty document sees in Word, and carries that section's chrome.
+        sec = sections[-1]
+        ctx = _ctx(cmp, run_opts, fonts, sec, doc, faces, maps, hf_items)
+        chrome = Chrome(sec, sec_hf[-1] if sec_hf else NO_HF, doc, aliases, ctx,
+                        page_number(sec, 0, 0), seen, pages_total, flags)
+        chrome.draw(_new_page(pages, sec, len(sections) - 1), 0)
     refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic, getattr(f, "symbol", False))
             for k, f in faces.items()}
     # the options as requested (opts.side names the side); the narrowed run options are not stored
-    return Layout(pages, refs, opts)
+    return Layout(pages, refs, opts), flags
 
 
 def layout_document(doc: Document, opts: LayoutOptions | None = None) -> Layout:

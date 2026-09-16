@@ -4,9 +4,12 @@ go, and the lines themselves.
 Word puts the header's top at the header distance from the page top and the footer's bottom at
 the footer distance from the page bottom. The body starts at the top margin unless the header
 reaches lower, and ends at the bottom margin unless the footer reaches higher (the footnote
-reserve comes off that). The PAGE field is filled when the page is created (its number is known
-then); NUMPAGES is filled once every page exists. A changed header is drawn in redline on every
-page it appears on, but only the first of those pages carries its change bar and gutter number.
+reserve comes off that). A page's PAGE and NUMPAGES fields are substituted before the part is
+measured, so the tab stops, dot leaders, alignment and line breaking all see the real number (the
+blocks of a part are therefore built once per distinct page number). NUMPAGES needs the total,
+which the first layout pass discovers; the engine then lays the document out again with it. A
+changed header is drawn in redline on every page it appears on, but only the first of those pages
+carries its change bar and gutter number.
 """
 from __future__ import annotations
 
@@ -33,39 +36,25 @@ def hf_groups(items: list[Item]) -> dict[tuple[str, str | None], list[Item]]:
     return out
 
 
-def part_blocks(stream: str, part: str | None, ctx: Ctx) -> list[ParaBlock]:
-    """The blocks of one part at this context's width, built once per context (a table inside a
-    part is laid out as its cells' paragraphs, stacked)."""
-    key = (stream, part)
+def part_blocks(stream: str, part: str | None, ctx: Ctx, values: dict[str, str]) -> list[ParaBlock]:
+    """The blocks of one part at this context's width with its fields already substituted (a table
+    inside a part is laid out as its cells' paragraphs, stacked). A part showing a field is built
+    once per page number (the number of distinct numbers is the group's page count, so this is one
+    small build per page); a part with no field at all is built once and reused for every page."""
+    neutral = (stream, part, None, None)                 # a part that showed no field: page-independent
+    if neutral in ctx.parts:
+        return ctx.parts[neutral]
+    key = (stream, part, values.get("PAGE"), values.get("NUMPAGES"))
     if key not in ctx.parts:
-        its = ctx.hf_items.get(key, [])
-        blocks = [para_block(it, its[j - 1] if j else None, its[j + 1] if j + 1 < len(its) else None, ctx)
+        its = ctx.hf_items.get((stream, part), [])
+        blocks = [para_block(it, its[j - 1] if j else None, its[j + 1] if j + 1 < len(its) else None, ctx,
+                             fields=values)
                   for j, it in enumerate(its)
                   if (ctx.opts.show_equal if it.row is None else visible(it.row, ctx.opts))]
         ctx.parts[key] = collapse_spacing(blocks, ctx)
+        if not any(r.piece.field for pb in ctx.parts[key] for ln in pb.lines for r in ln.runs):
+            ctx.parts[neutral] = ctx.parts[key]
     return ctx.parts[key]
-
-
-def fill_fields(line: PlacedLine, values: dict[str, str], faces: dict, align: str) -> None:
-    """Replace the field runs named in `values` by their text, re-measured; the runs after each
-    move by the difference, and a centred or right-aligned line moves as a whole so it stays
-    centred / flush right."""
-    delta = 0.0
-    for g in line.runs:
-        g.x += delta
-        if g.field in values:
-            face = faces[g.face]
-            new_w = face.width(values[g.field], g.size)
-            delta += new_w - g.w
-            g.text, g.w = values[g.field], new_w
-    if delta and align == "center":
-        for g in line.runs:
-            g.x -= delta / 2
-        line.x -= delta / 2
-    elif delta and align == "right":
-        for g in line.runs:
-            g.x -= delta
-        line.x -= delta
 
 
 def strip_marks(line: PlacedLine) -> None:
@@ -88,7 +77,8 @@ class Chrome:
     ctx: Ctx
     first_number: int             # Word page number of the group's first page
     seen: set                     # (stream, part) already marked on a page, shared across the layout
-    numpages_lines: list = field(default_factory=list)   # (PlacedLine, align) to fill once the total is known
+    total: str | None = None      # NUMPAGES: the page total when it is known (second pass), else None
+    flags: set = field(default_factory=set)   # shared: "NUMPAGES" once a part carrying that field is met
 
     def number(self, pi: int) -> int:
         return self.first_number + pi
@@ -102,13 +92,22 @@ class Chrome:
         name = self.hf.part(stream, variant_for(self.sec, self.doc, pi == 0, self.number(pi)))
         return self.aliases.get(stream, {}).get(name) if name is not None else None
 
+    def values(self, pi: int) -> dict[str, str]:
+        """The field text this page substitutes. The total is unknown in the first pass, where a
+        placeholder stands in; the engine lays the document out again once it knows it."""
+        return {"PAGE": self.label(pi), "NUMPAGES": self.total if self.total is not None else "0"}
+
     def blocks(self, stream: str, pi: int) -> list[ParaBlock]:
         # A page with no part of its own shows the orphan group (deleted rows with no revised part
         # to sit next to) when there is one, else nothing.
         key = self.part(stream, pi)
         if key is None and (stream, None) not in self.ctx.hf_items:
             return []
-        return part_blocks(stream, key, self.ctx)
+        blocks = part_blocks(stream, key, self.ctx, self.values(pi))
+        if "NUMPAGES" not in self.flags and any(r.piece.field == "NUMPAGES"
+                                                for pb in blocks for ln in pb.lines for r in ln.runs):
+            self.flags.add("NUMPAGES")
+        return blocks
 
     def top(self, pi: int) -> float:
         h = note_height(self.blocks("header", pi))
@@ -121,7 +120,6 @@ class Chrome:
 
     def draw(self, page: Page, pi: int) -> None:
         page.label = self.label(pi)
-        values = {"PAGE": page.label}
         for stream in STREAMS:
             blocks = self.blocks(stream, pi)
             if not blocks:
@@ -138,9 +136,6 @@ class Chrome:
                 for li, line in enumerate(pb.lines):
                     pl = place_line(pb, li, line, self.sec.margin_left_pt, y, self.ctx.content_w, self.ctx)
                     pl.stream = stream
-                    fill_fields(pl, values, self.ctx.faces, pb.align)
-                    if any(g.field == "NUMPAGES" for g in pl.runs):
-                        self.numpages_lines.append((pl, pb.align))
                     if not marked:
                         strip_marks(pl)
                     page.lines.append(pl)

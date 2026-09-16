@@ -148,3 +148,61 @@ def test_footnote_reserve_comes_off_the_footer_lifted_bottom():
     L = layout_document(d, LayoutOptions(fonts=FR))
     notes = [ln for ln in L.pages[0].lines if ln.stream == "footnote"]
     assert notes and max(ln.top + ln.height for ln in notes) <= 696 + 1e-6
+
+
+def _field_run(page, stream, name="PAGE"):
+    return [g for ln in page.lines if ln.stream == stream for g in ln.runs if g.field == name]
+
+
+def test_a_page_number_at_a_right_tab_stop_ends_at_the_stop():
+    footer = PR(R("Confidential") + "<w:r><w:tab/></w:r>" + FLD("PAGE"),
+                ppr='<w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs>')   # 9360 twips = 468 pt
+    d = _doc(BODY + SECT(ftr={"default": "rId3"}), footer1=footer)
+    L = layout_document(d, LayoutOptions(fonts=FR))
+    assert L.page_count == 2
+    for pg, text in zip(L.pages, ("1", "2")):
+        (g,) = _field_run(pg, "footer")
+        assert g.text == text and g.x + g.w == 540         # the right margin, 72 + 468
+
+
+def test_a_centred_page_number_is_centred_on_its_own_width():
+    d = _doc(BODY + SECT(ftr={"default": "rId3"}), footer1=PR(FLD("PAGE"), ppr='<w:jc w:val="center"/>'))
+    L = layout_document(d, LayoutOptions(fonts=FR))
+    (g,) = _field_run(L.pages[0], "footer")
+    assert (g.text, g.x) == ("1", 72 + (468 - 5) / 2)
+    d12 = _doc(BODY * 6 + SECT(ftr={"default": "rId3"}), footer1=PR(FLD("PAGE"), ppr='<w:jc w:val="center"/>'))
+    L12 = layout_document(d12, LayoutOptions(fonts=FR))
+    assert L12.page_count == 12
+    (g12,) = _field_run(L12.pages[11], "footer")
+    assert (g12.text, g12.x) == ("12", 72 + (468 - 10) / 2)
+
+
+def test_only_a_numpages_document_is_laid_out_twice(monkeypatch):
+    from calandria.layout import engine
+    calls: list = []
+    real = engine._layout
+
+    def counted(cmp, opts, total):
+        calls.append(total)
+        return real(cmp, opts, total)
+
+    monkeypatch.setattr(engine, "_layout", counted)
+    d = _doc(BODY + SECT(ftr={"default": "rId3"}), footer1=PR(R("Page ") + FLD("PAGE")))
+    engine.layout_document(d, LayoutOptions(fonts=FR))
+    assert calls == [None]                               # no NUMPAGES: one pass, as before
+    calls.clear()
+    d2 = _doc(BODY + SECT(ftr={"default": "rId3"}), footer1=PR(R("of ") + FLD("NUMPAGES")))
+    L = engine.layout_document(d2, LayoutOptions(fonts=FR))
+    assert calls == [None, L.page_count]
+    assert _texts(L.pages[0], "footer") == ["of 2"]
+
+
+def test_an_empty_document_still_shows_its_header():
+    # Nothing to place at all: the fallback page is the one a reader sees in Word, chrome included.
+    d = _doc(SECT(hdr={"default": "rId1"}), header1=P("Head"))
+    L = layout_document(d, LayoutOptions(fonts=FR))
+    assert L.page_count == 1 and not [ln for ln in L.pages[0].lines if ln.stream == "body"]
+    assert _texts(L.pages[0], "header") == ["Head"] and L.pages[0].label == "1"
+    d1 = _doc(P("") + SECT(hdr={"default": "rId1"}), header1=P("Head"))     # one empty paragraph
+    L1 = layout_document(d1, LayoutOptions(fonts=FR))
+    assert L1.page_count == 1 and _texts(L1.pages[0], "header") == ["Head"]

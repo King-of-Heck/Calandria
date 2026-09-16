@@ -9,6 +9,7 @@ from ..docx.hf import VARIANTS, SectionHf, displayed, page_number, resolve
 from ..model import Document, Section
 from .blocks import Ctx, collapse_spacing, note_height, para_block, sep_block
 from .chrome import STREAMS, Chrome, hf_groups
+from .comments import COLUMN_W, build_bubbles, place_bubbles, reserved_width
 from .fonts import default_resolver
 from .lines import Run
 from .merged import Item, merged_items
@@ -253,7 +254,8 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
 
 
 def _ctx(cmp: Comparison, run_opts, fonts, sec: Section, doc: Document, faces: dict, maps, hf_items: dict) -> Ctx:
-    return Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
+    return Ctx(cmp, run_opts, fonts,
+               sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt - reserved_width(cmp),
                sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
                doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
                html_spacing=doc.html_spacing, hf_items=hf_items)
@@ -313,10 +315,17 @@ def _layout(cmp: Comparison, opts: LayoutOptions | None, total: int | None) -> t
         chrome = Chrome(sec, sec_hf[-1] if sec_hf else NO_HF, doc, aliases, ctx,
                         page_number(sec, 0, 0), seen, pages_total, flags)
         chrome.draw(_new_page(pages, sec, len(sections) - 1), 0)
+    # The comment bubbles: built at the column width with the document-wide fonts/defaults (any
+    # section ctx carries them) and registered in `faces` before the refs are frozen below, then
+    # resolved to the page of their anchor once every body line is placed.
+    bubbles = build_bubbles(cmp, ctx, COLUMN_W) if cmp.comments and pages else None
     refs = {k: FontRef(f.path, f.font_number, f.family, f.bold, f.italic, f.synthetic, getattr(f, "symbol", False))
             for k, f in faces.items()}
     # the options as requested (opts.side names the side); the narrowed run options are not stored
-    return Layout(pages, refs, opts), flags
+    lay = Layout(pages, refs, opts)
+    if bubbles is not None:
+        place_bubbles(lay, cmp, bubbles)
+    return lay, flags
 
 
 def layout_document(doc: Document, opts: LayoutOptions | None = None) -> Layout:

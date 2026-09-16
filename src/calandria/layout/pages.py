@@ -75,6 +75,26 @@ class TableRowBox:
 
 
 @dataclass
+class Bubble:
+    cid: int | None
+    state: str                 # added | removed | edited | unchanged
+    header: str                # "AL - 2026-09-16" (initials - date), a leading check if done
+    lines: list                # PlacedLine of the comment text, x/y within the column
+    depth: int
+    height: float
+
+
+@dataclass
+class PlacedComment:
+    x: float                   # column left
+    y: float                   # bubble top (after packing)
+    w: float                   # column width
+    bubble: Bubble
+    anchor_x: float            # body x of the anchor (connector start)
+    anchor_y: float            # body baseline of the anchor line
+
+
+@dataclass
 class Page:
     number: int
     w: float
@@ -86,6 +106,7 @@ class Page:
     section: int
     lines: list[PlacedLine] = field(default_factory=list)
     table_rows: list[TableRowBox] = field(default_factory=list)
+    comments: list = field(default_factory=list)   # PlacedComment, the bubbles in the right column
     label: str = ""           # the page's Word page number, formatted (what its PAGE fields show);
                               # not serialised by Layout.to_dict: it is chrome, not page content
 
@@ -146,5 +167,12 @@ class Layout:
             "pages": [{"number": p.number, "w": r(p.w), "h": r(p.h),
                        "margins": [r(p.margin_left), r(p.margin_top), r(p.margin_right), r(p.margin_bottom)],
                        "section": p.section, "lines": [line(ln) for ln in p.lines],
-                       "table_rows": [trow(t) for t in p.table_rows]} for p in self.pages],
+                       "table_rows": [trow(t) for t in p.table_rows],
+                       **({"comments": [{"x": r(pc.x), "y": r(pc.y), "w": r(pc.w),
+                                         "anchor": [r(pc.anchor_x), r(pc.anchor_y)],
+                                         "cid": pc.bubble.cid, "state": pc.bubble.state,
+                                         "header": pc.bubble.header, "depth": pc.bubble.depth,
+                                         "lines": [line(ln) for ln in pc.bubble.lines]}
+                                        for pc in p.comments]} if p.comments else {})}
+                      for p in self.pages],
         }

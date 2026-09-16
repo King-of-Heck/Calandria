@@ -354,3 +354,16 @@ def test_a_note_body_may_hold_a_table_and_a_missing_part_means_no_notes():
     assert isinstance(blocks[0], Table) and blocks[1].text == "after"
     e = _doc(P("no notes"))
     assert e.footnotes == {} and e.endnotes == {} and e.note_numbers == {}
+
+
+def test_the_paragraph_mark_takes_the_style_font_and_size_then_its_own():
+    styles = (f'<w:styles xmlns:w="{W_NS}"><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="22"/></w:rPr>'
+              '</w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:styleId="Normal" w:default="1">'
+              '<w:rPr><w:rFonts w:ascii="Arial"/><w:sz w:val="20"/></w:rPr></w:style></w:styles>')
+    d = _doc('<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr></w:p>'
+             '<w:p><w:pPr><w:rPr><w:sz w:val="36"/></w:rPr></w:pPr></w:p>' + P("text"),
+             **{"word/styles.xml": styles})
+    a, b, c = d.blocks
+    assert (a.props.mark_font, a.props.mark_size_pt) == ("Arial", 10.0)     # the style's
+    assert (b.props.mark_font, b.props.mark_size_pt) == ("Arial", 18.0)     # its own mark size over the style's
+    assert (c.props.mark_font, c.props.mark_size_pt) == ("Arial", 10.0)

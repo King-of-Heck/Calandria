@@ -157,6 +157,8 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     merged = dict(style_ppr)
     merged.update(own)
     para_rpr = ctx.styles.resolved_rpr(style_id)
+    mark = dict(para_rpr)
+    mark.update(read_rpr(ppr.find(wq("rPr"))) if ppr is not None else {})   # the paragraph mark's own run properties
 
     # ---- Numbering: paragraph's own numPr, else the style chain's own numPr (already folded
     # into `merged` above), else a level that names this style via its own <w:pStyle>.
@@ -246,7 +248,9 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
                       style_name=style_name, tabs=tabs,
                       border_top=merged.get("border_top"), border_bottom=merged.get("border_bottom"),
-                      border_left=merged.get("border_left"), border_right=merged.get("border_right"))
+                      border_left=merged.get("border_left"), border_right=merged.get("border_right"),
+                      mark_font=mark.get("font") or ctx.styles.defaults["font"],
+                      mark_size_pt=mark.get("size_pt") or ctx.styles.defaults["size_pt"])
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

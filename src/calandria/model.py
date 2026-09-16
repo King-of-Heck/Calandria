@@ -102,6 +102,8 @@ class ParaProps:
     border_bottom: Border | None = None
     border_left: Border | None = None
     border_right: Border | None = None
+    mark_font: str | None = None       # the paragraph mark's font and size (style chain, then the
+    mark_size_pt: float | None = None  # paragraph's own pPr/rPr): what sizes an empty paragraph's line
 
 
 @dataclass

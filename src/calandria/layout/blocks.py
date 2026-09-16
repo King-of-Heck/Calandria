@@ -90,9 +90,14 @@ def _cid_starts(marker: list[Run], lines: list[Line]) -> tuple[list[int], list[l
     return seen, starts
 
 
-def _base_style(pieces: list[Piece], ctx: Ctx):
+def _base_style(pieces: list[Piece], ctx: Ctx, props=None):
+    """(font, size, bold, italic) the paragraph's marker and its empty line take: the first text
+    piece's, else the paragraph mark's (Word sizes an empty paragraph by its mark, which follows
+    the paragraph style), else the document defaults."""
     p = next((p for p in pieces if p.text.strip()), pieces[0] if pieces else None)
     if p is None:
+        if props is not None and (props.mark_font or props.mark_size_pt):
+            return props.mark_font or ctx.default_font, props.mark_size_pt or ctx.default_size, False, False
         return ctx.default_font, ctx.default_size, False, False
     return p.font or ctx.default_font, p.size or ctx.default_size, p.bold, p.italic
 
@@ -129,7 +134,7 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
         pieces = _note_lead(item, row, pieces, ctx) + pieces
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
-    font, size, bold, italic = _base_style(pieces, ctx)
+    font, size, bold, italic = _base_style(pieces, ctx, props)
     num_cid = row.num_cid if row is not None else None
     renumbered = row is not None and row.num_changed and bool(row.old_marker) and ctx.opts.side == "blackline"
 

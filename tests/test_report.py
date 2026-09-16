@@ -1,11 +1,15 @@
+import io
 from datetime import datetime
 
 import pytest
 
 from calandria.diff.changes import Comparison, empty_summary
+from calandria.diff.compare import compare
+from calandria.docx.parser import parse_docx
 from calandria.pdf.report import (GAP, LINE_GAP, SIZE, TITLE, TITLE_SIZE, ReportInfo, draw_report,
                                   report_height, report_info, report_lines)
 from calandria.testing.fakefonts import FakeResolver
+from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, make_docx
 from calandria.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()
@@ -85,3 +89,27 @@ def test_changed_only_adds_one_line_at_the_end():
     base = ReportInfo("a.docx", "b.docx", datetime(2026, 9, 9, 14, 5), "Standard", s, False, True)
     on = ReportInfo("a.docx", "b.docx", datetime(2026, 9, 9, 14, 5), "Standard", s, False, True, changed_only=(2, 3))
     assert report_lines(on) == report_lines(base) + ["Changed pages only: 2 of 3 pages"]
+
+
+def _cdoc(body, comments=None):
+    files = {"word/document.xml": DOC(body),
+             "word/_rels/document.xml.rels": CRELS(comments=comments is not None)}
+    if comments is not None:
+        files["word/comments.xml"] = COMMENTS(comments)
+    return parse_docx(io.BytesIO(make_docx(files)))
+
+
+def test_report_has_an_uncounted_comments_line_when_comments_change():
+    a = _cdoc(PR(R("The ") + CRANGE("0", "fox") + R(".")),
+              comments=[{"id": "0", "author": "A", "paras": [("p1", "gone note")]}])
+    b = _cdoc(PR(R("The ") + CRANGE("1", "fox") + R(".")),
+              comments=[{"id": "1", "author": "B", "paras": [("p2", "new note")]}])
+    info = report_info(compare(a, b), "orig.docx", "mod.docx", "Standard")
+    assert info.comments == (1, 1, 0)          # one added (B), one removed (A)
+    assert any(ln == "Comments: 1 added, 1 removed, 0 edited (not counted)" for ln in report_lines(info))
+
+
+def test_report_omits_the_comments_line_when_there_are_none():
+    info = report_info(compare(_cdoc(P("x")), _cdoc(P("x"))), "o", "m", "Standard")
+    assert info.comments is None
+    assert not any(ln.startswith("Comments:") for ln in report_lines(info))

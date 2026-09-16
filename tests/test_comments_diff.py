@@ -1,5 +1,6 @@
 import io
 
+from calandria.diff.changes import comment_label
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.testing.makedocx import COMMENTS, COMMENTS_EX, CRANGE, CRELS, DOC, P, PR, R, make_docx
@@ -102,6 +103,23 @@ def test_a_removed_comment_on_an_unchanged_paragraph_sorts_at_its_body_position(
     ccs = _cc(a, b)
     assert [c.author for c in ccs] == ["Amy", "Zed"]
     assert [c.state for c in ccs] == ["removed", "added"]
+
+
+def test_comment_label_prefixes_c():
+    assert (comment_label(1), comment_label(12)) == ("C1", "C12")
+
+
+def test_to_dict_emits_comments_in_reading_order():
+    a = _doc(PR(R("The fox.")))
+    b = _doc(PR(R("The ") + CRANGE("0", "fox") + R(".")),
+             comments=[{"id": "0", "author": "Ada", "initials": "AL", "date": "2026-09-16T00:00:00Z",
+                        "paras": [("p1", "Which fox?")]}])
+    d = compare(a, b).to_dict()
+    assert "comments" in d
+    (cc,) = d["comments"]
+    assert cc["cid"] == 1 and cc["state"] == "added" and cc["author"] == "Ada" and cc["done"] is False
+    assert cc["segments"] == [{"m": "ins", "t": "Which fox?"}]
+    assert cc["anchor"] == {"on_deleted": False, "on_inserted": False}
 
 
 def test_matching_uses_the_shared_anchor_row_to_disambiguate_near_tie_text():

@@ -24,6 +24,10 @@ def empty_summary() -> dict:
     return {k: 0 for k in SUMMARY_KEYS}
 
 
+def comment_label(cid: int) -> str:
+    return f"C{cid}"
+
+
 @dataclass
 class Passage:
     cid: int
@@ -122,8 +126,16 @@ class Comparison:
             "segments": [{"m": s.m, "t": s.t, "b": s.b, "cid": s.cid} for s in r.segments],
         }
 
+    def _comment_dict(self, c) -> dict:
+        return {"cid": c.cid, "state": c.state, "author": c.author, "initials": c.initials,
+                "date": c.date, "done": c.done, "depth": c.depth,
+                "old_id": c.old_id, "new_id": c.new_id,
+                "segments": [{"m": s.m, "t": s.t} for s in c.segments],
+                "anchor": {"on_deleted": c.anchor.on_deleted, "on_inserted": c.anchor.on_inserted}}
+
     def to_dict(self) -> dict:
         return {"options": {"ignore_case": self.ignore_case, "count_numbering": self.count_numbering},
                 "summary": dict(self.summary),
                 "passages": [p.as_dict() for p in self.passages],
-                "changes": [self._row_dict(r) for r in self.rows]}
+                "changes": [self._row_dict(r) for r in self.rows],
+                "comments": [self._comment_dict(c) for c in self.comments]}

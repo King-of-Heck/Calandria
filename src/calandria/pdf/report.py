@@ -27,12 +27,19 @@ class ReportInfo:
     ignore_case: bool
     count_numbering: bool
     changed_only: tuple[int, int] | None = None   # (pages emitted, pages in the layout) for a changed-pages-only PDF
+    comments: tuple | None = None   # (added, removed, edited) counts, None when no comment changed
 
 
 def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
                 when: datetime | None = None) -> ReportInfo:
+    flagged = [c for c in cmp.comments if c.state != "unchanged"]
+    comments = None
+    if flagged:
+        comments = (sum(c.state == "added" for c in flagged),
+                    sum(c.state == "removed" for c in flagged),
+                    sum(c.state == "edited" for c in flagged))
     return ReportInfo(original, modified, when or datetime.now(), render_set, dict(cmp.summary),
-                      cmp.ignore_case, cmp.count_numbering)
+                      cmp.ignore_case, cmp.count_numbering, comments=comments)
 
 
 def _onoff(b: bool) -> str:
@@ -50,6 +57,9 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
         f"numbering {s['numbering_changes']}); formatting {s['formatting']} (not counted)",
     ]
+    if info.comments:
+        add, rem, edt = info.comments
+        lines.append(f"Comments: {add} added, {rem} removed, {edt} edited (not counted)")
     if info.changed_only:
         lines.append(f"Changed pages only: {info.changed_only[0]} of {info.changed_only[1]} pages")
     return lines

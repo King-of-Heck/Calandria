@@ -100,6 +100,10 @@ class Comparison:
     passages: list[Passage] = field(default_factory=list)
     a_doc: Document | None = None
     b_doc: Document | None = None
+    # (side, NoteRef) -> "ins" | "del" | "eq": how a note's reference mark is drawn when the text
+    # around it is shared -- an inserted note's mark is inserted, a deleted note's deleted
+    note_modes: dict = field(default_factory=dict)
+    note_rows: dict = field(default_factory=dict)    # (side, NoteRef) -> index of the note's first row
 
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]
@@ -110,6 +114,7 @@ class Comparison:
         return {
             "type": r.type, "cids": list(r.cids), "num_cid": r.num_cid, "cat": r.cat,
             "oi": r.oi, "ni": r.ni, "loc": loc, "marker": u.marker, "old_marker": r.old_marker,
+            "stream": u.stream, "note": {"kind": u.note.kind, "id": u.note.id} if u.note else None,
             "num_changed": r.num_changed, "fmt_changed": r.fmt_changed,
             "fmt_descs": [x.desc for x in r.fmt_ranges],
             "segments": [{"m": s.m, "t": s.t, "b": s.b, "cid": s.cid} for s in r.segments],

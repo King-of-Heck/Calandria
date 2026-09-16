@@ -153,3 +153,22 @@ def test_all_inserted_document():
     c = compare(a, b)
     assert [r.type for r in c.rows] == ["inserted", "inserted"]
     assert (c.summary["insertions"], c.summary["total"], c.rows[1].cids) == (2, 2, [2])
+
+
+def test_note_rows_are_counted_and_never_pair_with_body_text():
+    from calandria.model import NoteRef
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    a = _doc(PR(R("Body text") + FNREF(1)) + P("Same words here"),
+             **{"word/footnotes.xml": FOOTNOTES({1: "Invoice date."})})
+    b = _doc(PR(R("Body text") + FNREF(1)) + PR(R("Other") + FNREF(2)),
+             **{"word/footnotes.xml": FOOTNOTES({1: "Invoice date, not delivery.", 2: "Same words here"})})
+    c = compare(a, b)
+    kinds = [(r.type, c.unit_for(r).stream) for r in c.rows]
+    # the edited note is a changed row right after its anchor; the body paragraph whose text moved
+    # into a note is a deletion plus an insertion, never an equal pair across streams
+    assert kinds == [("equal", "body"), ("changed", "footnote"), ("deleted", "body"), ("inserted", "body"),
+                     ("inserted", "footnote")]
+    assert c.summary["total"] == 4 and c.summary["insertions"] == 3 and c.summary["deletions"] == 1
+    d = c.to_dict()["changes"]
+    assert d[1]["stream"] == "footnote" and d[1]["note"] == {"kind": "footnote", "id": 1}
+    assert d[0]["stream"] == "body" and d[0]["note"] is None

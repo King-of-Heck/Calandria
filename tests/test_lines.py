@@ -164,3 +164,10 @@ def test_a_tab_run_does_not_raise_the_line():
     assert line_height(runs, Spacing(), FACE, 10) == (12, 8)
     only_tabs = measure([Piece("", "eq", size=20, tab=1)], FR, "Fake", 10)
     assert line_height(only_tabs, Spacing(), FACE, 10) == (12, 8)
+
+
+def test_a_raised_piece_measures_small_and_carries_its_rise():
+    (r,) = measure([Piece("12", "eq", size=10, rise=True)], FR, "Fake", 10)
+    assert (r.text, r.size, r.rise, r.w) == ("12", 6.5, 3.5, 6.5)     # 0.65 x size, raised 0.35 x size
+    (n,) = measure([Piece("x", "eq", size=10)], FR, "Fake", 10)
+    assert n.rise == 0.0

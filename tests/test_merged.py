@@ -24,7 +24,7 @@ def _shape(items):
 def test_walk_includes_empties_and_matches_units_order():
     d = _doc(P("a") + P("") + TBL([["c", ""], ["e", "f"]]) + P("g"))
     w = list(walk(d))
-    assert [(p.text, loc) for p, loc in w] == [
+    assert [(p.text, loc) for p, loc, _w in w] == [
         ("a", None), ("", None), ("c", Loc(0, 0, 0, 2)), ("", Loc(0, 0, 1, 2)),
         ("e", Loc(0, 1, 0, 2)), ("f", Loc(0, 1, 1, 2)), ("g", None)]
     assert [u.text for u in units(d)] == ["a", "c", "e", "f", "g"]
@@ -103,3 +103,16 @@ def test_requires_the_documents():
     c = compare_units(units(d), units(d))
     with pytest.raises(ValueError):
         merged_items(c)
+
+
+def test_a_deleted_paragraph_takes_its_note_with_it():
+    from calandria.model import NoteRef
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    fn = {"word/footnotes.xml": FOOTNOTES({1: "Gone note."})}
+    a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("keep") + PR(R("gone") + FNREF(1)) + P("end")), **fn})))
+    b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("keep") + P("end"))})))
+    items = merged_items(compare(a, b))
+    assert _shape(items) == [("b", "equal", "keep"), ("a", "deleted", "gone"), ("a", "deleted", "Gone note."),
+                             ("b", "equal", "end")]
+    assert [(it.stream, it.note) for it in items] == [("body", None), ("body", None),
+                                                      ("footnote", NoteRef("footnote", 1)), ("body", None)]

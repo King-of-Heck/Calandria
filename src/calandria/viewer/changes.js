@@ -123,7 +123,8 @@ function entriesOf(d) {
   return d.passages.map((p) => {
     const row = d.changes[p.row];
     const a = d.anchors[String(p.cid)];
-    return { cid: p.cid, category: p.category, loc: row.loc ? "table" : "body", page: a ? a.page : null,
+    const loc = row.stream && row.stream !== "body" ? row.stream : (row.loc ? "table" : "body");
+    return { cid: p.cid, category: p.category, loc, page: a ? a.page : null,
              row, rowIndex: p.row, rows: [row] };
   });
 }

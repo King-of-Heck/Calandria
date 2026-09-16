@@ -32,3 +32,29 @@ def test_units_second_table_increments_ti():
 def test_loc_as_dict():
     from calandria.diff.units import Loc
     assert Loc(1, 2, 3, 4).as_dict() == {"ti": 1, "ri": 2, "ci": 3, "cols": 4}
+
+
+def test_note_paragraphs_follow_their_anchor_paragraph_in_the_stream():
+    from calandria.diff.units import walk
+    from calandria.model import NoteRef
+    from calandria.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
+    body = (PR(R("First") + FNREF(1) + R(" para") + FNREF(2)) + P("Second") +
+            PR(R("Third") + ENREF(1) + FNREF(1)))          # note 1 referenced again: its body appears once
+    d = _doc(body, **{"word/footnotes.xml": FOOTNOTES({1: "Note one.\nStill one.", 2: "Note two."}),
+                      "word/endnotes.xml": ENDNOTES({1: "End."})})
+    w = [(p.text, where.stream, where.note) for p, _loc, where in walk(d)]
+    assert w == [("First para", "body", None),
+                 ("Note one.", "footnote", NoteRef("footnote", 1)), ("Still one.", "footnote", NoteRef("footnote", 1)),
+                 ("Note two.", "footnote", NoteRef("footnote", 2)),
+                 ("Second", "body", None),
+                 ("Third", "body", None), ("End.", "endnote", NoteRef("endnote", 1))]
+    us = units(d)
+    assert [(u.stream, u.note) for u in us][:2] == [("body", None), ("footnote", NoteRef("footnote", 1))]
+    assert us[0].note_refs == [(5, NoteRef("footnote", 1)), (10, NoteRef("footnote", 2))]
+
+
+def test_a_reference_to_a_missing_note_yields_nothing():
+    from calandria.diff.units import walk
+    from calandria.testing.makedocx import FNREF, PR, R
+    d = _doc(PR(R("x") + FNREF(7)))
+    assert [p.text for p, _l, _w in walk(d)] == ["x"]

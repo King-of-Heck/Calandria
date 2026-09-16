@@ -216,3 +216,34 @@ def test_adjacent_paragraphs_with_the_same_borders_join_into_one_box():
     assert (three.draw_top, three.draw_bottom) == (True, True)
     assert [ln.height for ln in one.lines] == [17] and [ln.height for ln in two.lines] == [17]
     assert [ln.height for ln in three.lines] == [22]
+
+
+def test_a_note_first_paragraph_opens_with_its_number():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    fn = FOOTNOTES({1: "Note one.\nSecond para."})
+    body = PR(R("Body") + FNREF(1))
+    c, items = _items(body, body)
+    # the fixture builder attaches footnotes.xml only via the parts map: rebuild with it
+    a = _parse(body)
+    from calandria.docx.parser import parse_docx
+    import io
+    from calandria.testing.makedocx import DOC, make_docx
+    d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": STY, "word/footnotes.xml": fn})))
+    c = compare(d, d)
+    items = merged_items(c)
+    ctx = _ctx(c)
+    assert [it.stream for it in items] == ["body", "footnote", "footnote"]
+    first = _block(items, 1, ctx)
+    second = _block(items, 2, ctx)
+    assert _texts(first) == ["1 Note one."] and _texts(second) == ["Second para."]
+    assert [(r.text, r.rise, r.size) for r in first.lines[0].runs][:2] == [("1", 3.5, 6.5), (" ", 0.0, 10)]
+
+
+def test_an_empty_paragraph_is_as_tall_as_its_mark_says():
+    sty = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>',
+                 '<w:style w:type="paragraph" w:styleId="Small"><w:rPr><w:sz w:val="10"/></w:rPr></w:style>')
+    body = P("text") + '<w:p><w:pPr><w:pStyle w:val="Small"/></w:pPr></w:p>' + '<w:p><w:pPr><w:rPr><w:sz w:val="40"/></w:rPr></w:pPr></w:p>' + "<w:p/>"
+    c, items = _items(body, body, styles=sty)
+    ctx = _ctx(c)
+    heights = [_block(items, i, ctx).height for i in range(4)]
+    assert heights == [12, 6, 24, 12]        # 10 pt text; a 5 pt mark; a 20 pt mark; the default 10 pt

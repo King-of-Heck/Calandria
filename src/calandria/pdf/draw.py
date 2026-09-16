@@ -73,9 +73,10 @@ def draw_runs(line: PlacedLine, runs: list[GlyphRun], fonts: dict[str, FontRef],
         color, eff, fake_bold, fake_italic = run_style(g, face, rs, plain)
         if marks_mode is not None and g.mode == marks_mode:
             painter.box(g.x, line.top, g.w, line.height, tint(rs.category(g.mode, False).color))
+        baseline = line.baseline - g.rise           # a reference mark sits above the baseline
         if g.text.strip():
-            painter.text(g.x, line.baseline, g.text, face, g.size, color, fake_bold, fake_italic, width=g.w)
-        for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, line.baseline, g.size):
+            painter.text(g.x, baseline, g.text, face, g.size, color, fake_bold, fake_italic, width=g.w)
+        for x1, x2, y, t, dotted in decorations(eff, g.x, g.x + g.w, baseline, g.size):
             painter.rule(x1, x2, y, t, color, dotted)
 
 

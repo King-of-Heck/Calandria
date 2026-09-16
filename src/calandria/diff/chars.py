@@ -124,6 +124,29 @@ def tab_marks(p: Paragraph) -> tuple[int, dict[int, int]]:
     return lead, marks
 
 
+def note_marks(p: Paragraph) -> list[tuple]:
+    """Where the paragraph's footnote/endnote references sit in p.text: (offset of the next
+    character, NoteRef), in run order; a reference after the last word is at len(p.text). The
+    walk collapses whitespace as p.text does, so the offsets index into it."""
+    out: list[tuple] = []
+    n = 0
+    last_space = False
+    for run in p.runs:
+        if run.props.note is not None:
+            out.append((n, run.props.note))     # after a collapsed space when one precedes it in the source
+            continue
+        parts = _WS_RUN.split(run.text)
+        for k, part in enumerate(parts):
+            if k and n and not last_space:
+                n += 1
+                last_space = True
+            if part:
+                n += len(part)
+                last_space = False
+    end = n - 1 if last_space else n        # trailing whitespace is trimmed from the text
+    return [(min(o, end), ref) for o, ref in out]
+
+
 def char_fmt(p: Paragraph) -> tuple[list[list[int]], list[FmtSpan]]:
     """(bold_runs, fmt_spans) of a paragraph from one walk of its runs."""
     raw = _spans(p)

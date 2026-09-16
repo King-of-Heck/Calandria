@@ -1,7 +1,7 @@
 """document.xml -> model.Document."""
 from __future__ import annotations
 
-from ..model import (Cell, Document, ParaProps, Paragraph, Row, Run, RunProps, Section, Table,
+from ..model import (Cell, Document, NoteRef, ParaProps, Paragraph, Row, Run, RunProps, Section, Table,
                      merge_tabs)
 from .ns import wq, wval, wbool, twips_to_pt
 from .numbering import Numbering, NumberingCounter
@@ -21,6 +21,7 @@ class _Ctx:
         self.counter = NumberingCounter(numbering)
         self.pending_break = False
         self.sections: list[Section] = []
+        self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
 
 
 def parse_docx(src) -> Document:
@@ -45,9 +46,31 @@ def parse_package(pkg: Package) -> Document:
     settings = pkg.xml("word/settings.xml")
     eao = settings is not None and wbool(settings.find(wq("evenAndOddHeaders")))
     tab = twips_to_pt(wval(settings.find(wq("defaultTabStop")))) if settings is not None else None
+    footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
+    endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
     return Document(blocks, ctx.sections, default_font=styles.defaults["font"],
                     default_size_pt=styles.defaults["size_pt"], even_and_odd=eao,
-                    default_tab_pt=tab if tab is not None else 36.0)
+                    default_tab_pt=tab if tab is not None else 36.0,
+                    footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers)
+
+
+def _notes(root, kind: str, ctx: _Ctx) -> dict:
+    """footnotes.xml / endnotes.xml: note id -> blocks, parsed like the body. The separator and
+    continuation-separator notes are Word's rules, not content, and are skipped. A page break
+    inside a note never travels into the body."""
+    out: dict = {}
+    if root is None:
+        return out
+    for el in root.iter(wq(kind)):
+        if el.get(wq("type")) in ("separator", "continuationSeparator"):
+            continue
+        nid = el.get(wq("id"))
+        if nid is None:
+            continue
+        ctx.pending_break = False
+        out[int(nid)] = _blocks(el, ctx)
+    ctx.pending_break = False
+    return out
 
 
 def _blocks(parent, ctx: _Ctx) -> list:
@@ -90,6 +113,17 @@ def _runs(el, ctx: _Ctx, para_rpr: dict, out: list[Run], state: dict):
                     buf.append("\ufffd")
                 elif x.tag == wq("cr"):
                     buf.append("\n")
+                elif x.tag in (wq("footnoteReference"), wq("endnoteReference")):
+                    # The mark: no text of its own (the number is drawn, never compared); an empty
+                    # run anchors it at this point of the paragraph. w:footnoteRef (the note's own
+                    # number inside its body) is not read: the layout draws it from note_numbers.
+                    if buf:
+                        out.append(Run("".join(buf), props))
+                        buf = []
+                    ref = NoteRef("footnote" if x.tag == wq("footnoteReference") else "endnote",
+                                  int(x.get(wq("id")) or 0))
+                    ctx.note_numbers.setdefault(ref, 1 + sum(1 for r in ctx.note_numbers if r.kind == ref.kind))
+                    out.append(Run("", RunProps(**{**props.__dict__, "note": ref})))
             text = "".join(buf)
             if text.strip():
                 state["text_seen"] = True
@@ -123,6 +157,8 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
     merged = dict(style_ppr)
     merged.update(own)
     para_rpr = ctx.styles.resolved_rpr(style_id)
+    mark = dict(para_rpr)
+    mark.update(read_rpr(ppr.find(wq("rPr"))) if ppr is not None else {})   # the paragraph mark's own run properties
 
     # ---- Numbering: paragraph's own numPr, else the style chain's own numPr (already folded
     # into `merged` above), else a level that names this style via its own <w:pStyle>.
@@ -212,7 +248,9 @@ def _paragraph(el, ctx: _Ctx) -> Paragraph:
                       contextual_spacing=merged.get("contextual_spacing", False), outline_level=outline,
                       style_name=style_name, tabs=tabs,
                       border_top=merged.get("border_top"), border_bottom=merged.get("border_bottom"),
-                      border_left=merged.get("border_left"), border_right=merged.get("border_right"))
+                      border_left=merged.get("border_left"), border_right=merged.get("border_right"),
+                      mark_font=mark.get("font") or ctx.styles.defaults["font"],
+                      mark_size_pt=mark.get("size_pt") or ctx.styles.defaults["size_pt"])
     p = Paragraph(runs, props, num)
 
     if p.is_empty:

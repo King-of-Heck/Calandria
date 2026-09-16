@@ -1,5 +1,20 @@
 # Calandria changelog
 
+## v2.6.0 — Footnotes and endnotes (2026-09-15)
+
+- Footnotes and endnotes are compared. A note that was edited, added or removed shows as a
+  redline like body text, with its own change number, change bar and place in the totals and
+  the tiles; the change list's location filter gains Footnotes and Endnotes. A note's changes
+  are numbered right after the paragraph that references it, so the numbers read in page order.
+- Footnotes are drawn at the foot of the page that references them, under Word's short
+  separator rule, and endnotes after the last body paragraph. Reference marks are drawn as
+  superscript numbers in the text, and a note opens with its number. A note dropped with its
+  paragraph keeps a struck mark where it stood. A page keeps room for the notes it carries, so a
+  line moves to the next page together with its notes. A long note is not split across pages in
+  this version.
+- Before, references and note text were ignored: a note's edits were invisible and the pages had
+  no footnotes.
+
 ## v2.5.3 — Style bold and paragraph borders (2026-09-15)
 
 - Bold set by a paragraph style (a TOC level, a heading, a caption) is drawn in bold, as Word

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ..diff.changes import Comparison, Row
 from ..diff.units import Loc, walk
-from ..model import Paragraph
+from ..model import NoteRef, Paragraph
 
 
 @dataclass
@@ -18,6 +18,8 @@ class Item:
     section: int                 # index into doc.sections
     row: Row | None = None       # None for an empty revised paragraph
     row_index: int | None = None
+    stream: str = "body"         # body | footnote | endnote (see units.walk)
+    note: NoteRef | None = None
 
 
 def merged_items(cmp: Comparison) -> list[Item]:
@@ -35,18 +37,18 @@ def merged_items(cmp: Comparison) -> list[Item]:
             r = rows[state["emitted"]]
             if r.ni is None:
                 u = cmp.a_units[r.oi]
-                out.append(Item(u.para, u.loc, "a", state["section"], r, state["emitted"]))
+                out.append(Item(u.para, u.loc, "a", state["section"], r, state["emitted"], u.stream, u.note))
             state["emitted"] += 1
 
     ni = 0
-    for para, loc in walk(cmp.b_doc):
+    for para, loc, where in walk(cmp.b_doc):
         if para.is_empty:
-            out.append(Item(para, loc, "b", state["section"]))
+            out.append(Item(para, loc, "b", state["section"], stream=where.stream, note=where.note))
         else:
             k = by_ni[ni]
             ni += 1
             flush_deleted(k)
-            out.append(Item(para, loc, "b", state["section"], rows[k], k))
+            out.append(Item(para, loc, "b", state["section"], rows[k], k, where.stream, where.note))
             state["emitted"] = max(state["emitted"], k + 1)
         if para.props.section_break:
             # Deletions that stood after the closing paragraph but before the next revised one

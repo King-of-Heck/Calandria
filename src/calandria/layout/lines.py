@@ -29,6 +29,10 @@ _WS = re.compile(f"^[{WS_CHARS}]+$")
 LEADERS = {"dot": ".", "hyphen": "-", "underscore": "_", "middleDot": "\u00b7", "heavy": "_"}
 
 
+MARK_SCALE = 0.65      # a reference mark's size relative to its text
+MARK_RISE = 0.35       # and how far above the baseline it sits, relative to the text size
+
+
 @dataclass
 class Run:
     text: str
@@ -38,6 +42,7 @@ class Run:
     size: float
     tab: bool = False            # a tab: its width is the advance to the stop, set by break_lines
     leader: str | None = None    # the stop's leader character, drawn across the tab's width
+    rise: float = 0.0            # points above the baseline (a reference mark)
 
     @property
     def is_space(self) -> bool:
@@ -71,6 +76,10 @@ def measure(pieces: list[Piece], fonts, default_font, default_size: float) -> li
         size = p.size or default_size
         if p.tab:
             out.extend(Run("\t", 0.0, p, face, size, tab=True) for _ in range(p.tab))
+            continue
+        if p.rise:                   # a reference mark: MARK_SCALE of the size, raised MARK_RISE of it
+            out.append(Run(p.text, face.width(p.text, size * MARK_SCALE), p, face, size * MARK_SCALE,
+                           rise=size * MARK_RISE))
             continue
         for tk in _TOKEN.findall(p.text.upper() if p.caps else p.text):
             out.append(Run(tk, face.width(tk, size), p, face, size))

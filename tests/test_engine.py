@@ -383,3 +383,72 @@ def test_right_border_inside_a_table_cell_uses_the_cell_edge():
     (cell,) = L.pages[0].table_rows[0].cells
     (r,) = ln.rules
     assert r.x1 == r.x2 and r.x1 < cell.x + cell.w and r.x1 > ln.x and (r.y1, r.y2) == (ln.top, ln.top + ln.height)
+
+
+def _lay_notes(body, notes=None, endnotes=None, **opts):
+    from calandria.testing.makedocx import ENDNOTES, FOOTNOTES
+    parts = {"word/document.xml": DOC(body), "word/styles.xml": STY}
+    if notes:
+        parts["word/footnotes.xml"] = FOOTNOTES(notes)
+    if endnotes:
+        parts["word/endnotes.xml"] = ENDNOTES(endnotes)
+    d = parse_docx(io.BytesIO(make_docx(parts)))
+    return layout(compare(d, d), LayoutOptions(fonts=FR, **opts))
+
+
+def test_a_footnote_sits_at_the_foot_of_the_page_under_a_separator():
+    from calandria.layout.pages import Rule
+    from calandria.testing.makedocx import FNREF, PR, R
+    L = _lay_notes(PR(R("aaaa") + FNREF(1)) + P("bbbb"), {1: "Note one."})
+    lines = L.pages[0].lines
+    assert [(ln.stream, ln.top, ln.height) for ln in lines] == [("body", 72, 12), ("body", 84, 12),
+                                                                ("footnote", 699, 9), ("footnote", 708, 12)]
+    sep, note = lines[2], lines[3]
+    assert sep.runs == [] and sep.rules == [Rule(72, 703.5, 216, 703.5, 0.75, "000000")]
+    assert [(r.text, r.rise) for r in note.runs][:3] == [("1", 3.5), (" ", 0.0), ("Note", 0.0)]
+    assert [(r.text, r.rise, r.size) for r in lines[0].runs] == [("aaaa", 0.0, 10), ("1", 3.5, 6.5)]
+    d = L.to_dict()["pages"][0]["lines"]
+    assert "stream" not in d[0] and d[2]["stream"] == "footnote" and d[3]["runs"][0]["rise"] == 3.5
+
+
+def test_a_line_moves_to_the_next_page_together_with_its_footnote():
+    from calandria.testing.makedocx import FNREF, PR, R
+    body = "".join(P(f"p{i}") for i in range(53)) + PR(R("last") + FNREF(1))     # 636 pt used of 648
+    L = _lay_notes(body, {1: "Note."})
+    assert L.page_count == 2 and len(L.pages[0].lines) == 53
+    assert [(ln.stream, ln.top) for ln in L.pages[1].lines] == [("body", 72), ("footnote", 699), ("footnote", 708)]
+
+
+def test_endnotes_follow_the_body_under_a_separator():
+    from calandria.testing.makedocx import ENREF, PR, R
+    L = _lay_notes(PR(R("aaaa") + ENREF(1)) + P("bbbb"), endnotes={1: "The end."})
+    lines = L.pages[0].lines
+    assert [(ln.stream, ln.top, ln.height) for ln in lines] == [("body", 72, 12), ("body", 84, 12),
+                                                                ("endnote", 96, 9), ("endnote", 105, 12)]
+    assert lines[2].rules and lines[3].runs[0].text == "1"
+
+
+def test_a_footnote_inside_a_table_cell_floats_and_keeps_the_table_whole():
+    from calandria.testing.makedocx import FNREF, PR, R
+    body = ('<w:tbl><w:tblGrid><w:gridCol w:w="4000"/><w:gridCol w:w="4000"/></w:tblGrid><w:tr><w:tc>'
+            + PR(R("cell") + FNREF(1)) + '</w:tc><w:tc>' + P("two") + '</w:tc></w:tr></w:tbl>')
+    L = _lay_notes(body, {1: "Cell note."})
+    pg = L.pages[0]
+    assert len(pg.table_rows) == 1 and len(pg.table_rows[0].cells) == 2
+    assert [ln.stream for ln in pg.lines] == ["body", "body", "footnote", "footnote"]
+    assert pg.lines[-1].top == 708
+
+
+def test_a_deleted_note_floats_on_the_original_side_only():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("aaaa") + FNREF(1))), "word/styles.xml": STY,
+                                         "word/footnotes.xml": FOOTNOTES({1: "Gone."})})))
+    b = _parse(P("aaaa"))
+    c = compare(a, b)
+    black = layout(c, LayoutOptions(fonts=FR))
+    assert [ln.stream for ln in black.pages[0].lines] == ["body", "footnote", "footnote"]
+    assert [g.mode for g in black.pages[0].lines[0].runs] == ["eq", "del"]           # the dropped mark
+    orig = layout(c, LayoutOptions(fonts=FR, side="original"))
+    assert [ln.stream for ln in orig.pages[0].lines] == ["body", "footnote", "footnote"]
+    mod = layout(c, LayoutOptions(fonts=FR, side="modified"))
+    assert [ln.stream for ln in mod.pages[0].lines] == ["body"]

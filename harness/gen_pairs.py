@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx  # noqa: E402
+from calandria.testing.makedocx import DOC, ENDNOTES, ENREF, FNREF, FOOTNOTES, P, PR, R, STYLES, TBL, make_docx  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests" / "corpus"
@@ -52,6 +52,32 @@ _EMPTY_B = ""
 _LATIN1_A = P("Café résumé naïve façade") + P("Same line")
 _LATIN1_B = P("Cafe resume naive facade") + P("Same line")
 
+# Notes: an edited footnote, a note added with its reference, a note dropped with its paragraph,
+# a shared note, an endnote, and a body paragraph whose text equals a note's (must not pair).
+_NOTES_A = (PR(R("The Supplier delivers within thirty days") + FNREF(1) + R(" of the order."))
+            + PR(R("Payment follows on receipt") + FNREF(2) + R("."))
+            + PR(R("This clause goes away") + FNREF(3) + R("."))
+            + P("Same words as a note")
+            + PR(R("Governing law") + ENREF(1) + R(" applies.")))
+_NOTES_B = (PR(R("The Supplier delivers within thirty days") + FNREF(1) + R(" of the order."))
+            + PR(R("Payment follows on receipt") + FNREF(2) + R(" of a valid invoice") + FNREF(4) + R("."))
+            + P("Same words as a note")
+            + PR(R("Governing law") + ENREF(1) + R(" applies.")))
+_NOTES_FA = FOOTNOTES({1: "Thirty calendar days.", 2: "Receipt means delivery to the registered office.",
+                       3: "A note that goes away with its clause."})
+_NOTES_FB = FOOTNOTES({1: "Thirty business days.", 2: "Receipt means delivery to the registered office.",
+                       4: "Same words as a note"})
+_NOTES_EN = ENDNOTES({1: "The law of Ontario."})
+
+
+def _notes_pair():
+    a = {"word/document.xml": DOC(_NOTES_A), "word/styles.xml": _DEFAULTS, "word/footnotes.xml": _NOTES_FA,
+         "word/endnotes.xml": _NOTES_EN}
+    b = {"word/document.xml": DOC(_NOTES_B), "word/styles.xml": _DEFAULTS, "word/footnotes.xml": _NOTES_FB,
+         "word/endnotes.xml": _NOTES_EN}
+    return a, b
+
+
 PAIRS = {
     "fmt": _pair(_FMT_A, _FMT_B),
     "table": _pair(_TABLE_A, _TABLE_B),
@@ -60,6 +86,7 @@ PAIRS = {
     "longcap": _pair(_LONGCAP_A, _LONGCAP_B),
     "empty": _pair(_EMPTY_A, _EMPTY_B),
     "latin1": _pair(_LATIN1_A, _LATIN1_B),
+    "notes": _notes_pair(),
 }
 
 

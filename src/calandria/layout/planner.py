@@ -7,11 +7,18 @@ together (a paragraph that fits a page in full is not split); explicit page-brea
 space-before is dropped at the top of an automatically started page but kept on the first page
 and after an explicit break. Structure ported from the reference planner; the space-before rule
 is Word's.
+
+Footnotes: a line may carry the height of the footnotes first referenced on it (`line_notes`);
+the line fits a page only together with them, plus the separator once per page. The notes are
+atomic (a long note moves with its line; one taller than a page overflows the margin).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable
+
+
+NOTE_SEP_PT = 9.0     # the footnote separator: the rule and the space around it, once per page
 
 
 @dataclass
@@ -22,6 +29,7 @@ class BlockSpec:
     keep_next: bool = False
     keep_lines: bool = False
     page_break_before: bool = False
+    line_notes: list[float] | None = None    # per line: the height of the footnotes it brings to the page
 
 
 @dataclass(frozen=True)
@@ -39,13 +47,29 @@ class Plan:
 def plan_breaks(blocks: list[BlockSpec], avail_of: Callable[[int], float]) -> Plan:
     breaks: list[Break] = []
     before = [False] * len(blocks)
-    st = {"page": 0, "free": avail_of(0), "top": True, "explicit": True}
+    st = {"page": 0, "free": avail_of(0), "top": True, "explicit": True, "notes": False}
 
     def new_page(b: int, l: int, explicit: bool = False):
         breaks.append(Break(b, l))
         st["page"] += 1
         st["free"] = avail_of(st["page"])
         st["top"], st["explicit"] = True, explicit
+        st["notes"] = False
+
+    def span_cost(bk: BlockSpec, start: int, end: int) -> float:
+        """The page height lines[start:end] take: the lines, their footnotes, and the separator
+        when they bring the first footnotes to this page."""
+        h = sum(bk.line_heights[start:end])
+        notes = bk.line_notes[start:end] if bk.line_notes else ()
+        n = sum(notes)
+        if n > 0 and not st["notes"]:
+            h += NOTE_SEP_PT
+        return h + n
+
+    def placed(bk: BlockSpec, start: int, end: int) -> None:
+        st["free"] -= span_cost(bk, start, end)
+        if bk.line_notes and any(bk.line_notes[start:end]):
+            st["notes"] = True
 
     def need(b: int, depth: int) -> float:
         if b >= len(blocks):
@@ -72,12 +96,11 @@ def plan_breaks(blocks: list[BlockSpec], avail_of: Callable[[int], float]) -> Pl
             before[b] = True
         start = 0
         while start < len(lines):
-            fit, h = start, 0.0
-            while fit < len(lines) and h + lines[fit] <= st["free"] + 1e-9:
-                h += lines[fit]
+            fit = start
+            while fit < len(lines) and span_cost(bk, start, fit + 1) <= st["free"] + 1e-9:
                 fit += 1
             if fit >= len(lines):
-                st["free"] -= h
+                placed(bk, start, fit)
                 st["top"] = False
                 start = fit
                 break
@@ -99,6 +122,7 @@ def plan_breaks(blocks: list[BlockSpec], avail_of: Callable[[int], float]) -> Pl
                         before[b] = False    # the block moves whole to an automatic page: no space before
                     new_page(b, start)
             else:
+                placed(bk, start, cut)
                 new_page(b, cut)
                 start = cut
         if start >= len(lines) and not st["top"]:

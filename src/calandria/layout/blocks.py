@@ -17,6 +17,7 @@ from ..diff.changes import Comparison
 from .lines import Line, Run, Spacing, break_lines, measure, next_tab_stop  # noqa: F401 (re-exported)
 from .merged import Item
 from .pieces import LayoutOptions, Piece, row_pieces
+from .planner import NOTE_SEP_PT
 
 MIN_LINE_PT = 40.0    # never wrap into a column narrower than this
 
@@ -33,6 +34,7 @@ class Ctx:
     default_tab: float
     faces: dict = field(default_factory=dict)   # face key -> face object, filled by the placer
     maps: tuple | None = None  # table correspondence maps, built once per layout (see tables.table_maps)
+    notes: dict = field(default_factory=dict)   # footnote key (first row index) -> its ParaBlocks (engine.build_blocks)
 
 
 @dataclass
@@ -57,6 +59,9 @@ class ParaBlock:
     borders: tuple = (None, None, None, None)   # (top, bottom, left, right) Border | None, as resolved
     draw_top: bool = False         # the top border is drawn (and its height added to the first line);
     draw_bottom: bool = False      # False when joined to the paragraph before / after (see _joins)
+    stream: str = "body"           # body | footnote | endnote
+    note_sep: bool = False         # the note separator: one empty line carrying the rule
+    line_notes: list | None = None # per line: the footnote keys first referenced on it (engine)
 
     @property
     def line_heights(self) -> list[float]:
@@ -85,9 +90,14 @@ def _cid_starts(marker: list[Run], lines: list[Line]) -> tuple[list[int], list[l
     return seen, starts
 
 
-def _base_style(pieces: list[Piece], ctx: Ctx):
+def _base_style(pieces: list[Piece], ctx: Ctx, props=None):
+    """(font, size, bold, italic) the paragraph's marker and its empty line take: the first text
+    piece's, else the paragraph mark's (Word sizes an empty paragraph by its mark, which follows
+    the paragraph style), else the document defaults."""
     p = next((p for p in pieces if p.text.strip()), pieces[0] if pieces else None)
     if p is None:
+        if props is not None and (props.mark_font or props.mark_size_pt):
+            return props.mark_font or ctx.default_font, props.mark_size_pt or ctx.default_size, False, False
         return ctx.default_font, ctx.default_size, False, False
     return p.font or ctx.default_font, p.size or ctx.default_size, p.bold, p.italic
 
@@ -103,12 +113,28 @@ def _joins(a, b) -> bool:
             and a.ind_left_pt == b.para.props.ind_left_pt and a.ind_right_pt == b.para.props.ind_right_pt)
 
 
+def _note_lead(item: Item, row, pieces: list[Piece], ctx: Ctx) -> list[Piece]:
+    """The number that opens a note's first paragraph (Word's w:footnoteRef): the note's own
+    number, raised, in the formatting of the note's first text, then a space; in the mode of the
+    note as a whole."""
+    doc = ctx.cmp.a_doc if item.side == "a" else ctx.cmp.b_doc
+    number = str(doc.note_numbers.get(item.note, "?")) if doc is not None else "?"
+    mode = {"inserted": "ins", "deleted": "del"}.get(row.type, "eq")
+    p0 = next((p for p in pieces if p.text.strip()), None)
+    if p0 is None:
+        return [Piece(number, mode, rise=True), Piece(" ", mode)]
+    return [Piece(number, mode, p0.bold, p0.italic, font=p0.font, size=p0.size, color=p0.color, rise=True),
+            Piece(" ", mode, p0.bold, p0.italic, font=p0.font, size=p0.size, color=p0.color)]
+
+
 def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None) -> ParaBlock:
     para, row, props = item.para, item.row, item.para.props
     pieces = row_pieces(ctx.cmp, row, ctx.opts) if row is not None else []
+    if row is not None and item.note is not None and (prev is None or prev.note != item.note):
+        pieces = _note_lead(item, row, pieces, ctx) + pieces
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
-    font, size, bold, italic = _base_style(pieces, ctx)
+    font, size, bold, italic = _base_style(pieces, ctx, props)
     num_cid = row.num_cid if row is not None else None
     renumbered = row is not None and row.num_changed and bool(row.old_marker) and ctx.opts.side == "blackline"
 
@@ -185,4 +211,15 @@ def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_
     align = "justify" if props.align in ("justify", "distribute") else props.align
     return ParaBlock(lines, x, first_dx, right, align, marker, marker_x, sb, sa, props.keep_next, props.keep_lines,
                      props.page_break_before, item.section, changed, cids, starts, item.row_index,
-                     borders, draw_top, draw_bottom)
+                     borders, draw_top, draw_bottom, item.stream)
+
+
+def sep_block(section: int, stream: str) -> ParaBlock:
+    """The note separator (Word's short rule above the footnotes, or above the endnotes): one
+    empty line of NOTE_SEP_PT with the rule drawn by the placer; kept with what follows."""
+    return ParaBlock([Line([], 0.0, 0, NOTE_SEP_PT, NOTE_SEP_PT / 2)], 0.0, 0.0, 0.0, "left", [], 0.0, 0.0, 0.0,
+                     True, False, False, section, False, [], [[]], None, stream=stream, note_sep=True)
+
+
+def note_height(blocks: list[ParaBlock]) -> float:
+    return sum(pb.space_before + pb.height + pb.space_after for pb in blocks)

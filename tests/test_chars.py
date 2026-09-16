@@ -167,7 +167,7 @@ def _corpus_paragraphs():
             doc = parse_docx(path)
         except Exception:
             continue
-        for p, _loc in walk(doc):
+        for p, _loc, _w in walk(doc):
             yield p
 
 
@@ -186,7 +186,7 @@ def test_per_run_walk_matches_the_oracle_on_a_generated_document():
         f'<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve"> says\t</w:t></w:r>'
         f'<w:r><w:t xml:space="preserve"> that {k * 7} </w:t></w:r></w:p>' for k in range(40))
     doc = parse_docx(make_docx({"word/document.xml": DOC(body)}))
-    ps = [p for p, _ in walk(doc)]
+    ps = [p for p, _l, _w in walk(doc)]
     assert len(ps) == 40
     for p in ps:
         _same_as_old(p)
@@ -214,3 +214,16 @@ def test_spans_carry_style_bold_without_making_it_a_formatting_difference():
     assert bold == [[7, 11]]
     assert [(s.b, s.style_bold) for s in spans] == [(False, True), (True, True), (False, False)]
     assert spans[0].same_fmt(spans[2])
+
+
+def test_note_marks_locate_references_in_the_collapsed_text():
+    from calandria.diff.chars import note_marks
+    from calandria.model import NoteRef
+    ref = lambda k: {"note": NoteRef("footnote", k)}       # noqa: E731
+    p = _p(("  Delivery", {}), ("", ref(2)), ("  within ", {}), ("", ref(1)), (" days", {}), ("", ref(3)), ("  ", {}))
+    assert p.text == "Delivery within days"
+    # a mark sits where it stood in the source (after a preceding space, once collapsed); one after
+    # the last word is at the text length
+    assert note_marks(p) == [(8, NoteRef("footnote", 2)), (16, NoteRef("footnote", 1)), (20, NoteRef("footnote", 3))]
+    assert note_marks(_p(("", ref(9)), ("Lead", {}))) == [(0, NoteRef("footnote", 9))]
+    assert note_marks(_p(("no notes", {}))) == []

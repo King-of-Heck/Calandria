@@ -3,6 +3,7 @@ import io
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.pieces import LayoutOptions, Piece, merge_pieces, row_pieces, visible
+from calandria.model import NoteRef
 from calandria.testing.makedocx import DOC, P, PR, R, make_docx
 
 
@@ -139,3 +140,38 @@ def test_style_bold_reaches_the_piece_as_bold_and_is_not_a_formatting_change():
     c2 = compare(a, b)                            # only the style's bold differs: no change at all
     (row2,) = c2.rows
     assert row2.type == "equal" and not row2.fmt_changed
+
+
+def test_reference_marks_are_raised_pieces_with_the_note_number_and_mode():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    fa = {"word/footnotes.xml": FOOTNOTES({1: "Old note.", 2: "Kept."})}
+    fb = {"word/footnotes.xml": FOOTNOTES({2: "Kept.", 3: "New note."})}
+    a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Text") + FNREF(1) + R(" more") + FNREF(2))), **fa})))
+    b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Text") + FNREF(2) + R(" more") + FNREF(3))), **fb})))
+    c = compare(a, b)
+    row = c.rows[0]
+    assert row.type == "equal"
+    ps = row_pieces(c, row, LayoutOptions())
+    # the revised document's marks: note 2 is its first footnote (shared, eq), note 3 its second
+    # (inserted); the original's dropped note 1 keeps its deleted mark where it stood
+    assert [(p.text, p.rise, p.mode) for p in ps] == [("Text", False, "eq"), ("1", True, "eq"), ("1", True, "del"),
+                                                     (" more", False, "eq"), ("2", True, "ins")]
+    ps_o = row_pieces(c, row, LayoutOptions(side="original"))
+    assert [(p.text, p.rise, p.mode) for p in ps_o] == [("Text", False, "eq"), ("1", True, "del"), (" more", False, "eq"),
+                                                       ("2", True, "eq")]
+    assert c.note_modes == {("a", NoteRef("footnote", 1)): "del", ("a", NoteRef("footnote", 2)): "eq",
+                            ("b", NoteRef("footnote", 2)): "eq", ("b", NoteRef("footnote", 3)): "ins"}
+
+
+def test_a_mark_inside_a_deleted_segment_comes_from_the_original():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    fa = {"word/footnotes.xml": FOOTNOTES({1: "Gone."})}
+    a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Keep all of this shared text") + FNREF(1)
+                                                                       + R(" and drop that"))), **fa})))
+    b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Keep all of this shared text and add this")))})))
+    c = compare(a, b)
+    row, note_row = c.rows                    # the body row, then the deleted note's own row
+    assert row.type == "changed" and note_row.type == "deleted"
+    ps = row_pieces(c, row, LayoutOptions())
+    marks = [(p.text, p.mode) for p in ps if p.rise]
+    assert marks == [("1", "del")]

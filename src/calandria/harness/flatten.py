@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from .changes import sentinels
 from ..diff.units import Unit, units
 from ..model import Document
 
@@ -32,7 +33,7 @@ def _rec(u: Unit) -> dict:
     pr = u.para.props
     p = u.para
     return {
-        "text": u.text,
+        "text": u.text + "".join(sentinels(u)),      # the reference's note anchors (KNOWN_DIVERGENCES (o))
         "marker": u.marker,
         "isNumbered": p.num is not None,
         "ilvl": p.num.ilvl if p.num else 0,
@@ -56,4 +57,4 @@ def _rec(u: Unit) -> dict:
 
 
 def flatten(doc: Document) -> list[dict]:
-    return [_rec(u) for u in units(doc)]
+    return [_rec(u) for u in units(doc) if u.stream == "body"]   # the reference has no note paragraphs

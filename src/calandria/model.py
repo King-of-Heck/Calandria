@@ -14,6 +14,12 @@ def collapse_ws(s: str) -> str:
     return _WS.sub(" ", s).strip()
 
 
+@dataclass(frozen=True)
+class NoteRef:
+    kind: str        # "footnote" | "endnote"
+    id: int          # w:id in footnotes.xml / endnotes.xml
+
+
 @dataclass
 class RunProps:
     bold: bool = False
@@ -26,6 +32,7 @@ class RunProps:
     small_caps: bool = False     # w:smallCaps: drawn in capitals too (Word's smaller capitals are not modelled)
     style_bold: bool = False     # bold as drawn: the paragraph style's bold unless the run turns it off.
                                  # `bold` (the run's own w:b) is the compared property (parity with the reference).
+    note: NoteRef | None = None  # this (empty) run is a footnote/endnote reference mark
 
 
 @dataclass
@@ -95,6 +102,8 @@ class ParaProps:
     border_bottom: Border | None = None
     border_left: Border | None = None
     border_right: Border | None = None
+    mark_font: str | None = None       # the paragraph mark's font and size (style chain, then the
+    mark_size_pt: float | None = None  # paragraph's own pPr/rPr): what sizes an empty paragraph's line
 
 
 @dataclass
@@ -158,6 +167,9 @@ class Document:
     default_size_pt: float = 11.0
     even_and_odd: bool = False
     default_tab_pt: float = 36.0       # w:settings/w:defaultTabStop (720 twips when absent)
+    footnotes: dict = field(default_factory=dict)      # note id -> the note's blocks (separators excluded)
+    endnotes: dict = field(default_factory=dict)
+    note_numbers: dict = field(default_factory=dict)   # NoteRef -> displayed number (body reference order, per kind)
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

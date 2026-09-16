@@ -5,7 +5,7 @@ import json
 import pytest
 
 from calandria.diff.compare import compare
-from calandria.harness.changes import records
+from calandria.harness.changes import records, reference_summary
 
 from .common import CORPUS, ORACLE, allowed, divergences, load_allow, pairs, parse_cached
 
@@ -45,7 +45,7 @@ def test_change_list_parity(pair, variant):
             problems.append(_first_mismatch(ours, ref["rows"]))
         problems += [f"[{d['i']}] {d['field']}: ours={d['ours']!r} ref={d['ref']!r}" for d in divs[:25]]
     assert all(k in ref["summary"] for k in SUMMARY_FIELDS), "stale oracle: run node harness/oracle_export.mjs"
-    ours_s = {k: cmp.summary[k] for k in SUMMARY_FIELDS}
+    ours_s = {k: reference_summary(cmp)[k] for k in SUMMARY_FIELDS}
     ref_s = {k: ref["summary"][k] for k in SUMMARY_FIELDS}
     if ours_s != ref_s:
         problems.append(f"summary ours={ours_s} ref={ref_s}")

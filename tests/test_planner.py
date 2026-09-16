@@ -101,3 +101,23 @@ def test_space_before_is_dropped_when_widow_control_pushes_the_block_whole():
     # moves it whole to page 2, an automatic page, so its space-before is dropped there.
     plan = plan_breaks([B(10), B(10, 10, 10, space_before=3)], const(35))
     assert plan.breaks == [Break(1, 0)] and plan.before == [True, False]
+
+
+def test_a_line_carries_its_footnotes_and_the_separator_once_per_page():
+    from calandria.layout.planner import NOTE_SEP_PT
+    assert NOTE_SEP_PT == 9.0
+    # the second line references a 42 pt note: 10 + (10 + 42 + 9) = 71 > 70 moves it; 41 fits
+    assert plan_breaks([B(10, 10, line_notes=[0, 42])], const(70)).breaks == [Break(0, 1)]
+    assert plan_breaks([B(10, 10, line_notes=[0, 41])], const(70)).breaks == []
+    # two notes on one page share one separator: (10 + 20 + 9) + (10 + 21) = 70 fits, 22 does not
+    assert plan_breaks([B(10, 10, line_notes=[20, 21])], const(70)).breaks == []
+    assert plan_breaks([B(10, 10, line_notes=[20, 22])], const(70)).breaks == [Break(0, 1)]
+    # the notes stay counted on the page for the blocks that follow
+    assert plan_breaks([B(10, line_notes=[50]), B(10, 10)], const(80)).breaks == [Break(1, 0)]   # 69 + 20 > 80
+    assert plan_breaks([B(10, line_notes=[50]), B(10, 10)], const(89)).breaks == []
+
+
+def test_no_notes_leaves_the_plan_unchanged():
+    blocks = [B(10, 10, 10), B(10, 10, 10), B(10, 10, 10)]
+    with_notes = [B(10, 10, 10, line_notes=[0, 0, 0]), B(10, 10, 10, line_notes=[0, 0, 0]), B(10, 10, 10)]
+    assert plan_breaks(blocks, const(50)).breaks == plan_breaks(with_notes, const(50)).breaks == [Break(1, 0), Break(2, 0)]

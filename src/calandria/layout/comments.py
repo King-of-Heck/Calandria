@@ -23,7 +23,7 @@ def _header(c) -> str:
     who = c.initials or c.author
     date = (c.date or "")[:10]        # ISO date, day precision
     head = f"{who} - {date}" if date else who
-    return ("\u2713 " + head) if c.done else head
+    return ("[resolved] " + head) if c.done else head
 
 
 def _face(ctx: Ctx):

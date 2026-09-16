@@ -108,12 +108,15 @@ def test_reply_with_no_anchor_inherits_its_roots_page():
     assert reply.anchor_x == root.anchor_x and reply.anchor_y == root.anchor_y
 
 
-def test_done_comment_bubble_header_starts_with_the_check_mark():
-    b = _doc(PR(R("The ") + CRANGE("0", "fox") + R(" jumps.")),
-             comments=[{"id": "0", "author": "Ada", "initials": "AL", "paras": [("p1", "note")]}],
-             comments_ex=[{"paraId": "p1", "done": True}])
-    a = _doc(PR(R("The fox jumps.")))
+def test_done_comment_bubble_header_starts_with_the_resolved_marker():
+    b = _doc(PR(R("The ") + CRANGE("0", "fox") + R(" jumps.")) +
+             PR(R("The ") + CRANGE("1", "dog") + R(" sleeps.")),
+             comments=[{"id": "0", "author": "Ada", "initials": "AL", "paras": [("p1", "note")]},
+                       {"id": "1", "author": "Bo", "initials": "BX", "paras": [("p2", "other note")]}],
+             comments_ex=[{"paraId": "p1", "done": True}, {"paraId": "p2", "done": False}])
+    a = _doc(PR(R("The fox jumps.")) + PR(R("The dog sleeps.")))
     lay = layout(compare(a, b), OPTS())
-    placed = [pc for p in lay.pages for pc in p.comments]
-    assert len(placed) == 1
-    assert placed[0].bubble.header.startswith("✓")
+    placed = {pc.bubble.cid: pc for p in lay.pages for pc in p.comments}
+    assert len(placed) == 2
+    assert placed[1].bubble.header.startswith("[resolved] ")
+    assert not placed[2].bubble.header.startswith("[resolved] ")

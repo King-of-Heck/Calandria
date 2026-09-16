@@ -128,4 +128,20 @@ def compare_units(orig: list[Unit], rev: list[Unit], *, ignore_case: bool = Fals
             summary[_PLURAL[p.category]] += 1
         passages += ps
     summary["total"] = len(passages)
-    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering, passages)
+    return Comparison(rows, summary, orig, rev, ignore_case, count_numbering, passages,
+                      note_modes=_note_modes(rows, orig, rev))
+
+
+def _note_modes(rows: list[Row], orig: list[Unit], rev: list[Unit]) -> dict:
+    """The mode of every note's reference mark, from the row of the note's first paragraph."""
+    out: dict = {}
+    for r in rows:
+        if r.ni is not None:
+            u = rev[r.ni]
+            if u.note is not None and (r.ni == 0 or rev[r.ni - 1].note != u.note):
+                out[("b", u.note)] = "ins" if r.type == "inserted" else "eq"
+        if r.oi is not None:
+            u = orig[r.oi]
+            if u.note is not None and (r.oi == 0 or orig[r.oi - 1].note != u.note):
+                out[("a", u.note)] = "del" if r.type == "deleted" else "eq"
+    return out

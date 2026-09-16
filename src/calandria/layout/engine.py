@@ -70,7 +70,8 @@ def _new_page(pages: list[Page], sec: Section, section_idx: int) -> Page:
 def _glyph(r: Run, x: float, ctx: Ctx) -> GlyphRun:
     ctx.faces.setdefault(r.face.key, r.face)
     p = r.piece
-    return GlyphRun(r.text, x, r.w, r.face.key, r.size, p.bold, p.italic, p.underline, p.color, p.mode, p.fmt, p.cid)
+    return GlyphRun(r.text, x, r.w, r.face.key, r.size, p.bold, p.italic, p.underline, p.color, p.mode, p.fmt, p.cid,
+                    r.rise)
 
 
 def place_line(blk: ParaBlock, li: int, line: Line, base_x: float, y: float, container_w: float, ctx: Ctx) -> PlacedLine:

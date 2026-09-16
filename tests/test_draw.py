@@ -450,3 +450,12 @@ def test_paragraph_borders_are_painted_as_lines_before_the_text():
     assert ("line", 71.75, 72, 71.75, 89, 0.5, "ff0000") in lines
     kinds = [o[0] for o in p.ops]
     assert kinds.index("line") < kinds.index("text")
+
+
+def test_a_reference_mark_is_drawn_above_the_baseline():
+    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    body = PR(R("aaaa") + FNREF(1))
+    L = _lay(body, body, sty=STY)
+    p = _runs(L)
+    assert p.of("text")[0] == ("text", 72, 80, "aaaa", "<fake:Fake|>", 10, BLACK, False, False)
+    assert p.of("text")[1] == ("text", 92, 76.5, "1", "<fake:Fake|>", 6.5, BLACK, False, False)

@@ -103,9 +103,25 @@ def _joins(a, b) -> bool:
             and a.ind_left_pt == b.para.props.ind_left_pt and a.ind_right_pt == b.para.props.ind_right_pt)
 
 
+def _note_lead(item: Item, row, pieces: list[Piece], ctx: Ctx) -> list[Piece]:
+    """The number that opens a note's first paragraph (Word's w:footnoteRef): the note's own
+    number, raised, in the formatting of the note's first text, then a space; in the mode of the
+    note as a whole."""
+    doc = ctx.cmp.a_doc if item.side == "a" else ctx.cmp.b_doc
+    number = str(doc.note_numbers.get(item.note, "?")) if doc is not None else "?"
+    mode = {"inserted": "ins", "deleted": "del"}.get(row.type, "eq")
+    p0 = next((p for p in pieces if p.text.strip()), None)
+    if p0 is None:
+        return [Piece(number, mode, rise=True), Piece(" ", mode)]
+    return [Piece(number, mode, p0.bold, p0.italic, font=p0.font, size=p0.size, color=p0.color, rise=True),
+            Piece(" ", mode, p0.bold, p0.italic, font=p0.font, size=p0.size, color=p0.color)]
+
+
 def para_block(item: Item, prev: Item | None, nxt: Item | None, ctx: Ctx, avail_w: float | None = None) -> ParaBlock:
     para, row, props = item.para, item.row, item.para.props
     pieces = row_pieces(ctx.cmp, row, ctx.opts) if row is not None else []
+    if row is not None and item.note is not None and (prev is None or prev.note != item.note):
+        pieces = _note_lead(item, row, pieces, ctx) + pieces
     content_w = ctx.content_w if avail_w is None else avail_w
     fonts = ctx.fonts
     font, size, bold, italic = _base_style(pieces, ctx)

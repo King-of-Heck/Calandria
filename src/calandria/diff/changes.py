@@ -100,6 +100,9 @@ class Comparison:
     passages: list[Passage] = field(default_factory=list)
     a_doc: Document | None = None
     b_doc: Document | None = None
+    # (side, NoteRef) -> "ins" | "del" | "eq": how a note's reference mark is drawn when the text
+    # around it is shared -- an inserted note's mark is inserted, a deleted note's deleted
+    note_modes: dict = field(default_factory=dict)
 
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]

@@ -23,6 +23,7 @@ class GlyphRun:
     mode: str            # eq | del | ins
     fmt: bool            # inside a formatting-change range
     cid: int | None
+    rise: float = 0.0    # points above the line's baseline (a note reference mark)
 
 
 @dataclass(frozen=True)
@@ -110,8 +111,11 @@ class Layout:
         r = lambda v: round(v, 2)  # noqa: E731
 
         def run(g: GlyphRun) -> dict:
-            return {"t": g.text, "x": r(g.x), "w": r(g.w), "face": g.face, "size": r(g.size), "b": g.bold,
-                    "i": g.italic, "u": g.underline, "clr": g.color, "m": g.mode, "fmt": g.fmt, "cid": g.cid}
+            d = {"t": g.text, "x": r(g.x), "w": r(g.w), "face": g.face, "size": r(g.size), "b": g.bold,
+                 "i": g.italic, "u": g.underline, "clr": g.color, "m": g.mode, "fmt": g.fmt, "cid": g.cid}
+            if g.rise:
+                d["rise"] = r(g.rise)
+            return d
 
         def line(ln: PlacedLine) -> dict:
             d = {"x": r(ln.x), "top": r(ln.top), "h": r(ln.height), "baseline": r(ln.baseline),

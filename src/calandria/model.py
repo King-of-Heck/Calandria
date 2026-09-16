@@ -93,6 +93,10 @@ class ParaProps:
     keep_next: bool = False
     keep_lines: bool = False
     page_break_before: bool = False
+    # page_break_before came from the section break before this paragraph (the reference's
+    # reading, kept for parity); the layout starts the section's page itself and ignores it,
+    # so empty paragraphs at the top of a section do not push the first text a page further.
+    section_page_break: bool = False
     contextual_spacing: bool = False
     outline_level: int | None = None
     style_name: str | None = None
@@ -170,6 +174,10 @@ class Document:
     footnotes: dict = field(default_factory=dict)      # note id -> the note's blocks (separators excluded)
     endnotes: dict = field(default_factory=dict)
     note_numbers: dict = field(default_factory=dict)   # NoteRef -> displayed number (body reference order, per kind)
+    # Word's HTML paragraph auto spacing (the default): between two paragraphs the LARGER of the
+    # first's space after and the second's space before applies, not the sum. The compatibility
+    # setting w:doNotUseHTMLParagraphAutoSpacing restores the sum.
+    html_spacing: bool = True
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

@@ -6,7 +6,7 @@ from collections import Counter
 from ..diff.changes import Comparison
 from ..diff.compare import compare
 from ..model import Document, Section
-from .blocks import Ctx, ParaBlock, note_height, para_block, sep_block
+from .blocks import Ctx, ParaBlock, collapse_spacing, note_height, para_block, sep_block
 from .fonts import default_resolver
 from .lines import Line, Run
 from .merged import Item, merged_items
@@ -29,13 +29,14 @@ def build_blocks(items: list[Item], ctx: Ctx) -> list:
         blocks = [para_block(it, its[j - 1] if j else None, its[j + 1] if j + 1 < len(its) else None, ctx)
                   for j, it in enumerate(its) if (ctx.opts.show_equal if it.row is None else visible(it.row, ctx.opts))]
         if stream == "footnote":
-            ctx.notes[key] = blocks
+            ctx.notes[key] = collapse_spacing(blocks, ctx)
         else:
             tail.extend(blocks)
     out = _body_blocks(body, ctx)
     if tail:
         out.append(sep_block(tail[0].section, "endnote"))
         out.extend(tail)
+    collapse_spacing(out, ctx)
     _annotate_notes(out, ctx)
     return out
 
@@ -331,7 +332,8 @@ def layout(cmp: Comparison, opts: LayoutOptions | None = None) -> Layout:
         sec = sections[min(leader, len(sections) - 1)]
         ctx = Ctx(cmp, run_opts, fonts, sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt,
                   sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
-                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps)
+                  doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
+                  html_spacing=doc.html_spacing)
         blocks = build_blocks(group, ctx)
         if not blocks:
             continue

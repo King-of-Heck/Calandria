@@ -105,3 +105,11 @@ def test_a_section_break_inside_a_header_part_is_not_a_section():
     assert len(d.sections) == 1                        # the body's own section, and no phantom
     assert d.parts["header1.xml"][0].text == "Head"
     assert d.parts["header1.xml"][0].props.section_break is False
+
+
+def test_a_section_break_inside_a_footnote_does_not_add_a_section():
+    from calandria.testing.makedocx import FOOTNOTES, FNREF
+    note = FOOTNOTES({1: PR(R("note text"), ppr=SECT())})
+    d = _doc(PR(R("body") + FNREF(1)) + SECT(), **{"word/footnotes.xml": note})
+    assert len(d.sections) == 1 and d.footnotes[1][0].text == "note text"
+    assert d.footnotes[1][0].props.section_break is False

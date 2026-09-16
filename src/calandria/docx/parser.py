@@ -33,7 +33,7 @@ class _Ctx:
         self.pending_break = False
         self.pending_section = False       # the pending break is a section break's, not a w:br
         self.sections: list[Section] = []
-        self.in_part = False               # parsing a header/footer part: a stray sectPr there is not a section
+        self.in_part = False               # parsing a note or a header/footer part: a stray sectPr there is not a section
         self.note_numbers: dict[NoteRef, int] = {}     # filled in body reference order
         self.rels: dict[str, str] = {}
 
@@ -63,10 +63,10 @@ def parse_package(pkg: Package) -> Document:
     tab = twips_to_pt(wval(settings.find(wq("defaultTabStop")))) if settings is not None else None
     html_spacing = not (settings is not None
                         and wbool(settings.find(f"{wq('compat')}/{wq('doNotUseHTMLParagraphAutoSpacing')}")))
+    ctx.in_part = True
     footnotes = _notes(pkg.xml("word/footnotes.xml"), "footnote", ctx)
     endnotes = _notes(pkg.xml("word/endnotes.xml"), "endnote", ctx)
     parts: dict = {}
-    ctx.in_part = True
     for sec in list(ctx.sections):
         for attr in ("header_default", "header_first", "header_even",
                      "footer_default", "footer_first", "footer_even"):

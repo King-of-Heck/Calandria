@@ -70,30 +70,31 @@ def merge_pieces(pieces: list[Piece]) -> list[Piece]:
     return out
 
 
-def _mark(unit: Unit, ref, at: int, mode: str, numbers: dict, modes: dict, side: str) -> Piece:
-    """The reference mark of `ref` at offset `at`: the note's number in its own document, drawn
-    raised in the formatting of the text it sits in, in the mode of the note itself (inserted
-    note, inserted mark) when the surrounding text is shared."""
+def _mark(unit: Unit, ref, at: int, mode: str, side: str, cmp: Comparison) -> Piece:
+    """The reference mark of `ref` at offset `at`: the note's number in its own document (`side`),
+    drawn raised in the formatting of the text it sits in, in the mode of the note itself
+    (inserted note, inserted mark) when the surrounding text is shared."""
     sp = next((x for x in unit.fmt_spans if x.s <= at < x.e), unit.fmt_spans[-1] if unit.fmt_spans else None)
-    m = modes.get((side, ref), mode) if mode == "eq" else mode
-    text = str(numbers.get(ref, "?"))
+    m = cmp.note_modes.get((side, ref), mode) if mode == "eq" else mode
+    doc = cmp.a_doc if side == "a" else cmp.b_doc
+    text = str(doc.note_numbers.get(ref, "?")) if doc is not None else "?"
     if sp is None:
         return Piece(text, m, rise=True)
     return Piece(text, m, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, rise=True)
 
 
-def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, numbers: dict | None = None,
-           modes: dict | None = None, side: str = "b") -> list[Piece]:
+def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, refs=(), cmp: Comparison | None = None) -> list[Piece]:
+    """The pieces of unit.text[s:e] in `mode`, cut at every formatting or formatting-change edge
+    and at every tab; `refs` = (offset, NoteRef, side) reference marks to splice in at their
+    offsets (a mark at the end of the slice only when the text ends there)."""
     spans = unit.fmt_spans
     cuts = {s, e}
-    marks: dict[int, list] = {}             # offset -> the reference marks that sit there
-    if numbers is not None:
-        for off, ref in unit.note_refs:
-            # a mark at the end of this slice belongs to the next slice, unless the text ends here
-            if s <= off < e or (off == e == len(unit.text)):
-                marks.setdefault(off, []).append(ref)
-                if s < off < e:
-                    cuts.add(off)
+    marks: dict[int, list] = {}             # offset -> the (ref, side) marks that sit there
+    for off, ref, side in refs:
+        if s <= off < e or (off == e == len(unit.text)):
+            marks.setdefault(off, []).append((ref, side))
+            if s < off < e:
+                cuts.add(off)
     for sp in spans:
         if s < sp.s < e:
             cuts.add(sp.s)
@@ -111,8 +112,8 @@ def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, numbers: dict | N
     pts = sorted(cuts)
     out: list[Piece] = []
     for a, b in zip(pts, pts[1:]):
-        for ref in marks.pop(a, ()):
-            out.append(_mark(unit, ref, a, mode, numbers, modes or {}, side))
+        for ref, side in marks.pop(a, ()):
+            out.append(_mark(unit, ref, a, mode, side, cmp))
         sp = next((x for x in spans if x.s <= a < x.e), None)
         fmt = any(r.s <= a < r.e for r in ranges)
         text = unit.text[a:b]
@@ -123,8 +124,8 @@ def _slice(unit: Unit, s: int, e: int, mode: str, ranges, cid, numbers: dict | N
             out.append(Piece(text, mode, sp.b or sp.style_bold, sp.i, sp.u, sp.f, sp.z, sp.clr, fmt, cid,
                              sp.caps or sp.small_caps, tab))
     for off in sorted(marks):                       # marks at the very end of the text
-        for ref in marks[off]:
-            out.append(_mark(unit, ref, off, mode, numbers, modes or {}, side))
+        for ref, side in marks[off]:
+            out.append(_mark(unit, ref, off, mode, side, cmp))
     return out
 
 
@@ -134,25 +135,30 @@ def row_pieces(cmp: Comparison, row: Row, opts: LayoutOptions) -> list[Piece]:
     ranges = row.fmt_ranges if (row.fmt_changed and opts.show_formatting) else []
     oa = ob = 0
     out: list[Piece] = []
-    docs = {"a": cmp.a_doc, "b": cmp.b_doc}
     for seg in row.segments:
         n = len(seg.t)
         if seg.m == "del":
             unit, start, oa, side = ou, oa, oa + n, "a"
+            refs = [(o, ref, "a") for o, ref in ou.note_refs]
         elif seg.m == "ins":
             unit, start, ob, side = ru, ob, ob + n, "b"
+            refs = [(o, ref, "b") for o, ref in ru.note_refs]
         else:
             unit, start, side = (ou, oa, "a") if opts.side == "original" else (ru, ob, "b")
+            refs = [(o, ref, side) for o, ref in unit.note_refs]
+            if opts.side == "blackline" and ou is not None and ru is not None:
+                # shared text shows the revised marks; a note the revision dropped keeps its
+                # (deleted) mark where it stood, at the same offset of the shared text
+                refs += [(ob + (o - oa), ref, "a") for o, ref in ou.note_refs
+                         if (oa <= o < oa + n or o == oa + n == len(ou.text))
+                         and cmp.note_modes.get(("a", ref)) == "del"]
             oa += n
             ob += n
         if seg.m == "del" and not opts.show_deletions:
             continue
         if seg.m == "ins" and not opts.show_insertions:
             continue
-        doc = docs[side]
-        numbers = doc.note_numbers if doc is not None else {}
-        out.extend(_slice(unit, start, start + n, seg.m, ranges if seg.m == "eq" else [], seg.cid,
-                          numbers, cmp.note_modes, side))
+        out.extend(_slice(unit, start, start + n, seg.m, ranges if seg.m == "eq" else [], seg.cid, refs, cmp))
     lead_unit = ou if (opts.side == "original" and ou is not None) else (ru or ou)
     if lead_unit is not None and lead_unit.lead_tabs and out:
         out.insert(0, Piece("", out[0].mode, tab=lead_unit.lead_tabs))

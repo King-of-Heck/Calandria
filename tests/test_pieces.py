@@ -152,9 +152,10 @@ def test_reference_marks_are_raised_pieces_with_the_note_number_and_mode():
     row = c.rows[0]
     assert row.type == "equal"
     ps = row_pieces(c, row, LayoutOptions())
-    # the revised document's marks: note 2 is its first footnote (shared, eq), note 3 its second (inserted)
-    assert [(p.text, p.rise, p.mode) for p in ps] == [("Text", False, "eq"), ("1", True, "eq"), (" more", False, "eq"),
-                                                     ("2", True, "ins")]
+    # the revised document's marks: note 2 is its first footnote (shared, eq), note 3 its second
+    # (inserted); the original's dropped note 1 keeps its deleted mark where it stood
+    assert [(p.text, p.rise, p.mode) for p in ps] == [("Text", False, "eq"), ("1", True, "eq"), ("1", True, "del"),
+                                                     (" more", False, "eq"), ("2", True, "ins")]
     ps_o = row_pieces(c, row, LayoutOptions(side="original"))
     assert [(p.text, p.rise, p.mode) for p in ps_o] == [("Text", False, "eq"), ("1", True, "del"), (" more", False, "eq"),
                                                        ("2", True, "eq")]

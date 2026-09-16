@@ -17,7 +17,7 @@ def test_flatten_shape_and_empty_paragraphs_dropped():
     assert set(recs[0]) == {"text", "marker", "isNumbered", "ilvl", "styleId", "align", "indLeftPt",
                             "indHangingPt", "indFirstLinePt", "spaceBeforePt", "spaceAfterPt", "lineSpacing",
                             "lineExactPt", "keepNext", "keepLines", "pageBreakBefore", "contextualSpacing",
-                            "heading", "boldRuns", "tbl", "stream", "note"}
+                            "heading", "boldRuns", "tbl"}
     assert recs[0]["marker"] == "" and recs[0]["isNumbered"] is False
 
 

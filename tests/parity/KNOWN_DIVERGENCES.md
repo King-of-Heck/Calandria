@@ -175,3 +175,21 @@ The page model carries cell boxes only. In v2.0.0 every sink draws the same unif
 around every cell box (a `v_merge_continue` cell draws no top rule), no shading, and cells are
 top-aligned. `w:tblBorders` / `w:tcBorders`, `w:shd` and `w:vAlign` are not modelled; when they
 are, they will be added to `Cell` and `CellBox` so that both sinks keep reading one answer.
+
+## (o) Footnotes and endnotes
+
+The reference has no note paragraphs in its comparison rows: it folds every footnote/endnote
+reference into its paragraph's text as a sentinel token (U+E000 `kind:id` U+E001) appended at
+the END of the paragraph in reference order, and diffs those tokens with the words. Calandria
+keeps the text as typed, anchors each reference by offset, and compares the note bodies as rows
+of their own right after the paragraph that references them (`units.walk`), counted like body
+text (v2.6.0).
+
+The harness projects to the reference's shape (`harness/changes.records`, `harness/flatten`):
+note rows and note paragraphs are dropped, `oi`/`ni` count body paragraphs only, the sentinels
+are appended to `text` and `html` (shared plain, original-only deleted, revised-only inserted),
+and the compared summary keys are recounted over body rows (`reference_summary`). Left as real
+divergences, to be allowed per pair when hit: a paragraph whose only change is a reference added
+or removed is "changed" for the reference (a sentinel token moved) and "equal" for Calandria (the
+note itself is the inserted/deleted row); a sentinel token can tip the reference's pairing
+similarity or dense-rewrite thresholds; a bold run ending the paragraph spans the sentinels there.

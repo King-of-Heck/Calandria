@@ -32,7 +32,8 @@ function rows(res) {
   return res.rows.map(r => ({type: r.type, cid: r.cid ?? null, cat: r.cat ?? null, oi: r.oi ?? null, ni: r.ni ?? null,
     html: r.html ?? '', numChanged: !!r.numChanged, oldMarker: r.oldMarker ?? null,
     fmtChanged: !!r.fmtChanged, fmtDescs: r.fmtDescs ? JSON.parse(JSON.stringify(r.fmtDescs)) : null,
-    tbl: r.meta && r.meta.tbl ? {ti: r.meta.tbl.ti, ri: r.meta.tbl.ri, ci: r.meta.tbl.ci, cols: r.meta.tbl.cols} : null}));
+    tbl: r.meta && r.meta.tbl ? {ti: r.meta.tbl.ti, ri: r.meta.tbl.ri, ci: r.meta.tbl.ci, cols: r.meta.tbl.cols} : null,
+    note: r.meta && r.meta.note ? JSON.parse(JSON.stringify(r.meta.note)) : null}));
 }
 function result(res) { return {rows: rows(res), summary: JSON.parse(JSON.stringify(res.summary))}; }
 // v2.0.0 scope: no moves (moveMin:Infinity) and no split/merge (SM_SIM is a `var` in the engine, so

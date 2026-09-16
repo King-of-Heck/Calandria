@@ -4,7 +4,7 @@ from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.layout.engine import layout
 from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import PdfOptions, draw_layout
+from calandria.pdf.draw import BLACK, PdfOptions, draw_layout
 from calandria.pdf.rendersets import render_set
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.recpaint import RecordingPainter
@@ -18,6 +18,18 @@ def _pair():
         "word/comments.xml": COMMENTS([{"id": "0", "author": "Ada", "initials": "AL",
                                         "date": "2026-09-16T00:00:00Z", "paras": [("p1", "Which fox?")]}])})))
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("The fox jumps.")))})))
+    return a, b
+
+
+def _removed_pair():
+    # comment "0" exists only in the original (a) side, so it compares to state "removed" and its
+    # body runs are all diff-mode "del".
+    a = parse_docx(io.BytesIO(make_docx({
+        "word/document.xml": DOC(PR(R("The ") + CRANGE("0", "fox") + R(" jumps."))),
+        "word/_rels/document.xml.rels": CRELS(comments=True),
+        "word/comments.xml": COMMENTS([{"id": "0", "author": "Ada", "initials": "AL",
+                                        "date": "2026-09-16T00:00:00Z", "paras": [("p1", "Which fox?")]}])})))
+    b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("The fox jumps.")))})))
     return a, b
 
 
@@ -70,3 +82,43 @@ def test_svg_pages_contain_the_bubble_rect_and_text():
     svg = "".join(render_pages(lay, resolver=FakeResolver()))
     # the bubble text may be split across <text> runs; assert a word of it and the bubble rect
     assert "fox" in svg and "<rect" in svg
+
+
+def _drawn_text(lay):
+    painter = RecordingPainter()
+    draw_layout(lay, render_set("Standard"), PdfOptions(report="none", fonts=FakeResolver()),
+                painter, FakeResolver(), None)
+    return " ".join(op[3] for op in painter.of("text"))
+
+
+def test_a_side_pane_draws_no_comment_bubbles():
+    a, b = _pair()
+    original = layout(compare(a, b), LayoutOptions(side="original", fonts=FakeResolver()))
+    modified = layout(compare(a, b), LayoutOptions(side="modified", fonts=FakeResolver()))
+    blackline = layout(compare(a, b), LayoutOptions(fonts=FakeResolver()))
+    # an added comment would never have existed on the original pane, and a side pane shows no
+    # comment column at all -- only the blackline draws bubble text.
+    assert "Which fox?" not in _drawn_text(original)
+    assert "Which fox?" not in _drawn_text(modified)
+    assert "Which fox?" in _drawn_text(blackline)
+
+
+def test_comment_body_runs_are_styled_by_their_diff_category():
+    rs = render_set("Standard")
+    ins_color = rs.category("ins", False).color
+    del_color = rs.category("del", False).color
+    assert ins_color != BLACK and del_color != BLACK
+
+    a, b = _pair()                    # an added comment: body runs are all diff-mode "ins"
+    lay = layout(compare(a, b), LayoutOptions(fonts=FakeResolver()))
+    painter = RecordingPainter()
+    draw_layout(lay, rs, PdfOptions(report="none", fonts=FakeResolver()), painter, FakeResolver(), None)
+    fox_ops = [op for op in painter.of("text") if op[3] in ("Which", "fox?")]
+    assert fox_ops and all(op[6] == ins_color for op in fox_ops), painter.of("text")
+
+    a2, b2 = _removed_pair()          # a removed comment: body runs are all diff-mode "del"
+    lay2 = layout(compare(a2, b2), LayoutOptions(fonts=FakeResolver()))
+    painter2 = RecordingPainter()
+    draw_layout(lay2, rs, PdfOptions(report="none", fonts=FakeResolver()), painter2, FakeResolver(), None)
+    fox_ops2 = [op for op in painter2.of("text") if op[3] in ("Which", "fox?")]
+    assert fox_ops2 and all(op[6] == del_color for op in fox_ops2), painter2.of("text")

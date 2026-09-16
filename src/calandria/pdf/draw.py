@@ -146,7 +146,7 @@ BRACKET_LEN = 4.0
 NEUTRAL = "888888"
 
 
-def draw_comments(page: Page, fonts: dict[str, FontRef], rs: RenderSet, painter, number_face) -> None:
+def draw_comments(page: Page, fonts: dict[str, FontRef], rs: RenderSet, painter) -> None:
     """The comment column for one page: each PlacedComment's bubble box, border, connector back
     to its anchor, an anchor bracket, and the header/text lines. `bubble.lines` were built by
     layout.comments.build_bubbles/_stack at the bubble's OWN origin (top-left 0,0, padding baked
@@ -171,7 +171,7 @@ def draw_comments(page: Page, fonts: dict[str, FontRef], rs: RenderSet, painter,
         for ln in b.lines:
             moved = replace(ln, top=pc.y + ln.top, baseline=pc.y + ln.baseline,
                              runs=[replace(g, x=pc.x + g.x) for g in ln.runs])
-            draw_runs(moved, moved.runs, fonts, rs, painter, plain=True)
+            draw_runs(moved, moved.runs, fonts, rs, painter)
 
 
 def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOptions, painter, number_face,
@@ -186,9 +186,10 @@ def draw_page(page: Page, fonts: dict[str, FontRef], rs: RenderSet, opts: PdfOpt
     for ln in page.lines:
         draw_runs(ln, ln.marker, fonts, rs, painter, plain, marks_mode)
         draw_runs(ln, ln.runs, fonts, rs, painter, plain, marks_mode)
-    draw_comments(page, fonts, rs, painter, number_face)
+    if not plain:
+        draw_comments(page, fonts, rs, painter)
     if plain:
-        return                       # a side shows no gutter numbers and no change bars
+        return                       # a side shows no gutter numbers, no change bars, no comments
     # One label per baseline: the cells of a table row are separate lines on one baseline, and each
     # may start a change of its own, so their numbers merge ("7-9") instead of printing on top of each other.
     starts: dict[float, list[int]] = {}
@@ -211,6 +212,7 @@ def content_bottom(page: Page) -> float:
     ys = [page.margin_top]
     ys += [ln.top + ln.height for ln in page.lines]
     ys += [r.y + r.h for r in page.table_rows]
+    ys += [pc.y + pc.bubble.height for pc in page.comments]
     return max(ys)
 
 

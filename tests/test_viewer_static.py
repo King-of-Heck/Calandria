@@ -50,6 +50,10 @@ def test_the_v41_caveat_is_on_the_page():
     assert "nothing is written to Word" in _read("index.html")
 
 
+def test_location_filter_lists_headers_and_footers():
+    assert '<option value="header">Headers</option><option value="footer">Footers</option>' in _read("index.html")
+
+
 def test_the_heartbeat_is_faster_than_the_server_idle_timeout():
     js = _read("app.js")
     ping_ms = int(re.search(r"const PING_MS = (\d+);", js).group(1))

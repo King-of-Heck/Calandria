@@ -48,3 +48,20 @@ def test_records_shape_for_each_row_type():
     assert recs[2]["fmtChanged"] and recs[2]["fmtDescs"] == ["bold added"]
     assert recs[2]["html"] == '<span class="fmtchg" title="bold added"><b>Bold</b></span> me'
     assert recs[3]["html"] == "<del>Gone</del>" and recs[4]["html"] == "<ins>Added</ins>"
+
+
+def test_header_and_footer_rows_are_projected_out_like_note_rows():
+    import io
+    from calandria.diff.compare import compare
+    from calandria.docx.parser import parse_docx
+    from calandria.harness.changes import records, reference_summary
+    from calandria.harness.flatten import flatten
+    from calandria.testing.makedocx import DOC, HDR, P, RELS, SECT, make_docx
+    def doc(head):
+        return parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("body") + SECT(hdr={"default": "rId1"})),
+                                                "word/_rels/document.xml.rels": RELS({"rId1": "header1.xml"}),
+                                                "word/header1.xml": HDR(P(head))})))
+    c = compare(doc("Version A"), doc("Version B"))
+    assert c.summary["content"] == 1
+    assert [r["type"] for r in records(c)] == ["equal"] and reference_summary(c)["content"] == 0
+    assert [r["text"] for r in flatten(doc("Version A"))] == ["body"]

@@ -193,3 +193,17 @@ divergences, to be allowed per pair when hit: a paragraph whose only change is a
 or removed is "changed" for the reference (a sentinel token moved) and "equal" for Calandria (the
 note itself is the inserted/deleted row); a sentinel token can tip the reference's pairing
 similarity or dense-rewrite thresholds; a bold run ending the paragraph spans the sentinels there.
+
+## (p) Headers and footers
+
+The reference compares one set of header/footer parts per document (the last section's
+references win, text-less parts skipped) as extra streams, and its harness export carries none of
+those rows. Calandria compares headers and footers as displayed (v2.7.0): for every section, the
+part Word shows on its first, odd and even pages, resolved through the previous sections when a
+section names none, blank parts dropped, repeated content once, in document order -- one header
+stream and one footer stream, diffed like the body. The harness projects header/footer rows and
+paragraphs out exactly as note rows (`harness/changes.body_rows`, `harness/flatten`); the compared
+summary keys are recounted over body rows. PAGE and NUMPAGES fields are the tokens `{PAGE}` /
+`{NUMPAGES}` in the text everywhere (the reference keeps the cached number), so a page number is
+never a change; a body paragraph holding such a field would differ from the reference in text and
+is allowed per pair when hit (none in the corpus).

@@ -50,12 +50,6 @@ def merged_items(cmp: Comparison) -> list[Item]:
             ni += 1
             flush_deleted(k)
             row = rows[k]
-            if where.stream in ("header", "footer") and row.type == "changed":
-                # a header/footer never shows a single inline-merged paragraph (there is no one
-                # page to draw it on): the original part's paragraph is its own deleted item, the
-                # revised part's its own inserted-looking item, side by side in stream order.
-                ou = cmp.a_units[row.oi]
-                out.append(Item(ou.para, ou.loc, "a", state["section"], row, k, ou.stream, ou.note, ou.part))
             out.append(Item(para, loc, "b", state["section"], row, k, where.stream, where.note, where.part))
             state["emitted"] = max(state["emitted"], k + 1)
         if para.props.section_break:

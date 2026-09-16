@@ -64,12 +64,21 @@ def test_page_numbers_never_differ():
 
 
 def test_merged_items_give_deleted_header_rows_the_neighbouring_revised_part():
-    a = _doc(P("body") + SECT1, header1=P("Old head"), footer1=P("Old foot"))
-    b = _doc(P("body") + SECT1, header1=P("New head"), footer1=P("New foot"))
+    a = _doc(P("body") + SECT1, header1=P("Head") + P("Gone line"), footer1=P("Foot"))
+    b = _doc(P("body") + SECT1, header1=P("Head"), footer1=P("Foot") + P("New line"))
     items = merged_items(compare(a, b))
-    hf = [(it.side, it.stream, it.part, it.para.text) for it in items if it.stream != "body"]
-    assert hf == [("a", "header", "header1.xml", "Old head"), ("b", "header", "header1.xml", "New head"),
-                  ("a", "footer", "footer1.xml", "Old foot"), ("b", "footer", "footer1.xml", "New foot")]
+    hf = [(it.side, it.row.type, it.stream, it.part, it.para.text) for it in items if it.stream != "body"]
+    assert hf == [("b", "equal", "header", "header1.xml", "Head"),
+                  ("a", "deleted", "header", "header1.xml", "Gone line"),
+                  ("b", "equal", "footer", "footer1.xml", "Foot"),
+                  ("b", "inserted", "footer", "footer1.xml", "New line")]
+
+
+def test_a_changed_header_row_is_one_merged_item_like_a_body_row():
+    a = _doc(P("body") + SECT1, header1=P("Draft"))
+    b = _doc(P("body") + SECT1, header1=P("Draft final"))
+    items = [it for it in merged_items(compare(a, b)) if it.stream == "header"]
+    assert [(it.side, it.row.type, it.para.text) for it in items] == [("b", "changed", "Draft final")]
 
 
 def test_deleted_header_rows_with_no_revised_part_keep_their_stream_and_no_part():

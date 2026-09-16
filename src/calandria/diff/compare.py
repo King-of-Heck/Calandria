@@ -135,50 +135,22 @@ def _append_rows(orig: list[Unit], rev: list[Unit], o_t: list[str], r_t: list[st
                 paired.append((di, best))
             else:
                 paired.append((di, -1))
-        if used:
-            # some di paired with a same-stream ji: a real edit script, already in the right
-            # order (dels in di order, any leftover ins trailing in ji order).
-            done: set[int] = set()
-            for di, ji in paired:
-                if ji >= 0:
-                    ou, ru = orig[di], rev[ji]
-                    row = Row("changed", di, ji, safe_inline(ou.text, ru.text, ou.bold_runs, ru.bold_runs),
-                              cat=categorize(o_t[di], r_t[ji]))
-                    _mark_num(row, ou, ru)
-                    rows.append(row)
-                    done.add(ji)
-                else:
-                    ou = orig[di]
-                    rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
-            for ji in ins:
-                if ji not in done:
-                    ru = rev[ji]
-                    rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
-        else:
-            # nothing paired at all: a wholesale replacement, possibly spanning streams that
-            # never pair with each other (body vs. header/footer/note). Group by stream, in the
-            # order each stream is first met, a stream's deletions before its own insertions --
-            # a body deletion never separates a header deletion from its own insertion.
-            streams_order: list[str] = []
-            by_stream_del: dict[str, list[int]] = {}
-            for di, _ in paired:
-                st = orig[di].stream
-                by_stream_del.setdefault(st, []).append(di)
-                if st not in streams_order:
-                    streams_order.append(st)
-            by_stream_ins: dict[str, list[int]] = {}
-            for ji in ins:
-                st = rev[ji].stream
-                by_stream_ins.setdefault(st, []).append(ji)
-                if st not in streams_order:
-                    streams_order.append(st)
-            for st in streams_order:
-                for di in by_stream_del.get(st, ()):
-                    ou = orig[di]
-                    rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
-                for ji in by_stream_ins.get(st, ()):
-                    ru = rev[ji]
-                    rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
+        done: set[int] = set()
+        for di, ji in paired:
+            if ji >= 0:
+                ou, ru = orig[di], rev[ji]
+                row = Row("changed", di, ji, safe_inline(ou.text, ru.text, ou.bold_runs, ru.bold_runs),
+                          cat=categorize(o_t[di], r_t[ji]))
+                _mark_num(row, ou, ru)
+                rows.append(row)
+                done.add(ji)
+            else:
+                ou = orig[di]
+                rows.append(Row("deleted", di, None, whole_segs(ou.text, ou.bold_runs, "del")))
+        for ji in ins:
+            if ji not in done:
+                ru = rev[ji]
+                rows.append(Row("inserted", None, ji, whole_segs(ru.text, ru.bold_runs, "ins")))
         s += 1
 
 

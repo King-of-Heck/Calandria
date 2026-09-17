@@ -13,8 +13,9 @@ from calandria.testing.makedocx import (COMMENTS, CRANGE, DOC, HDR, P, PKG_RELS,
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
 OPTS = lambda: LayoutOptions(fonts=FakeResolver())
 
-# Page content width is 468 pt (Letter, 1 in margins); the comment column + gap reserve 162 pt,
-# narrowing the body (and, before this fix, the header) to 306 pt.
+# Page content width is 468 pt (Letter, 1 in margins). The comment column + gap reserve 162 pt,
+# but they are added to the sheet (which widens to 774 pt), NOT carved out of the body: the body and
+# the header both keep the full 468 pt, so a document paginates the same with or without comments.
 HEADER_TEXT = "This header line is long enough to wrap only when the column narrows the body width"
 BODY_TEXT = "Body content wraps only when the comment column narrows the page width here"
 
@@ -46,7 +47,7 @@ def _signature(ln):
     return (ln.x, ln.top, [(g.text, g.x, g.w) for g in ln.runs])
 
 
-def test_header_stays_full_width_whether_or_not_the_document_has_comments():
+def test_body_and_header_stay_full_width_and_the_sheet_widens_for_comments():
     baseline = _doc(False)
     commented = _doc(True)
 
@@ -60,17 +61,21 @@ def test_header_stays_full_width_whether_or_not_the_document_has_comments():
 
     h_without = _lines(lay_without, "header")
     h_with = _lines(lay_with, "header")
-    # the header wraps the same way (same x, same line widths) whether or not the comment column
-    # is reserved -- the header is never narrowed by the comment column
+    # the header wraps the same way (same x, same line widths) whether or not the document has
+    # comments -- the header is never narrowed by the comment column
     assert len(h_without) == len(h_with) == 1
     assert _signature(h_without[0]) == _signature(h_with[0])
     assert "".join(g.text for g in h_with[0].runs) == HEADER_TEXT
 
     b_without = _lines(lay_without, "body")
     b_with = _lines(lay_with, "body")
-    # the body, in contrast, IS narrowed by the comment column: it wraps to an extra line
-    assert len(b_without) == 1
-    assert len(b_with) == 2
+    # the body is NOT narrowed either: same wrap, same right edge, with or without comments
+    assert len(b_without) == len(b_with) == 1
     body_right_without = max(g.x + g.w for ln in b_without for g in ln.runs)
     body_right_with = max(g.x + g.w for ln in b_with for g in ln.runs)
-    assert body_right_with < body_right_without
+    assert body_right_with == body_right_without
+
+    # the comment column is added to the sheet instead: the commented page is wider by exactly the
+    # reserved width, and the extra space is all to the right of the (unchanged) right margin
+    assert lay_with.pages[0].w == lay_without.pages[0].w + reserved_width(cmp_with)
+    assert lay_with.pages[0].margin_right == lay_without.pages[0].margin_right

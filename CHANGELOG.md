@@ -8,7 +8,9 @@
   an uncounted, navigable side list — never a row in the change list, never part of the counted
   summary.
 - Drawn as right-margin bubbles on the page holding their anchor, with a connector to the anchored
-  text and a bracket around it; a resolved comment shows a check mark.
+  text and a bracket around it; a resolved comment shows a check mark. A commented document widens
+  its sheet to the right to hold the comment column, so the body keeps its full width and a document
+  paginates the same with or without comments; comment-free documents are unchanged.
 - The viewer's location filter gains a Comments entry, listing every comment change with its
   author, initials, date, resolved state and diffed text, indented by reply depth.
 

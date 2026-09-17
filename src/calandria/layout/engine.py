@@ -142,8 +142,11 @@ def _spec(b, ctx: Ctx) -> BlockSpec:
 NO_HF = SectionHf({v: None for v in VARIANTS}, {v: None for v in VARIANTS})   # a document with no sections
 
 
-def _new_page(pages: list[Page], sec: Section, section_idx: int) -> Page:
-    pg = Page(len(pages) + 1, sec.page_w_pt, sec.page_h_pt, sec.margin_left_pt, sec.margin_top_pt,
+def _new_page(pages: list[Page], sec: Section, section_idx: int, strip_w: float = 0.0) -> Page:
+    # `strip_w` widens the sheet to the right for the comment column, so the body (laid out at the
+    # section's own width) is never narrowed and a document paginates the same with or without
+    # comments. The added strip sits outside the right margin; headers/footers stay on the body.
+    pg = Page(len(pages) + 1, sec.page_w_pt + strip_w, sec.page_h_pt, sec.margin_left_pt, sec.margin_top_pt,
               sec.margin_right_pt, sec.margin_bottom_pt, section_idx)
     pages.append(pg)
     return pg
@@ -175,7 +178,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
 
     def page() -> Page:
         if st["page"] is None:
-            st["page"] = _new_page(pages, sec, section_idx)
+            st["page"] = _new_page(pages, sec, section_idx, reserved_width(ctx.cmp))
             chrome.draw(st["page"], st["pi"])
         return st["page"]
 
@@ -256,7 +259,7 @@ def _place(blocks: list, plan: Plan, sec: Section, section_idx: int, pages: list
 def _ctx(cmp: Comparison, run_opts, fonts, sec: Section, doc: Document, faces: dict, maps, hf_items: dict) -> Ctx:
     full_w = sec.page_w_pt - sec.margin_left_pt - sec.margin_right_pt
     return Ctx(cmp, run_opts, fonts,
-               full_w - reserved_width(cmp),
+               full_w,        # the body keeps its full width; the comment column is added to the sheet (see _new_page), not carved out of the body
                sec.page_h_pt - sec.margin_top_pt - sec.margin_bottom_pt,
                doc.default_font, doc.default_size_pt, doc.default_tab_pt, faces, maps,
                html_spacing=doc.html_spacing, hf_items=hf_items, chrome_w=full_w)
@@ -315,7 +318,7 @@ def _layout(cmp: Comparison, opts: LayoutOptions | None, total: int | None) -> t
         ctx = _ctx(cmp, run_opts, fonts, sec, doc, faces, maps, hf_items)
         chrome = Chrome(sec, sec_hf[-1] if sec_hf else NO_HF, doc, aliases, ctx,
                         page_number(sec, 0, 0), seen, pages_total, flags)
-        chrome.draw(_new_page(pages, sec, len(sections) - 1), 0)
+        chrome.draw(_new_page(pages, sec, len(sections) - 1, reserved_width(cmp)), 0)
     # The comment bubbles: built at the column width with the document-wide fonts/defaults (any
     # section ctx carries them) and registered in `faces` before the refs are frozen below, then
     # resolved to the page of their anchor once every body line is placed.

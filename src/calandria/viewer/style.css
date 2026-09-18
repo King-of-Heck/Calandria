@@ -74,6 +74,7 @@ button:disabled { opacity: .5; cursor: default; }
   background: #fff; border-right: 1px solid var(--edge);
 }
 #panel .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; }
+#panel .trackednote { margin: 0; padding: 8px 8px 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
 #panel .tile { border: 1px solid var(--edge); border-radius: 4px; padding: 4px 2px; text-align: center; background: #fff; }
 #panel button.tile { cursor: pointer; }
 #panel button.tile:hover { background: var(--bar); }
@@ -89,7 +90,7 @@ button:disabled { opacity: .5; cursor: default; }
 #panel .head .count { font-weight: 600; margin-right: auto; }
 #panel.collapsed { width: 28px; }
 #panel.collapsed .head { padding: 6px 2px; border-bottom: 0; }
-#panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .tiles, #panel.collapsed .changes { display: none; }
+#panel.collapsed .head .count, #panel.collapsed .head select, #panel.collapsed .trackednote, #panel.collapsed .tiles, #panel.collapsed .changes { display: none; }
 #panel .head #panelToggle { padding: 1px 6px; font-size: 15px; line-height: 20px; }
 #panel .changes { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--edge); }
 #panel .changes li { display: grid; grid-template-columns: 4.5em 2.5em 3em 1fr; grid-template-areas: "badge no pg more" "text text text text"; gap: 2px 6px; padding: 5px 8px; border-bottom: 1px solid var(--bar); cursor: pointer; }
@@ -145,6 +146,7 @@ button:disabled { opacity: .5; cursor: default; }
 .sources .card .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .sources .card.filled .name { color: var(--ink); }
 .sources .card .clear { position: absolute; top: 6px; right: 6px; padding: 0 6px; line-height: 18px; }
+.sources .card .tracked { color: var(--muted); font-size: 12px; }
 .sources #swap { align-self: center; font-size: 18px; padding: 4px 10px; }
 .sources .go { margin-top: 16px; padding: 8px 28px; font-size: 15px; font-weight: 600; }
 .sources .hint { color: #fff; font-size: 12px; margin: 20px 0 0; }
@@ -156,6 +158,7 @@ button:disabled { opacity: .5; cursor: default; }
 #bar .sources.compact .card .side { font-size: 13px; flex: none; }
 #bar .sources.compact .card .name { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 #bar .sources.compact .card .clear { position: static; flex: none; margin-left: auto; }
+#bar .sources.compact .card .tracked { display: none; }   /* the panel line says it once a comparison exists */
 #bar .sources.compact #swap { font-size: 15px; padding: 2px 8px; }
 #bar .sources.compact .go { margin: 0; padding: 4px 14px; font-size: 13px; }
 #view .notice { position: absolute; top: 30vh; left: 0; right: 0; z-index: 5; height: 0; overflow: visible; }

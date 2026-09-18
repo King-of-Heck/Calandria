@@ -149,7 +149,7 @@ function enableControls(on) {
   refreshSources();                                  // Compare: both slots filled and not the compared pair
 }
 
-function readBase64(file) {
+export function readBase64(file) {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result).split(",")[1]);

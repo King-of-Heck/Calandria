@@ -700,3 +700,15 @@ def test_an_inserted_segment_is_escaped():
     segs = [{"m": "ins", "t": "a < b & c", "cid": 1}]
     en = _entry(1, "insertion", segs)
     assert _change_text(en, 40) == '<u class="ins">a &lt; b &amp; c</u>'
+
+
+def test_tracked_changes_notice_markup_and_copy():
+    html = _read("index.html")
+    for i in ("trackedA", "trackedB", "trackedNote"):
+        assert i in _ids_in_html(), i
+    assert 'id="trackedNote"' in html and html.index('id="trackedNote"') < html.index('id="tiles"')
+    sources = _read("sources.js")
+    assert "/api/inspect" in sources and "compared as if accepted" in sources
+    changes = _read("changes.js")
+    assert "Compared as if all changes were accepted." in changes
+    assert "export function readBase64" in _read("app.js")

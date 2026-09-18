@@ -69,6 +69,7 @@
         <option value="all">All locations</option><option value="body">Body</option><option value="table">Tables</option><option value="footnote">Footnotes</option><option value="endnote">Endnotes</option><option value="header">Headers</option><option value="footer">Footers</option><option value="comment">Comments</option>
       </select>
     </div>
+    <p id="trackedNote" class="trackednote" hidden></p>
     <div id="tiles" class="tiles"></div>
     <ol id="changes" class="changes"></ol>
   </aside>
@@ -90,6 +91,7 @@
           <div id="cardA" class="card" role="button" tabindex="0" title="The original document">
             <span class="side">Original</span>
             <span id="nameA" class="name">Drop the .docx here or click to choose</span>
+            <span id="trackedA" class="tracked" hidden></span>
             <button id="clearA" class="clear" title="Remove this file" hidden>×</button>
             <input type="file" id="fileA" accept=".docx" hidden>
           </div>
@@ -97,6 +99,7 @@
           <div id="cardB" class="card" role="button" tabindex="0" title="The modified document">
             <span class="side">Modified</span>
             <span id="nameB" class="name">Drop the .docx here or click to choose</span>
+            <span id="trackedB" class="tracked" hidden></span>
             <button id="clearB" class="clear" title="Remove this file" hidden>×</button>
             <input type="file" id="fileB" accept=".docx" hidden>
           </div>

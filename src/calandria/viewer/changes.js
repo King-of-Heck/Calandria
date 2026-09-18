@@ -115,8 +115,20 @@ function build() {
   hasTables = entries.some((en) => en.loc === "table");
   solo = null;
   $("copyFinal").disabled = false;
+  trackedNote();
   tiles();
   refilter();
+}
+
+// The tracked changes each source still held, read as accepted (Word's own Compare does the
+// same and says so). Shown only when a side had any; re-rendered from every full payload.
+function trackedNote() {
+  const el = $("trackedNote");
+  const t = data && data.tracked;
+  if (!t || !(t.original || t.modified)) { el.hidden = true; el.textContent = ""; return; }
+  const side = (n) => n ? `${n} tracked change${n === 1 ? "" : "s"}` : "none";
+  el.textContent = `Original: ${side(t.original)} · Modified: ${side(t.modified)}. Compared as if all changes were accepted.`;
+  el.hidden = false;
 }
 
 // One entry per passage: its row (the paragraph it sits in; the row menu copies that), its

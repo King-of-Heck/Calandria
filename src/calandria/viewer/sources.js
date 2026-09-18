@@ -4,14 +4,30 @@
 // they are not exactly the pair of the current comparison. Every fill waits for Compare, a
 // two-file drop included (v2.4.4: a drop never compares by itself). Swap re-runs at once when a
 // comparison exists, because the sides only make sense together.
-import { state } from "./app.js";
+import { api, readBase64, state } from "./app.js";
 
 const $ = (id) => document.getElementById(id);
 const EMPTY = "Drop the .docx here or click to choose";
-const IDS = { a: { card: "cardA", input: "fileA", name: "nameA", clear: "clearA" },
-              b: { card: "cardB", input: "fileB", name: "nameB", clear: "clearB" } };
+const IDS = { a: { card: "cardA", input: "fileA", name: "nameA", clear: "clearA", tracked: "trackedA" },
+              b: { card: "cardB", input: "fileB", name: "nameB", clear: "clearB", tracked: "trackedB" } };
 
 let handlers = { compare: () => {}, swap: () => {} };
+
+// Tracked changes read as accepted, per slot: null until /api/inspect answers for the slot's
+// current file (or when it could not); a number once it has. Compare never waits for it.
+const tracked = { a: null, b: null };
+
+async function inspect(slot, file) {
+  try {
+    const d = await api("/api/inspect", { name: file.name, data: await readBase64(file) });
+    if (state.files[slot] !== file) return;       // the slot moved on (cleared, replaced or swapped)
+    tracked[slot] = d.tracked;
+  } catch (e) {
+    if (state.files[slot] !== file) return;
+    tracked[slot] = null;                          // Compare reports a bad file itself
+  }
+  refreshSources();
+}
 
 export function initSources(h) {
   handlers = h;
@@ -73,12 +89,15 @@ function takeDrop(list, slot) {
 
 function setFile(slot, file) {
   state.files[slot] = file;
+  tracked[slot] = null;
   refreshSources();
+  if (file) inspect(slot, file);
 }
 
 function swap() {
   if (state.closed) return;
   [state.files.a, state.files.b] = [state.files.b, state.files.a];
+  [tracked.a, tracked.b] = [tracked.b, tracked.a];
   refreshSources();
   if (state.data && state.files.a && state.files.b) handlers.swap();
 }
@@ -96,6 +115,9 @@ export function refreshSources() {
     $(ids.name).title = f ? f.name : "";
     $(ids.card).classList.toggle("filled", !!f);
     $(ids.clear).hidden = !f;
+    const n = f ? tracked[slot] : null;
+    $(ids.tracked).hidden = !n;
+    $(ids.tracked).textContent = n ? `${n} tracked change${n === 1 ? "" : "s"}, compared as if accepted` : "";
   }
   const both = !!(state.files.a && state.files.b);
   $("swap").disabled = state.closed || state.busy || !(state.files.a || state.files.b);

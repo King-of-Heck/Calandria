@@ -113,3 +113,30 @@ def test_report_omits_the_comments_line_when_there_are_none():
     info = report_info(compare(_cdoc(P("x")), _cdoc(P("x"))), "o", "m", "Standard")
     assert info.comments is None
     assert not any(ln.startswith("Comments:") for ln in report_lines(info))
+
+
+INS_RUN = '<w:ins w:id="1" w:author="A"><w:r><w:t>new</w:t></w:r></w:ins>'
+
+
+def _tdoc(body):
+    return parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body)})))
+
+
+def test_report_tracked_line_follows_the_options_line():
+    lines = report_lines(_info(tracked=(14, 0)))
+    assert lines[4].startswith("Options:")
+    assert lines[5] == "Tracked changes in sources: original 14, modified 0 (compared as accepted)"
+    assert lines[6].startswith("Changes:")
+
+
+def test_report_omits_the_tracked_line_when_both_are_zero():
+    assert not any(ln.startswith("Tracked changes") for ln in report_lines(_info()))
+    assert _info().tracked is None
+
+
+def test_report_info_reads_the_counts_from_the_documents():
+    a = _tdoc("<w:p>" + R("kept ") + INS_RUN + "</w:p>")
+    b = _tdoc(P("kept new"))
+    info = report_info(compare(a, b), "o.docx", "m.docx", "Standard")
+    assert info.tracked == (1, 0)
+    assert report_info(compare(b, b), "o", "m", "Standard").tracked is None

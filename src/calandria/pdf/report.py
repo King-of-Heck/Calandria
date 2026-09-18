@@ -28,6 +28,7 @@ class ReportInfo:
     count_numbering: bool
     changed_only: tuple[int, int] | None = None   # (pages emitted, pages in the layout) for a changed-pages-only PDF
     comments: tuple | None = None   # (added, removed, edited) counts, None when no comment changed
+    tracked: tuple | None = None    # (original, modified) tracked changes read as accepted; None when both are zero
 
 
 def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
@@ -38,8 +39,10 @@ def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
         comments = (sum(c.state == "added" for c in flagged),
                     sum(c.state == "removed" for c in flagged),
                     sum(c.state == "edited" for c in flagged))
+    counts = tuple(d.tracked_changes if d is not None else 0 for d in (cmp.a_doc, cmp.b_doc))
+    tracked = counts if any(counts) else None
     return ReportInfo(original, modified, when or datetime.now(), render_set, dict(cmp.summary),
-                      cmp.ignore_case, cmp.count_numbering, comments=comments)
+                      cmp.ignore_case, cmp.count_numbering, comments=comments, tracked=tracked)
 
 
 def _onoff(b: bool) -> str:
@@ -57,6 +60,9 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
         f"numbering {s['numbering_changes']}); formatting {s['formatting']} (not counted)",
     ]
+    if info.tracked:
+        a, b = info.tracked
+        lines.insert(5, f"Tracked changes in sources: original {a}, modified {b} (compared as accepted)")
     if info.comments:
         add, rem, edt = info.comments
         lines.append(f"Comments: {add} added, {rem} removed, {edt} edited (not counted)")

@@ -91,3 +91,13 @@ def test_parsed_document_carries_the_count_and_still_reads_as_accepted():
 
 def test_clean_parsed_document_reads_zero():
     assert parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("x"))}))).tracked_changes == 0
+
+
+def test_a_part_that_fails_to_parse_counts_nothing_and_does_not_raise():
+    assert _count({"word/document.xml": DOC(P("x")), "word/footnotes.xml": "garbage not xml"}) == 0
+
+
+def test_revisions_inside_comments_do_not_count():
+    comments = (f'<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                f'<w:comment w:id="0" w:author="A"><w:p>{DEL}</w:p></w:comment></w:comments>')
+    assert _count({"word/document.xml": DOC(P("x")), "word/comments.xml": comments}) == 0

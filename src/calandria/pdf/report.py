@@ -28,7 +28,7 @@ class ReportInfo:
     count_numbering: bool
     changed_only: tuple[int, int] | None = None   # (pages emitted, pages in the layout) for a changed-pages-only PDF
     comments: tuple | None = None   # (added, removed, edited) counts, None when no comment changed
-    tracked: tuple | None = None    # (original, modified) tracked changes read as accepted; None when both are zero
+    tracked: tuple[int, int] | None = None    # (original, modified) tracked changes read as accepted; None when both are zero
 
 
 def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
@@ -60,7 +60,7 @@ def report_lines(info: ReportInfo) -> list[str]:
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "
         f"numbering {s['numbering_changes']}); formatting {s['formatting']} (not counted)",
     ]
-    if info.tracked:
+    if info.tracked and any(info.tracked):
         a, b = info.tracked
         lines.insert(5, f"Tracked changes in sources: original {a}, modified {b} (compared as accepted)")
     if info.comments:

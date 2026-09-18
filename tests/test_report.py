@@ -140,3 +140,7 @@ def test_report_info_reads_the_counts_from_the_documents():
     info = report_info(compare(a, b), "o.docx", "m.docx", "Standard")
     assert info.tracked == (1, 0)
     assert report_info(compare(b, b), "o", "m", "Standard").tracked is None
+
+
+def test_report_omits_the_tracked_line_for_an_explicit_zero_pair():
+    assert not any(ln.startswith("Tracked changes") for ln in report_lines(_info(tracked=(0, 0))))

@@ -3,11 +3,11 @@
 The reader reads every document as if its tracked changes were accepted (deleted and moved-from
 text skipped, inserted text kept: parser._SKIP / _TRANSPARENT). That matches Word's own Compare,
 which says so in a dialog; this module gives the number the notice shows. One integer per
-document: every revision element across the parts the reader reads -- the body, the header and
-footer parts the document's rels name, the footnotes and endnotes. A tracked paragraph mark
-(w:pPr/w:rPr/w:del) and a tracked table row (w:trPr/w:ins) use the same tags and count without
-special handling. Comment text is its own stream and does not count. This is a tag scan over
-each part's tree, not the paragraph parse, so an inspect request for one file stays cheap.
+document: every revision element across the body, every header and footer part the document's rels
+name (an orphan part no section shows counts too), and the footnotes and endnotes. A tracked
+paragraph mark (w:pPr/w:rPr/w:del) and a tracked table row (w:trPr/w:ins) use the same tags and
+count without special handling. Comment text is its own stream and does not count. This is a tag
+scan over each part's tree, not the paragraph parse, so an inspect request for one file stays cheap.
 """
 from __future__ import annotations
 

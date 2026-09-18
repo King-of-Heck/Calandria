@@ -58,10 +58,12 @@ def test_check_render():
 
 def test_state_before_and_after_load():
     s = Session(fonts=FR, clock=lambda: WHEN)
-    assert s.state() == {"version": __version__, "loaded": False, "names": None}
+    assert s.state() == {"version": __version__, "loaded": False, "names": None, "tracked": None}
     assert not s.loaded
     s.load("a.docx", _docx(P("x")), "b.docx", _docx(P("x")))
-    assert s.state() == {"version": __version__, "loaded": True, "names": {"original": "a.docx", "modified": "b.docx"}}
+    assert s.state() == {"version": __version__, "loaded": True,
+                         "names": {"original": "a.docx", "modified": "b.docx"},
+                         "tracked": {"original": 0, "modified": 0}}
 
 
 def test_methods_need_a_loaded_comparison():
@@ -360,3 +362,13 @@ def test_the_timing_line_names_the_stages_of_the_call():
     s.pages(sides=["original"])
     assert s.log_timings("pages").split()[3:] == ["total=0.000"]           # everything was kept
     assert Session(fonts=FR).timing_line("pages") == "timing pages pages=0 total=0.000"   # no sink, nothing loaded
+
+
+INS_RUN = '<w:ins w:id="1" w:author="A"><w:r><w:t>new</w:t></w:r></w:ins>'
+
+
+def test_payload_and_state_carry_the_tracked_counts():
+    s = _session(a="<w:p>" + R("kept ") + INS_RUN + "</w:p>", b=P("kept new"))
+    assert s.tracked() == {"original": 1, "modified": 0}
+    assert s.payload()["tracked"] == {"original": 1, "modified": 0}
+    assert s.state()["tracked"] == {"original": 1, "modified": 0}

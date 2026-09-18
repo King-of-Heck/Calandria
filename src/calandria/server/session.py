@@ -210,9 +210,15 @@ class Session:
         self.timings = []
         return line
 
+    def tracked(self) -> dict | None:
+        """Tracked changes read as accepted in each source, or None before a comparison."""
+        if not self.loaded:
+            return None
+        return {"original": self.a_doc.tracked_changes, "modified": self.b_doc.tracked_changes}
+
     def state(self) -> dict:
         names = {"original": self.a_name, "modified": self.b_name} if self.loaded else None
-        return {"version": __version__, "loaded": self.loaded, "names": names}
+        return {"version": __version__, "loaded": self.loaded, "names": names, "tracked": self.tracked()}
 
     # -- loading and layout -----------------------------------------------------------------
     def load(self, a_name: str, a_bytes: bytes, b_name: str, b_bytes: bytes,
@@ -296,7 +302,7 @@ class Session:
         self._need()
         anchors, marks_ = change_marks(self.layout, self.cmp.passages)
         d = self.cmp.to_dict()
-        return {"names": {"original": self.a_name, "modified": self.b_name},
+        return {"names": {"original": self.a_name, "modified": self.b_name}, "tracked": self.tracked(),
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
                 "passages": d["passages"], "comments": d["comments"],
                 "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),

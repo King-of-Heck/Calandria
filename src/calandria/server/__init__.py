@@ -5,12 +5,12 @@ comparison is loaded, 404 / 405 / 413 as usual). A POST carrying an Origin that 
 server, or a Sec-Fetch-Site other than same-origin / none, is refused with 403 before its body is
 read: a loopback server is reachable from every page the browser has open.
   GET  /                      the viewer page; GET /static/<name> its script and style
-  GET  /api/state             {"version", "loaded", "names"}
+  GET  /api/state             {"version", "loaded", "names", "tracked"}
   POST /api/compare           {"a": {"name", "data" (base64 .docx)}, "b": {...}, "options"?: {...},
                               "render_set"?: NAME, "change_bars"?: true|false}
-                              -> the full payload (names, options, summary, changes, passages, page_count,
-                              changed_pages, anchors, marks, render_sets, render_set_styles, render_set,
-                              change_bars, pages (SVG strings), report_lines)
+                              -> the full payload (names, tracked, options, summary, changes, passages,
+                              page_count, changed_pages, anchors, marks, render_sets, render_set_styles,
+                              render_set, change_bars, pages (SVG strings), report_lines)
   POST /api/layout            {"options": {...}, "render_set"?: NAME, "change_bars"?: true|false}
                               -> the full payload after re-compare + re-layout
                               (options: ignore_case, count_numbering, show_equal, show_insertions,
@@ -21,6 +21,8 @@ read: a loopback server is reachable from every page the browser has open.
                               -> {"render_set", "change_bars", "pages", "report_lines"}
   GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none&changed_only=0|1
                               -> application/pdf as an attachment
+  POST /api/inspect           {"name", "data" (base64 .docx)} -> {"name", "tracked"}: the file's
+                              tracked changes (read as accepted); touches no session state
   POST /api/ping?hidden=0|1   {"ok": true}; the page sends one every 2 s and on every change of
                               its visibility, saying whether it is hidden
   POST /api/quit              {"ok": true}, then the server stops

@@ -16,6 +16,8 @@ from importlib import resources
 from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
+from ..docx.package import Package
+from ..docx.revisions import count_revisions
 from .session import BadRequest, NoComparison, Session, check_render, parse_options, parse_sides
 from .launch import open_viewer
 
@@ -256,7 +258,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise _Bad(404, "not found")
             route = path[len("/api/"):]
             allowed = {"state": "GET", "pages": "GET", "pdf": "GET", "compare": "POST", "layout": "POST",
-                       "ping": "POST", "quit": "POST"}.get(route)
+                       "inspect": "POST", "ping": "POST", "quit": "POST"}.get(route)
             if allowed is None:
                 raise _Bad(404, "not found")
             if allowed != method:
@@ -304,6 +306,19 @@ class Handler(BaseHTTPRequestHandler):
             payload = session.payload(render_set, change_bars, marks, sides)
             session.log_timings("compare")
         self._json(payload)      # written outside the lock: a slow client must not stall the rest
+
+    def _api_inspect(self, session, query):
+        """One dropped file's tracked-revision count, for the source card; touches no session state."""
+        body = self._body()
+        if not isinstance(body.get("name"), str):
+            raise _Bad(400, "a file (name, data) is required")
+        name, data = _file({"file": body}, "file")
+        try:
+            with Package.open(data) as pkg:
+                tracked = count_revisions(pkg)
+        except Exception as e:
+            raise _Bad(400, f"{name}: not a Word document ({type(e).__name__})") from None
+        self._json({"name": name, "tracked": tracked})
 
     def _api_layout(self, session, query):
         body = self._body()

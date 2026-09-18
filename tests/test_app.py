@@ -85,7 +85,7 @@ def test_url_is_loopback_with_the_bound_port(srv):
 
 
 def test_state_and_unknown_routes(srv):
-    assert _json(srv.url + "api/state") == (200, {"version": __version__, "loaded": False, "names": None})
+    assert _json(srv.url + "api/state") == (200, {"version": __version__, "loaded": False, "names": None, "tracked": None})
     assert _json(srv.url + "nope")[0] == 404
     assert _json(srv.url + "api/nope")[0] == 404
     assert _json(srv.url + "static/../pyproject.toml")[0] == 404
@@ -96,6 +96,7 @@ def test_methods_are_checked(srv):
     assert _json(srv.url + "api/pages", "POST", {})[0] == 405
     assert _json(srv.url + "api/compare")[0] == 405
     assert _json(srv.url + "api/ping")[0] == 405
+    assert _json(srv.url + "api/inspect")[0] == 405
 
 
 def test_before_a_comparison_is_loaded(srv):
@@ -705,3 +706,38 @@ def test_every_compare_layout_and_pages_call_logs_one_timing_line():
     assert "parse=" in lines[0] and "compare=" in lines[0] and "render.blackline=" in lines[0]
     assert "layout.original=" in lines[2] and "compare=" not in lines[2]
     assert all(ln.isascii() for ln in lines)
+
+
+INS_RUN = '<w:ins w:id="1" w:author="A"><w:r><w:t>new</w:t></w:r></w:ins>'
+
+
+def test_inspect_counts_one_file_without_touching_the_session(srv):
+    body = {"name": "draft.docx", "data": _b64(_docx("<w:p>" + INS_RUN + "</w:p>" + P("x")))}
+    assert _json(srv.url + "api/inspect", "POST", body) == (200, {"name": "draft.docx", "tracked": 1})
+    assert _json(srv.url + "api/inspect", "POST", {"name": "c.docx", "data": _b64(_docx(P("x")))})[1]["tracked"] == 0
+    assert _json(srv.url + "api/state")[1]["loaded"] is False
+
+
+def test_inspect_rejects_a_missing_file_and_a_non_docx(srv):
+    status, d = _json(srv.url + "api/inspect", "POST", {})
+    assert status == 400 and "name" in d["error"]
+    status, d = _json(srv.url + "api/inspect", "POST", {"name": "x.docx", "data": _b64(b"not a zip")})
+    assert status == 400 and d["error"].startswith("x.docx: not a Word document")
+
+
+def test_inspect_refuses_a_cross_origin_post(srv):
+    body = json.dumps({"name": "a.docx", "data": _b64(_docx(P("x")))}).encode()
+    req = urllib.request.Request(srv.url + "api/inspect", data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "Origin": "http://evil.example"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            status = r.status
+    except urllib.error.HTTPError as e:
+        status = e.code
+    assert status == 403
+
+
+def test_compare_payload_carries_tracked(srv):
+    status, d = _json(srv.url + "api/compare", "POST", _compare_body(a="<w:p>" + INS_RUN + "</w:p>", b=P("new")))
+    assert status == 200 and d["tracked"] == {"original": 1, "modified": 0}
+    assert _json(srv.url + "api/state")[1]["tracked"] == {"original": 1, "modified": 0}

@@ -1,5 +1,15 @@
 # Calandria changelog
 
+## v2.9.0 — Tracked changes notice (2026-09-17)
+
+- A source document that still holds tracked changes has always been read as if every change were
+  accepted (as Word's own Compare does). That is now said out loud: the source card shows
+  "N tracked changes, compared as if accepted" as soon as the file is dropped, the change list
+  carries one line naming each side's count after Compare, and the PDF summary report adds a
+  "Tracked changes in sources" line. Nothing about how documents are read or compared changed;
+  a clean document shows nothing new.
+- New `POST /api/inspect` returns one file's count without touching the loaded comparison.
+
 ## v2.8.0 — Comments (2026-09-16)
 
 - Comments are compared as displayed: matched by identity across the two documents (a durable id,

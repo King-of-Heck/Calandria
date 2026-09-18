@@ -6,6 +6,7 @@ from ..model import (Cell, Document, NoteRef, ParaProps, Paragraph, Row, Run, Ru
 from .ns import wq, wval, wbool, twips_to_pt, _num
 from .numbering import Numbering, NumberingCounter
 from .package import Package
+from .revisions import count_revisions
 from .styles import Styles, read_ppr, read_rpr
 
 _TRANSPARENT = {wq("hyperlink"), wq("smartTag"), wq("sdt"), wq("sdtContent"), wq("fldSimple"),
@@ -91,7 +92,8 @@ def parse_package(pkg: Package) -> Document:
                     default_tab_pt=tab if tab is not None else 36.0,
                     footnotes=footnotes, endnotes=endnotes, note_numbers=ctx.note_numbers,
                     html_spacing=html_spacing, parts=parts,
-                    comments=comments, comment_anchors=ctx.comment_anchors)
+                    comments=comments, comment_anchors=ctx.comment_anchors,
+                    tracked_changes=count_revisions(pkg))
 
 
 def _notes(root, kind: str, ctx: _Ctx) -> dict:

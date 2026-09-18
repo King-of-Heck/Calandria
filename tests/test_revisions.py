@@ -3,6 +3,7 @@ the notice)."""
 import io
 
 from calandria.docx.package import Package
+from calandria.docx.parser import parse_docx
 from calandria.docx.revisions import REVISION_TAGS, count_revisions, revision_parts
 from calandria.testing.makedocx import DOC, HDR, P, R, RELS, SECT, make_docx
 
@@ -80,3 +81,13 @@ def test_revision_tags_are_the_wordprocessingml_revision_elements():
     assert {t[len(ns):] for t in REVISION_TAGS} == {
         "ins", "del", "moveFrom", "moveTo", "rPrChange", "pPrChange", "tblPrChange", "trPrChange",
         "tcPrChange", "sectPrChange", "tblGridChange", "numberingChange"}
+
+
+def test_parsed_document_carries_the_count_and_still_reads_as_accepted():
+    d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC("<w:p>" + R("kept ") + INS + DEL + "</w:p>")})))
+    assert d.tracked_changes == 2
+    assert d.blocks[0].text == "kept new"          # accept-all reading is unchanged
+
+
+def test_clean_parsed_document_reads_zero():
+    assert parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("x"))}))).tracked_changes == 0

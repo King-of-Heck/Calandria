@@ -208,6 +208,7 @@ class Document:
     parts: dict = field(default_factory=dict)          # header/footer part basename -> its blocks
     comments: dict = field(default_factory=dict)        # w:comment id -> Comment
     comment_anchors: dict = field(default_factory=dict)  # w:comment id -> CommentAnchor (docx.comments)
+    tracked_changes: int = 0        # revision elements read as accepted (docx.revisions), for the notice
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

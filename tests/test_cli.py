@@ -312,3 +312,26 @@ def test_verbose_is_dropped_when_there_is_no_stderr_to_write_to(monkeypatch):
     monkeypatch.setattr(sys, "stderr", io.StringIO())
     assert main(["serve", "--no-browser", "--verbose"]) == 0
     assert calls[1]["verbose"] is True
+
+
+# Task 11: compare and dump take PDFs too, through the same reader seam as the server.
+
+def test_compare_and_dump_take_pdfs(tmp_path, capsys):
+    from calandria.testing.makepdf import make_pdf
+    a, b = tmp_path / "a.pdf", tmp_path / "b.pdf"
+    a.write_bytes(make_pdf([[("text", 72, 100, 12, "Alpha beta")]]))
+    b.write_bytes(make_pdf([[("text", 72, 100, 12, "Alpha gamma")]]))
+    assert main(["compare", str(a), str(b)]) == 0
+    out = capsys.readouterr().out
+    assert '"total": ' in out and '"total": 0' not in out
+    assert main(["dump", str(a)]) == 0
+    assert "Alpha beta" in capsys.readouterr().out
+
+
+def test_mixed_kinds_are_refused_on_the_command_line(tmp_path):
+    from calandria.testing.makepdf import make_pdf
+    a, b = tmp_path / "a.docx", tmp_path / "b.pdf"
+    a.write_bytes(make_docx({"word/document.xml": DOC(P("x"))}))
+    b.write_bytes(make_pdf([[("text", 72, 100, 12, "x")]]))
+    with pytest.raises(SystemExit, match="isn't supported yet"):
+        main(["compare", str(a), str(b)])

@@ -58,12 +58,14 @@ def test_check_render():
 
 def test_state_before_and_after_load():
     s = Session(fonts=FR, clock=lambda: WHEN)
-    assert s.state() == {"version": __version__, "loaded": False, "names": None, "tracked": None}
+    assert s.state() == {"version": __version__, "loaded": False, "names": None, "tracked": None,
+                         "source": None}
     assert not s.loaded
     s.load("a.docx", _docx(P("x")), "b.docx", _docx(P("x")))
     assert s.state() == {"version": __version__, "loaded": True,
                          "names": {"original": "a.docx", "modified": "b.docx"},
-                         "tracked": {"original": 0, "modified": 0}}
+                         "tracked": {"original": 0, "modified": 0},
+                         "source": {"kind": "docx", "skipped": {"original": [], "modified": []}}}
 
 
 def test_methods_need_a_loaded_comparison():
@@ -372,3 +374,73 @@ def test_payload_and_state_carry_the_tracked_counts():
     assert s.tracked() == {"original": 1, "modified": 0}
     assert s.payload()["tracked"] == {"original": 1, "modified": 0}
     assert s.state()["tracked"] == {"original": 1, "modified": 0}
+
+
+# Task 11: PDFs read through the same seam, a same-kind check, a parse cache and read progress.
+
+from calandria.server import session as session_module
+from calandria.testing.makepdf import make_pdf
+
+
+def _pdf(*lines):
+    return make_pdf([[("text", 72, 100 + 40 * i, 12, t) for i, t in enumerate(lines)]])
+
+
+def test_two_pdfs_compare_and_say_so():
+    s = Session(fonts=FR, clock=lambda: WHEN)
+    s.load("a.pdf", _pdf("Alpha beta", "Gamma"), "b.pdf", _pdf("Alpha beta", "Gamma delta"))
+    assert s.cmp.summary["total"] == 1
+    assert s.source() == {"kind": "pdf", "skipped": {"original": [], "modified": []}}
+    assert s.payload()["source"]["kind"] == "pdf" and s.state()["source"]["kind"] == "pdf"
+    assert s.progress is None
+
+
+def test_a_word_pair_reports_its_kind_too():
+    assert _session().source() == {"kind": "docx", "skipped": {"original": [], "modified": []}}
+    assert Session(fonts=FR).source() is None
+
+
+def test_a_word_document_against_a_pdf_is_refused_and_changes_nothing():
+    s = _session()
+    with pytest.raises(BadDocument) as e:
+        s.load("a.docx", _docx(P("x")), "b.pdf", _pdf("x"))
+    assert str(e.value) == "Comparing a Word document with a PDF isn't supported yet."
+    assert s.a_name == "a.docx" and s.b_name == "b.docx"
+
+
+def test_a_refused_pdf_names_the_file_and_gives_the_reason():
+    s = Session(fonts=FR)
+    with pytest.raises(BadDocument) as e:
+        s.load("scan.pdf", make_pdf([[("image", 0, 0, 612, 792)]]), "b.pdf", _pdf("x"))
+    assert str(e.value).startswith("scan.pdf: This PDF has no text")
+    with pytest.raises(BadDocument, match="notes.txt: not a Word document or a PDF"):
+        s.load("notes.txt", b"hello", "b.pdf", _pdf("x"))
+
+
+def test_a_file_is_parsed_once_however_often_it_is_loaded(monkeypatch):
+    calls = []
+    real = session_module.read_document
+    monkeypatch.setattr(session_module, "read_document", lambda data, progress=None: calls.append(1) or real(data, progress))
+    s = Session(fonts=FR)
+    a, b = _pdf("Alpha"), _pdf("Alpha beta")
+    s.load("a.pdf", a, "b.pdf", b)
+    s.load("b.pdf", b, "a.pdf", a)                      # Swap
+    assert len(calls) == 2
+    for i in range(5):
+        s.load("a.pdf", a, f"n{i}.pdf", _pdf(f"Alpha {i}"))
+    s.load("a.pdf", a, "b.pdf", b)                      # b fell out of the cache of four; a did not
+    assert len(calls) == 2 + 5 + 1
+
+
+def test_progress_is_visible_while_a_pdf_is_read(monkeypatch):
+    s = Session(fonts=FR)
+    seen = []
+
+    def slow(data, progress=None):
+        progress(1, 2)
+        seen.append(dict(s.progress))
+        return real(data)
+    real = session_module.read_document
+    monkeypatch.setattr(session_module, "read_document", slow)
+    s.load("a.pdf", _pdf("x"), "b.pdf", _pdf("y"))
+    assert seen[0] == {"name": "a.pdf", "page": 1, "pages": 2} and s.progress is None

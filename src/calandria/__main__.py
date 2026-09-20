@@ -1,5 +1,6 @@
 """Command line entry:
     python -m calandria dump <file.docx>
+    Every <file.docx> may also be a text PDF (both files of a pair must be the same kind).
     python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
     python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
                                [--hide-unchanged] [--hide-insertions] [--hide-deletions]
@@ -20,7 +21,6 @@ from datetime import datetime
 
 from . import __version__
 from .diff.compare import compare
-from .docx.parser import parse_docx
 from .harness.flatten import flatten
 from .layout.engine import layout
 from .layout.pieces import LayoutOptions
@@ -28,10 +28,13 @@ from .pdf.draw import PdfOptions
 from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
 from .pdf.writer import REPORTS, render
+from .pdfread.types import PdfRefused
+from .reader import read_document
 from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
 from .server.shortcut import write_shortcut
 
 USAGE = ("usage: python -m calandria dump <file.docx>\n"
+         "       Every <file.docx> may also be a text PDF (both files of a pair must be the same kind).\n"
          "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
          "       python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
          "                                  [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
@@ -79,8 +82,20 @@ def _layout_options(flags) -> LayoutOptions:
                          show_formatting="--hide-formatting" not in flags)
 
 
+def _read(path: str):
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        return read_document(data)
+    except PdfRefused as e:
+        raise SystemExit(f"{os.path.basename(path)}: {e}") from None
+
+
 def _compare(flags, pa, pb):
-    return compare(parse_docx(pa), parse_docx(pb), ignore_case="--ignore-case" in flags,
+    a, b = _read(pa), _read(pb)
+    if a.source_kind != b.source_kind:
+        raise SystemExit("Comparing a Word document with a PDF isn't supported yet.")
+    return compare(a, b, ignore_case="--ignore-case" in flags,
                    count_numbering="--no-count-numbering" not in flags)
 
 
@@ -106,7 +121,7 @@ def main(argv) -> int:
         print(f"calandria {__version__}")
         return 0
     if len(argv) == 2 and argv[0] == "dump":
-        print(json.dumps(flatten(parse_docx(argv[1])), ensure_ascii=True, indent=1))
+        print(json.dumps(flatten(_read(argv[1])), ensure_ascii=True, indent=1))
         return 0
     if argv and argv[0] in ("compare", "layout"):
         parsed = _parse(argv[1:], _COMPARE_FLAGS if argv[0] == "compare" else _LAYOUT_FLAGS)

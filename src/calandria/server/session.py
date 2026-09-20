@@ -2,9 +2,11 @@
 comparison, its layout, and the payloads the JSON API hands the browser."""
 from __future__ import annotations
 
+import hashlib
 import os
 import threading
 import time
+from collections import OrderedDict
 from time import perf_counter
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
@@ -12,7 +14,6 @@ from datetime import datetime
 from .. import __version__
 from ..diff.changes import Comparison
 from ..diff.compare import compare
-from ..docx.parser import parse_docx
 from ..layout.engine import layout
 from ..layout.fonts import default_resolver
 from ..layout.pages import Layout
@@ -22,10 +23,14 @@ from ..pdf.draw import PdfOptions, changed_pages
 from ..pdf.report import report_info, report_lines
 from ..pdf.rendersets import RENDER_SETS
 from ..pdf.writer import REPORTS, render
+from ..pdfread.types import PdfRefused
+from ..reader import UnknownKind, kind_of, read_document
 from ..viewer.svg import render_pages
 
 OPTION_KEYS = ("ignore_case", "count_numbering", "show_equal", "show_insertions", "show_deletions",
                "show_formatting")
+MIXED = "Comparing a Word document with a PDF isn't supported yet."
+PARSE_CACHE = 4              # parsed documents kept, by content hash: Swap and a re-compare skip the read
 
 
 @dataclass(frozen=True)
@@ -52,7 +57,7 @@ class NoComparison(LookupError):
 
 
 class BadDocument(BadRequest):
-    """A file that is not a Word document (named in the message)."""
+    """A file that cannot be read as a source, or a pair that cannot be compared (the message says why)."""
 
 
 def parse_options(d, base: Options | None = None) -> Options:
@@ -75,11 +80,14 @@ def check_render(render_set: str, report: str | None = None) -> None:
         raise BadRequest(f"unknown report placement {report!r}; expected first, last or none")
 
 
-def _parse(name: str, data: bytes):
+def _parse(name: str, data: bytes, progress=None):
     try:
-        return parse_docx(data)
+        return read_document(data, progress)
+    except (PdfRefused, UnknownKind) as e:
+        raise BadDocument(f"{name}: {e}") from e
     except Exception as e:
-        raise BadDocument(f"{name}: not a Word document ({type(e).__name__})") from e
+        what = "this PDF could not be read" if kind_of(data) == "pdf" else "not a Word document"
+        raise BadDocument(f"{name}: {what} ({type(e).__name__})") from e
 
 
 def change_marks(lay: Layout, passages=()) -> tuple[dict[int, dict], list[list]]:
@@ -178,6 +186,8 @@ class Session:
         self._drawn: dict[tuple, list[str]] = {}
         self.when: datetime | None = None
         self.timings: list[tuple[str, float]] = []   # (stage, seconds) since begin(): the timing line
+        self._parsed: OrderedDict[str, object] = OrderedDict()   # sha256 of the bytes -> Document
+        self.progress: dict | None = None      # {"name", "page", "pages"} while a PDF is read; read WITHOUT the lock
 
     @property
     def loaded(self) -> bool:
@@ -216,18 +226,46 @@ class Session:
             return None
         return {"original": self.a_doc.tracked_changes, "modified": self.b_doc.tracked_changes}
 
+    def source(self) -> dict | None:
+        """Which reader produced the sources, and the PDF pages left out for having no text."""
+        if not self.loaded:
+            return None
+        return {"kind": self.a_doc.source_kind,
+                "skipped": {"original": list(self.a_doc.skipped_pages), "modified": list(self.b_doc.skipped_pages)}}
+
     def state(self) -> dict:
         names = {"original": self.a_name, "modified": self.b_name} if self.loaded else None
-        return {"version": __version__, "loaded": self.loaded, "names": names, "tracked": self.tracked()}
+        return {"version": __version__, "loaded": self.loaded, "names": names, "tracked": self.tracked(),
+                "source": self.source()}
 
     # -- loading and layout -----------------------------------------------------------------
+    def _read(self, name: str, data: bytes):
+        key = hashlib.sha256(data).hexdigest()
+        doc = self._parsed.get(key)
+        if doc is not None:
+            self._parsed.move_to_end(key)
+            return doc
+
+        def tick(done: int, total: int) -> None:
+            self.progress = {"name": name, "page": done, "pages": total}
+        doc = _parse(name, data, tick)
+        self._parsed[key] = doc
+        while len(self._parsed) > PARSE_CACHE:
+            self._parsed.popitem(last=False)
+        return doc
+
     def load(self, a_name: str, a_bytes: bytes, b_name: str, b_bytes: bytes,
              options: Options | None = None) -> None:
         """Nothing is committed until the new pair has compared AND laid out, so a bad file or a
         failure part way leaves the session showing exactly what it was showing before."""
         t0 = perf_counter()
-        a, b = _parse(a_name, a_bytes), _parse(b_name, b_bytes)
+        try:
+            a, b = self._read(a_name, a_bytes), self._read(b_name, b_bytes)
+        finally:
+            self.progress = None
         self._timed("parse", t0)
+        if a.source_kind != b.source_kind:
+            raise BadDocument(MIXED)
         self._commit(a_name, b_name, a, b, options or self.options)
 
     def relayout(self, options: Options) -> None:
@@ -303,6 +341,7 @@ class Session:
         anchors, marks_ = change_marks(self.layout, self.cmp.passages)
         d = self.cmp.to_dict()
         return {"names": {"original": self.a_name, "modified": self.b_name}, "tracked": self.tracked(),
+                "source": self.source(),
                 "options": asdict(self.options), "summary": d["summary"], "changes": d["changes"],
                 "passages": d["passages"], "comments": d["comments"],
                 "page_count": self.layout.page_count, "changed_pages": changed_pages(self.layout),

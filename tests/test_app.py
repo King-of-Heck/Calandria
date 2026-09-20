@@ -85,7 +85,8 @@ def test_url_is_loopback_with_the_bound_port(srv):
 
 
 def test_state_and_unknown_routes(srv):
-    assert _json(srv.url + "api/state") == (200, {"version": __version__, "loaded": False, "names": None, "tracked": None})
+    assert _json(srv.url + "api/state") == (200, {"version": __version__, "loaded": False, "names": None,
+                                                  "tracked": None, "source": None})
     assert _json(srv.url + "nope")[0] == 404
     assert _json(srv.url + "api/nope")[0] == 404
     assert _json(srv.url + "static/../pyproject.toml")[0] == 404

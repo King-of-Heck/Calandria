@@ -53,6 +53,12 @@
   "digest": "6d0e6e02b108b2ec",
   "redline": 1
  },
+ "gen-grid": {
+  "a": 1,
+  "b": 1,
+  "digest": "30cc43dd02f44837",
+  "redline": 1
+ },
  "gen-hf": {
   "a": 8,
   "b": 8,
@@ -71,6 +77,12 @@
   "digest": "5f3f1d9c8a8b27e3",
   "redline": 6
  },
+ "gen-longtable": {
+  "a": 2,
+  "b": 2,
+  "digest": "9786706e90889719",
+  "redline": 2
+ },
  "gen-notes": {
   "a": 1,
   "b": 1,
@@ -81,6 +93,12 @@
   "a": 1,
   "b": 1,
   "digest": "a4f9c10692f87938",
+  "redline": 1
+ },
+ "gen-schedule": {
+  "a": 1,
+  "b": 1,
+  "digest": "b0bcb4a699fae5d8",
   "redline": 1
  },
  "gen-table": {

@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from calandria.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, ENDNOTES, ENREF,
-                                        FLD, FNREF, FOOTNOTES, FTR, HDR, P, PR, R, RELS, SECT, SETTINGS,
-                                        STYLES, TBL, make_docx)  # noqa: E402
+                                        FLD, FNREF, FOOTNOTES, FTR, HDR, NUMBERING, P, PR, R, RELS, SECT,
+                                        SETTINGS, STYLES, TBL, make_docx)  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests" / "corpus"
@@ -152,6 +152,126 @@ def _comments_pair():
     return a, b
 
 
+# Ruled tables: TBL() has no borders/gridSpan/vMerge/tblHeader, so these are built as raw XML in
+# the style already used above for parts TBL() cannot express.
+_BORDERS = "<w:tblBorders>" + "".join(
+    f'<w:{side} w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV")) + "</w:tblBorders>"
+
+
+def _ruled(rows_xml: str, grid: list[int]) -> str:
+    g = "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{w}"/>' for w in grid) + "</w:tblGrid>"
+    return f"<w:tbl><w:tblPr>{_BORDERS}</w:tblPr>{g}{rows_xml}</w:tbl>"
+
+
+def _cell(text: str = "", span: int | None = None, vmerge: str | None = None) -> str:
+    pr = ""
+    if span:
+        pr += f'<w:gridSpan w:val="{span}"/>'
+    if vmerge:
+        pr += f'<w:vMerge w:val="{vmerge}"/>' if vmerge == "restart" else "<w:vMerge/>"
+    tcpr = f"<w:tcPr>{pr}</w:tcPr>" if pr else ""
+    return f"<w:tc>{tcpr}{P(text)}</w:tc>"
+
+
+def _row(cells: str, header: bool = False) -> str:
+    trpr = "<w:trPr><w:tblHeader/></w:trPr>" if header else ""
+    return f"<w:tr>{trpr}{cells}</w:tr>"
+
+
+# gen-grid: a 6 x 4 pricing grid, one cell merged across two columns, one merged down two rows.
+def _grid_table(*, widget_b_q1: str, bundle_desc: str, bundle_total: str) -> str:
+    rows = (
+        _row(_cell("Item") + _cell("Description") + _cell("Q1 Price") + _cell("Q2 Price"), header=True)
+        + _row(_cell("Widget A") + _cell("Standard widget") + _cell("10.00") + _cell("12.00"))
+        + _row(_cell("Widget B") + _cell("Standard widget") + _cell(widget_b_q1) + _cell("15.00"))
+        + _row(_cell("Bundle") + _cell(bundle_desc, span=2) + _cell(bundle_total))
+        + _row(_cell("Widget C") + _cell("Limited edition", vmerge="restart") + _cell("20.00") + _cell("20.00"))
+        + _row(_cell("Widget D") + _cell(vmerge="continue") + _cell("22.00") + _cell("22.00")))
+    return _ruled(rows, grid=[2000, 4000, 1800, 1800])
+
+
+_GRID_A = _grid_table(widget_b_q1="15.00", bundle_desc="Bundle covers both tiers", bundle_total="18.00")
+_GRID_B = _grid_table(widget_b_q1="16.50", bundle_desc="Bundle covers three tiers", bundle_total="19.00")
+_PAIR_GRID = _pair(P("Pricing Grid") + _GRID_A + P("End of grid"),
+                   P("Pricing Grid") + _GRID_B + P("End of grid"))
+
+
+# gen-longtable: a ruled 90-row x 3-column table with a repeating header row, long enough to run
+# over three pages. B changes a cell near the start, middle and end, and inserts a row mid-table.
+def _lt_row(i: int, value: str | None = None, note: str | None = None) -> str:
+    return _row(_cell(f"Row {i}") + _cell(value or f"Value {i}") + _cell(note or f"Note {i}"))
+
+
+def _lt_rows(overrides: dict | None = None, insert_after: int | None = None, insert_row: str = "") -> str:
+    rows = _row(_cell("Row") + _cell("Value") + _cell("Note"), header=True)
+    for i in range(1, 90):
+        o = (overrides or {}).get(i, {})
+        rows += _lt_row(i, **o)
+        if i == insert_after:
+            rows += insert_row
+    return rows
+
+
+_LONGTABLE_A = _ruled(_lt_rows(), grid=[2000, 2000, 4000])
+_LONGTABLE_B = _ruled(_lt_rows(
+    overrides={10: {"value": "Value 10 (updated)"}, 45: {"note": "Note 45 revised"},
+               80: {"value": "Value 80 (updated)"}},
+    insert_after=45, insert_row=_lt_row("45b")), grid=[2000, 2000, 4000])
+_PAIR_LONGTABLE = _pair(P("Long Table") + _LONGTABLE_A + P("End of table"),
+                        P("Long Table") + _LONGTABLE_B + P("End of table"))
+
+
+# gen-schedule: numbered clauses, a "Schedule 1" heading, a ruled 8x3 table, two more paragraphs,
+# then a second ruled 4x2 table. B edits a clause, a cell in each table, and the paragraph between them.
+_SCHED_NUM = NUMBERING([("decimal", "%1.", 720, 360, "space")])
+_SCHED_NUMPR = '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'
+
+
+def _sched_clause(text: str) -> str:
+    return P(text, ppr=_SCHED_NUMPR)
+
+
+def _sched_table_a(rows: int, cols: int, *, edit: str | None = None) -> str:
+    body = _row("".join(_cell(f"H{c}") for c in range(cols)), header=True)
+    for r in range(1, rows):
+        cells = "".join(_cell(edit if (edit and r == 1 and c == 0) else f"R{r}C{c}") for c in range(cols))
+        body += _row(cells)
+    return _ruled(body, grid=[1800] * cols)
+
+
+def _schedule_pair():
+    clause_edit = "The Supplier shall deliver within thirty days."
+    clause_edit_b = "The Supplier shall deliver within forty-five days."
+    mid_para = "This schedule sets out the pricing and delivery terms."
+    mid_para_b = "This schedule sets out the pricing, delivery and support terms."
+    a = (_sched_clause("The parties agree to the terms below.")
+         + _sched_clause(clause_edit)
+         + _sched_clause("This agreement is governed by the laws of Ontario.")
+         + P("Schedule 1")
+         + _sched_table_a(8, 3)
+         + P(mid_para) + P("See the table below for support tiers.")
+         + _sched_table_a(4, 2, edit="X0Y0"))
+    b = (_sched_clause("The parties agree to the terms below.")
+         + _sched_clause(clause_edit_b)
+         + _sched_clause("This agreement is governed by the laws of Ontario.")
+         + P("Schedule 1")
+         + _sched_table_a(8, 3, edit="R1C0-changed")
+         + P(mid_para_b) + P("See the table below for support tiers.")
+         + _sched_table_a(4, 2, edit="X0Y0-changed"))
+    return a, b
+
+
+_PAIR_SCHEDULE = _schedule_pair()
+
+
+def _pair_with_numbering(body_a: str, body_b: str):
+    a, b = _pair(body_a, body_b)
+    a["word/numbering.xml"] = _SCHED_NUM
+    b["word/numbering.xml"] = _SCHED_NUM
+    return a, b
+
+
 PAIRS = {
     "fmt": _pair(_FMT_A, _FMT_B),
     "table": _pair(_TABLE_A, _TABLE_B),
@@ -163,6 +283,9 @@ PAIRS = {
     "notes": _notes_pair(),
     "hf": _hf_pair(),
     "comments": _comments_pair(),
+    "grid": _PAIR_GRID,
+    "longtable": _PAIR_LONGTABLE,
+    "schedule": _pair_with_numbering(*_PAIR_SCHEDULE),
 }
 
 

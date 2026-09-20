@@ -209,6 +209,9 @@ class Document:
     comments: dict = field(default_factory=dict)        # w:comment id -> Comment
     comment_anchors: dict = field(default_factory=dict)  # w:comment id -> CommentAnchor (docx.comments)
     tracked_changes: int = 0        # revision elements read as accepted (docx.revisions), for the notice
+    source_kind: str = "docx"           # "docx" | "pdf": which reader produced this document
+    source_pages: int | None = None     # a PDF's page count (None for a Word document)
+    skipped_pages: tuple = ()           # 1-based PDF pages with no readable text, left out of the comparison
 
     def paragraphs(self) -> Iterator[Paragraph]:
         yield from iter_paragraphs(self.blocks)

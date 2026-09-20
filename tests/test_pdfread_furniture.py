@@ -1,4 +1,4 @@
-from calandria.pdfread.furniture import collect_notes, find_furniture
+from calandria.pdfread.furniture import _PAGENUM, _signature, collect_notes, find_furniture
 from calandria.pdfread.grid import find_grids
 from calandria.pdfread.types import Line, PageLines, Seg, Span
 
@@ -49,6 +49,37 @@ def test_bare_and_roman_page_numbers():
 def test_en_and_em_dash_page_numbers():
     pages = [page(i, [L("Body", 300, i), L(t, 765, i)]) for i, t in enumerate(["– 3 –", "— 4 —"])]
     assert len(find_furniture(pages)) == 2
+
+
+def test_words_made_only_of_roman_letters_are_not_roman_numerals():
+    for word in ["civil", "vivid", "mimic", "dill"]:
+        assert not _PAGENUM.match(word), word
+    assert _PAGENUM.match("mix")           # a real numeral (1009), accepted as one
+    for numeral in ["iv", "xii"]:
+        assert _PAGENUM.match(numeral), numeral
+    for numbered in ["- 3 -", "page 4 of 9"]:          # digits go through _signature first
+        assert _signature(numbered) == "#", numbered
+
+
+def test_a_body_word_made_of_roman_letters_is_not_stripped_as_a_page_number():
+    pages = doc(5)
+    pages[0] = page(0, [L("Acme Supply Agreement", 40, 0), L("civil matters", 300, 0), L("Page 1 of 5", 760, 0)])
+    found = find_furniture(pages)
+    assert "civil matters" not in texts(pages, found)
+
+
+def test_a_lone_number_line_is_furniture_only_in_the_outer_half_of_the_band():
+    short = doc(2)
+    assert texts(short, find_furniture(short)) == ["Page 1 of 2", "Page 2 of 2"]
+
+    inner_body = doc(5)
+    inner_body[2] = page(2, [L("Acme Supply Agreement", 40, 2), L("2026", 100, 2), L("Page 3 of 5", 760, 2)])
+    found = texts(inner_body, find_furniture(inner_body))
+    assert "2026" not in found                            # inner half of the band, does not repeat
+
+    inner_repeating = doc(5, extra=lambda i: [L("2026", 700, i)])
+    found = find_furniture(inner_repeating)
+    assert len([1 for p, li in found if inner_repeating[p].lines[li].text == "2026"]) == 5
 
 
 def test_a_repeated_table_header_row_at_the_page_top_is_not_furniture():

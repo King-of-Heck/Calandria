@@ -17,7 +17,12 @@ NOTE_ZONE_TOP = 0.35          # a separator sits below this share of the page he
 SEP_MIN, SEP_MAX = 0.15, 0.45  # of the page width; longer is a continuation separator
 SMALL = 0.95                  # note text is smaller than this share of the body size
 _DIGITS = re.compile(r"\d+")
-_PAGENUM = re.compile(r"^(page ?)?[-–— ]*(#|[ivxlcdm]{1,7})[-–— ]*((of|/) ?(#|[ivxlcdm]{1,7}))?$")
+# A real (if permissive) roman numeral: thousands, hundreds, tens, units, each in its own place,
+# and never empty (the lookahead rules out "civil", "vivid", "mimic", "dill" -- words made only of
+# the letters i v x l c d m but not in numeral order/grouping). "mix" is a real numeral (1009) and
+# is accepted as one.
+_ROMAN = r"(?=[ivxlcdm])m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})"
+_PAGENUM = re.compile(rf"^(page ?)?[-–— ]*(#|{_ROMAN})[-–— ]*((of|/) ?(#|{_ROMAN}))?$")
 _NOTE_START = re.compile(r"^\s*(\d{1,3})[.)]?(\s+|$)")
 
 
@@ -34,6 +39,14 @@ def _in_band(pg: PageLines, ln: Line) -> bool:
     return ln.y < top or ln.y > bottom
 
 
+def _outer_half(pg: PageLines, ln: Line) -> bool:
+    """The half of the band nearer the page edge, where a page number actually sits. The inner
+    half reaches into the text area, so a line there needs the same repetition as any other
+    signature before it counts as furniture."""
+    half = BAND / 2 * pg.height
+    return ln.y < half or ln.y > pg.height - half
+
+
 def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     n = len(pages)
     need = 3 if n >= 4 else 2 if n == 3 else None
@@ -44,7 +57,7 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
             if not _in_band(pg, ln):
                 continue
             sig = _signature(ln.text)
-            if sig == "#":
+            if sig == "#" and _outer_half(pg, ln):
                 found.add((pi, li))
             elif sig:
                 seen.setdefault(sig, []).append((ln.y / pg.height, pi, li))

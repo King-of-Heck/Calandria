@@ -93,7 +93,7 @@ def test_runtime_packages_is_the_closure_without_dev_groups():
 def test_runtime_packages_on_the_real_lock():
     lock = tomllib.loads((Path(__file__).resolve().parent.parent / "uv.lock").read_text(encoding="utf-8"))
     names = [p["name"] for p in br.runtime_packages(lock)]
-    assert names == ["defusedxml", "fonttools", "fpdf2", "lxml", "pillow"]
+    assert names == ["defusedxml", "fonttools", "fpdf2", "lxml", "pillow", "pypdf"]
     for p in br.runtime_packages(lock):
         url, digest = br.pick_wheel(p)
         assert url.endswith(".whl") and len(digest) == 64

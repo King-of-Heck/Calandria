@@ -9,8 +9,8 @@ from dataclasses import dataclass, replace
 
 from .types import Line, Span
 
-MARKER = re.compile(r"^(?:(?:\(?\d{1,3}(?:\.\d{1,3})*[.)]?|\(?[A-Za-z][.)]|\(?[ivxlcdm]{1,7}[.)]"
-                    r"|[•·▪●◦])(?=[ \t])|\t)")
+MARKER = re.compile(r"^(\(?\d{1,3}(\.\d{1,3})*[.)]?|\(?[A-Za-z][.)]|\(?[ivxlcdm]{1,7}[.)]"
+                    r"|[•·▪●◦])(?=[ \t])")
 TOL = 0.3             # of the font size: positions closer than this are the same position
 GAP = 1.25            # of the prevailing pitch: a wider line gap is a paragraph gap
 SIZE_CHANGE = 0.05

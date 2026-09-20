@@ -59,9 +59,9 @@ def test_a_changed_continuation_indent_or_size_starts_a_new_paragraph():
 
 
 def test_markers():
-    for s in ["12.3 Payment", "1. Scope", "(a) the", "a)\tthe", "(iv) where", "• item", "\titem"]:
+    for s in ["12.3 Payment", "1. Scope", "(a) the", "a)\tthe", "(iv) where", "• item", "\titem"]:
         assert MARKER.match(s), s
-    for s in ["Payment 12.3", "2026 was", "and (a) the", "A long line", "(see clause 4)"]:
+    for s in ["Payment 12.3", "2026 was", "and (a) the", "A long line", "(see clause 4)", "\titem"]:
         assert not MARKER.match(s), s
 
 

@@ -18,6 +18,7 @@ from calandria.server.app import DEFAULT_GRACE, DEFAULT_IDLE, MAX_BODY, STATIC, 
 from calandria.server.session import Session
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import DOC, P, STYLES, make_docx
+from calandria.testing.makepdf import make_pdf
 
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
 WHEN = datetime(2026, 9, 9, 14, 5)
@@ -718,9 +719,6 @@ def test_inspect_counts_one_file_without_touching_the_session(srv):
         200, {"name": "draft.docx", "kind": "docx", "tracked": 1, "pages": None})
     assert _json(srv.url + "api/inspect", "POST", {"name": "c.docx", "data": _b64(_docx(P("x")))})[1]["tracked"] == 0
     assert _json(srv.url + "api/state")[1]["loaded"] is False
-
-
-from calandria.testing.makepdf import make_pdf
 
 
 def test_inspect_counts_a_pdfs_pages_without_reading_its_text(srv):

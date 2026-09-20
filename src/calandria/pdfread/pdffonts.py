@@ -131,15 +131,15 @@ def load_font(res) -> PdfFont:
             font.to_unicode, _n = parse_tounicode(_obj(tu).get_data())
         if type0:
             desc = _obj(_obj(res["/DescendantFonts"])[0])
-            font.default_width = float(desc.get("/DW", 1000))
+            font.default_width = float(_obj(desc.get("/DW", 1000)))
             font.widths = _cid_widths(_obj(desc.get("/W", [])))
         else:
-            first = int(res.get("/FirstChar", 0))
+            first = int(_obj(res.get("/FirstChar", 0)))
             for i, w in enumerate(_obj(res.get("/Widths", []))):
                 font.widths[first + i] = float(_obj(w))
             fd = _obj(res.get("/FontDescriptor")) if res.get("/FontDescriptor") is not None else {}
             if "/MissingWidth" in fd:
-                font.default_width = float(fd["/MissingWidth"])
+                font.default_width = float(_obj(fd["/MissingWidth"]))
             enc = _obj(res.get("/Encoding")) if res.get("/Encoding") is not None else None
             if isinstance(enc, str):
                 font.codec = _BASE.get(str(enc), "cp1252")

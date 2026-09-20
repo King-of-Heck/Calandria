@@ -8,8 +8,10 @@ from calandria import __version__
 from calandria.layout.fonts import default_dirs
 from calandria.server.session import (OPTION_KEYS, BadDocument, Options, Session, change_marks, check_render,
                                       parse_options)
+from calandria.server import session as session_module
 from calandria.testing.fakefonts import FakeResolver
 from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, STYLES, TBL, make_docx
+from calandria.testing.makepdf import make_pdf
 
 FR = FakeResolver()
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -377,9 +379,6 @@ def test_payload_and_state_carry_the_tracked_counts():
 
 
 # Task 11: PDFs read through the same seam, a same-kind check, a parse cache and read progress.
-
-from calandria.server import session as session_module
-from calandria.testing.makepdf import make_pdf
 
 
 def _pdf(*lines):

@@ -23,6 +23,15 @@ class Stream(dict):
         return self._data
 
 
+class Ref:
+    """A tiny stand-in for pypdf's IndirectObject: get_object() returns the wrapped value."""
+    def __init__(self, value):
+        self._value = value
+
+    def get_object(self):
+        return self._value
+
+
 def test_parse_tounicode_reads_chars_ranges_and_the_code_width():
     m, n = parse_tounicode(CMAP)
     assert n == 2
@@ -44,6 +53,15 @@ def test_type0_font_decodes_two_byte_codes_with_w_and_dw():
         (1, "H", 722.0), (2, "fi", 444.0), (0x11, "b", 500.0), (0x99, REPLACEMENT, 1000.0)]
 
 
+def test_type0_font_dereferences_indirect_dw_w_and_descendant_font_entry():
+    res = {"/Subtype": "/Type0", "/BaseFont": "/ABCDEF+Calibri",
+           "/DescendantFonts": Ref([Ref({"/DW": Ref(1000), "/W": Ref([1, [722, 444]])})])}
+    f = load_font(res)
+    assert f.default_width == 1000.0
+    assert f.decode(b"\x00\x01\x00\x02\x00\x99") == [
+        (1, REPLACEMENT, 722.0), (2, REPLACEMENT, 444.0), (0x99, REPLACEMENT, 1000.0)]
+
+
 def test_simple_font_uses_widths_the_codec_and_differences():
     res = {"/Subtype": "/TrueType", "/BaseFont": "/Arial,Bold", "/FirstChar": 65, "/Widths": [600, 650],
            "/FontDescriptor": {"/MissingWidth": 250},
@@ -51,6 +69,13 @@ def test_simple_font_uses_widths_the_codec_and_differences():
     f = load_font(res)
     assert f.decode(b"AB\x93\x01\x02") == [(65, "A", 600.0), (66, "B", 650.0), (0x93, "“", 250.0),
                                           (1, "•", 250.0), (2, "ﬁ", 250.0)]
+
+
+def test_simple_font_dereferences_indirect_first_char_and_missing_width():
+    res = {"/Subtype": "/TrueType", "/BaseFont": "/Arial,Bold", "/FirstChar": Ref(65), "/Widths": [600],
+           "/FontDescriptor": {"/MissingWidth": Ref(250)}}
+    f = load_font(res)
+    assert f.decode(b"A\x99") == [(65, "A", 600.0), (0x99, "™", 250.0)]
 
 
 def test_unmapped_control_codes_and_undefined_bytes_are_replacements():

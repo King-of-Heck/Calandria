@@ -187,8 +187,9 @@ def _section(pages: list[PageLines], skip: set, left: float, right: float) -> Se
     (w, h), _n = Counter((pg.width, pg.height) for pg in pages).most_common(1)[0]
     tops, bottoms = [], []
     for pi, pg in enumerate(pages):
+        live_grids = set(_live_grids(pi, pg, skip))
         ys = [(ln.y - ln.size, ln.y + 0.3 * ln.size) for li, ln in enumerate(pg.lines) if (pi, li) not in skip]
-        ys += [(g.y0, g.y1) for gi, g in enumerate(pg.grids) if gi in _live_grids(pi, pg, skip)]
+        ys += [(g.y0, g.y1) for gi, g in enumerate(pg.grids) if gi in live_grids]
         if ys and (pg.width, pg.height) == (w, h):
             tops.append(min(t for t, _b in ys))
             bottoms.append(max(b for _t, b in ys))

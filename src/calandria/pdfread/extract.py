@@ -23,6 +23,12 @@ def unreadable(page: PageData) -> bool:
     return page.bad_chars / page.chars > GIBBERISH
 
 
+def _refusal(e: Exception) -> PdfRefused:
+    """Pypdf raises its own DependencyError (crypto extras not installed) when it hits an
+    encryption scheme it cannot decrypt without them; everything else means a damaged file."""
+    return PdfRefused(PROTECTED if type(e).__name__ == "DependencyError" else DAMAGED)
+
+
 def _obj(x):
     return x.get_object() if hasattr(x, "get_object") else x
 
@@ -66,7 +72,7 @@ def page_count(data: bytes) -> int:
     try:
         return len(reader.pages)
     except Exception as e:
-        raise PdfRefused(PROTECTED if type(e).__name__ == "DependencyError" else DAMAGED) from None
+        raise _refusal(e) from None
 
 
 def _page(reader, page, font_cache: dict) -> PageData:
@@ -110,4 +116,4 @@ def extract_pages(data: bytes, progress=None) -> list[PageData]:
     except PdfRefused:
         raise
     except Exception as e:
-        raise PdfRefused(PROTECTED if type(e).__name__ == "DependencyError" else DAMAGED) from None
+        raise _refusal(e) from None

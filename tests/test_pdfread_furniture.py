@@ -46,6 +46,11 @@ def test_bare_and_roman_page_numbers():
     assert len(find_furniture(pages)) == 4
 
 
+def test_en_and_em_dash_page_numbers():
+    pages = [page(i, [L("Body", 300, i), L(t, 765, i)]) for i, t in enumerate(["– 3 –", "— 4 —"])]
+    assert len(find_furniture(pages)) == 2
+
+
 def test_a_repeated_table_header_row_at_the_page_top_is_not_furniture():
     def with_table(i):
         segs = [Seg(72, 80, 540, 80), Seg(72, 100, 540, 100), Seg(72, 600, 540, 600),

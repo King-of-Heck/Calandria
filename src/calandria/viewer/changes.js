@@ -116,6 +116,7 @@ function build() {
   solo = null;
   $("copyFinal").disabled = false;
   trackedNote();
+  sourceNote();
   tiles();
   refilter();
 }
@@ -129,6 +130,36 @@ function trackedNote() {
   const side = (n) => n ? `${n} tracked change${n === 1 ? "" : "s"}` : "none";
   el.textContent = `Original: ${side(t.original)} · Modified: ${side(t.modified)}. Compared as if all changes were accepted.`;
   el.hidden = false;
+}
+
+// Sources that were PDFs: say once that the text was re-read from the pages, and name any pages
+// that had no text (a scanned signature page) and so were left out.
+const NO_TEXT_ONE = "has no text (scanned?) and was not compared.";
+const NO_TEXT_MANY = "have no text (scanned?) and were not compared.";
+
+function sourceNote() {
+  const el = $("sourceNote");
+  const s = data && data.source;
+  if (!s || s.kind !== "pdf") { el.hidden = true; el.textContent = ""; return; }
+  const parts = ["Compared from PDFs: text and tables are re-read from the pages, so layout is approximate and images are not shown."];
+  for (const [side, label] of [["original", "Original"], ["modified", "Modified"]]) {
+    const p = s.skipped[side];
+    if (p.length === 1) parts.push(`${label}: page ${p[0]} ${NO_TEXT_ONE}`);
+    else if (p.length) parts.push(`${label}: pages ${ranges(p)} ${NO_TEXT_MANY}`);
+  }
+  el.textContent = parts.join(" ");
+  el.hidden = false;
+}
+
+function ranges(pages) {
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    let j = i;
+    while (j + 1 < pages.length && pages[j + 1] === pages[j] + 1) j++;
+    out.push(j > i ? `${pages[i]}–${pages[j]}` : `${pages[i]}`);
+    i = j;
+  }
+  return out.join(", ");
 }
 
 // One entry per passage: its row (the paragraph it sits in; the row menu copies that), its

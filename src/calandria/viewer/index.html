@@ -70,6 +70,7 @@
       </select>
     </div>
     <p id="trackedNote" class="trackednote" hidden></p>
+    <p id="sourceNote" class="trackednote" hidden></p>
     <div id="tiles" class="tiles"></div>
     <ol id="changes" class="changes"></ol>
   </aside>
@@ -86,22 +87,22 @@
     <main id="pages" class="pane" data-side="blackline">
       <div class="caption">Blackline</div>
       <section id="sources" class="sources">
-        <p class="intro">Calandria compares two Word documents and shows every difference as a redline, on screen and in a PDF.</p>
+        <p class="intro">Calandria compares two Word documents or PDFs and shows every difference as a redline, on screen and in a PDF.</p>
         <div class="cards">
           <div id="cardA" class="card" role="button" tabindex="0" title="The original document">
             <span class="side">Original</span>
-            <span id="nameA" class="name">Drop the .docx here or click to choose</span>
+            <span id="nameA" class="name">Drop the .docx or .pdf here or click to choose</span>
             <span id="trackedA" class="tracked" hidden></span>
             <button id="clearA" class="clear" title="Remove this file" hidden>×</button>
-            <input type="file" id="fileA" accept=".docx" hidden>
+            <input type="file" id="fileA" accept=".docx,.pdf" hidden>
           </div>
           <button id="swap" title="Swap Original and Modified" disabled>⇄</button>
           <div id="cardB" class="card" role="button" tabindex="0" title="The modified document">
             <span class="side">Modified</span>
-            <span id="nameB" class="name">Drop the .docx here or click to choose</span>
+            <span id="nameB" class="name">Drop the .docx or .pdf here or click to choose</span>
             <span id="trackedB" class="tracked" hidden></span>
             <button id="clearB" class="clear" title="Remove this file" hidden>×</button>
-            <input type="file" id="fileB" accept=".docx" hidden>
+            <input type="file" id="fileB" accept=".docx,.pdf" hidden>
           </div>
         </div>
         <button id="compare" class="go" disabled>Compare</button>

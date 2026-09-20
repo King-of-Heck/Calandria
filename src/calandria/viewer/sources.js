@@ -1,32 +1,39 @@
 // The two source cards (empty state) that become the compact source strip in the toolbar once
 // a comparison exists: pick by click, drop one file onto a card, drop two onto anything, remove,
-// swap, and the one Compare button. The rule for Compare: enabled when both slots hold files and
-// they are not exactly the pair of the current comparison. Every fill waits for Compare, a
-// two-file drop included (v2.4.4: a drop never compares by itself). Swap re-runs at once when a
-// comparison exists, because the sides only make sense together.
+// swap, and the one Compare button. Both `.docx` and `.pdf` are accepted. The rule for Compare:
+// enabled when both slots hold files and they are not exactly the pair of the current comparison.
+// Every fill waits for Compare, a two-file drop included (v2.4.4: a drop never compares by
+// itself). Swap re-runs at once when a comparison exists, because the sides only make sense
+// together.
 import { api, readBase64, state } from "./app.js";
 
 const $ = (id) => document.getElementById(id);
-const EMPTY = "Drop the .docx here or click to choose";
+const EMPTY = "Drop the .docx or .pdf here or click to choose";
 const IDS = { a: { card: "cardA", input: "fileA", name: "nameA", clear: "clearA", tracked: "trackedA" },
               b: { card: "cardB", input: "fileB", name: "nameB", clear: "clearB", tracked: "trackedB" } };
 
 let handlers = { compare: () => {}, swap: () => {} };
 
-// Tracked changes read as accepted, per slot: null until /api/inspect answers for the slot's
-// current file (or when it could not); a number once it has. Compare never waits for it.
-const tracked = { a: null, b: null };
+// What /api/inspect said about each slot's current file: null until it answers (or when it could
+// not), then {kind, tracked, pages}. Compare never waits for it.
+const info = { a: null, b: null };
 
 async function inspect(slot, file) {
   try {
     const d = await api("/api/inspect", { name: file.name, data: await readBase64(file) });
     if (state.files[slot] !== file) return;       // the slot moved on (cleared, replaced or swapped)
-    tracked[slot] = d.tracked;
+    info[slot] = { kind: d.kind, tracked: d.tracked, pages: d.pages };
   } catch (e) {
     if (state.files[slot] !== file) return;
-    tracked[slot] = null;                          // Compare reports a bad file itself
+    info[slot] = null;                             // Compare reports a bad file itself
   }
   refreshSources();
+}
+
+function subline(i) {
+  if (!i) return "";
+  if (i.kind === "pdf") return `PDF · ${i.pages} page${i.pages === 1 ? "" : "s"} · text re-read from the pages`;
+  return i.tracked ? `${i.tracked} tracked change${i.tracked === 1 ? "" : "s"}, compared as if accepted` : "";
 }
 
 export function initSources(h) {
@@ -73,14 +80,14 @@ export function initSources(h) {
   refreshSources();
 }
 
-function docxOnly(list) {
-  return [...list].filter((f) => /\.docx$/i.test(f.name));
+function accepted(list) {
+  return [...list].filter((f) => /\.(docx|pdf)$/i.test(f.name));
 }
 
 // `slot` is the card the files landed on, or null for a drop elsewhere on the page area.
 function takeDrop(list, slot) {
   if (state.closed || state.busy) return;    // no drop while a request is in flight: a second compare could finish first
-  const files = docxOnly(list);
+  const files = accepted(list);
   if (!files.length) return;
   if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
   else if (slot) setFile(slot, files[0]);
@@ -89,7 +96,7 @@ function takeDrop(list, slot) {
 
 function setFile(slot, file) {
   state.files[slot] = file;
-  tracked[slot] = null;
+  info[slot] = null;
   refreshSources();
   if (file) inspect(slot, file);
 }
@@ -97,7 +104,7 @@ function setFile(slot, file) {
 function swap() {
   if (state.closed) return;
   [state.files.a, state.files.b] = [state.files.b, state.files.a];
-  [tracked.a, tracked.b] = [tracked.b, tracked.a];
+  [info.a, info.b] = [info.b, info.a];
   refreshSources();
   if (state.data && state.files.a && state.files.b) handlers.swap();
 }
@@ -115,9 +122,9 @@ export function refreshSources() {
     $(ids.name).title = f ? f.name : "";
     $(ids.card).classList.toggle("filled", !!f);
     $(ids.clear).hidden = !f;
-    const n = f ? tracked[slot] : null;
-    $(ids.tracked).hidden = !n;
-    $(ids.tracked).textContent = n ? `${n} tracked change${n === 1 ? "" : "s"}, compared as if accepted` : "";
+    const text = f ? subline(info[slot]) : "";
+    $(ids.tracked).hidden = !text;
+    $(ids.tracked).textContent = text;
   }
   const both = !!(state.files.a && state.files.b);
   $("swap").disabled = state.closed || state.busy || !(state.files.a || state.files.b);

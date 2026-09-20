@@ -184,7 +184,15 @@ async function compareNow() {
     const body = { a: { name: a.name, data: await readBase64(a) }, b: { name: b.name, data: await readBase64(b) },
                    options: options(), render_set: state.renderSet, change_bars: state.changeBars, marks: state.marks,
                    sides: ["blackline"] };              // a new comparison opens with the blackline alone (resetPanes)
-    const d = await api("/api/compare", body);
+    const label = `Comparing ${a.name} with ${b.name}…`;
+    const poll = setInterval(async () => {
+      try {
+        const p = await api("/api/progress");
+        if (state.seq === seq && state.busy) msg(p && p.pages ? `Reading ${p.name}… page ${p.page} of ${p.pages}` : label);
+      } catch (e) { /* the compare request reports failures */ }
+    }, 500);
+    let d;
+    try { d = await api("/api/compare", body); } finally { clearInterval(poll); }
     if (state.seq !== seq) return;
     if (state.closed) return;
     state.compared = { a, b };

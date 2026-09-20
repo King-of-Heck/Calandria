@@ -111,7 +111,7 @@ def test_the_empty_state_teaches():
     _, main = _main_html()
     assert "nothing is written to Word" in main
     assert "Closing this window closes Calandria" in main
-    assert "Drop the .docx here or click to choose" in main
+    assert "Drop the .docx or .pdf here or click to choose" in main
 
 
 def test_the_toolbar_holds_navigation_zoom_pdf_and_options_only():
@@ -712,3 +712,18 @@ def test_tracked_changes_notice_markup_and_copy():
     changes = _read("changes.js")
     assert "Compared as if all changes were accepted." in changes
     assert "export function readBase64" in _read("app.js")
+
+
+def test_pdf_sources_markup_and_copy():
+    html = _read("index.html")
+    assert html.count('accept=".docx,.pdf"') == 2 and 'accept=".docx"' not in html
+    assert "sourceNote" in _ids_in_html()
+    assert html.index('id="trackedNote"') < html.index('id="sourceNote"') < html.index('id="tiles"')
+    sources = _read("sources.js")
+    assert r"/\.(docx|pdf)$/i" in sources and "docxOnly" not in sources
+    assert "text re-read from the pages" in sources
+    changes = _read("changes.js")
+    assert "Compared from PDFs: text and tables are re-read from the pages, so layout is approximate and images are not shown." in changes
+    assert "have no text (scanned?) and were not compared" in changes
+    app = _read("app.js")
+    assert "/api/progress" in _function_body(app, "compareNow") and "clearInterval" in _function_body(app, "compareNow")

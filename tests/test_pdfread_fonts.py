@@ -23,6 +23,13 @@ class Stream(dict):
         return self._data
 
 
+class BoomStream(dict):
+    """A stream whose get_data() raises, as a ToUnicode object with a filter pypdf cannot apply
+    would."""
+    def get_data(self):
+        raise ValueError("corrupt stream")
+
+
 class Ref:
     """A tiny stand-in for pypdf's IndirectObject: get_object() returns the wrapped value."""
     def __init__(self, value):
@@ -86,3 +93,18 @@ def test_unmapped_control_codes_and_undefined_bytes_are_replacements():
 def test_a_broken_font_resource_still_gives_a_font():
     f = load_font({"/Subtype": "/Type0", "/BaseFont": "/Broken"})     # no descendant fonts
     assert f.name == "Broken" and f.decode(b"\x00\x41")[0][1] == REPLACEMENT
+
+
+def test_a_tounicode_that_cannot_be_read_still_leaves_the_widths_loaded():
+    res = {"/Subtype": "/TrueType", "/BaseFont": "/Arial", "/FirstChar": 65, "/Widths": [600, 650],
+           "/ToUnicode": BoomStream()}
+    f = load_font(res)
+    assert f.decode(b"AB") == [(65, "A", 600.0), (66, "B", 650.0)]
+
+
+def test_a_bad_widths_entry_still_leaves_the_character_map_loaded():
+    res = {"/Subtype": "/TrueType", "/BaseFont": "/Arial", "/FirstChar": 65, "/Widths": ["nope"],
+           "/ToUnicode": Stream(CMAP)}
+    f = load_font(res)
+    assert f.to_unicode[1] == "H"
+    assert f.widths == {}                     # the bad entry left the width table empty, not the font broken

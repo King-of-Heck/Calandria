@@ -119,7 +119,9 @@ def _cid_widths(w) -> dict[int, float]:
 
 def load_font(res) -> PdfFont:
     """Never raises: a resource it cannot read gives a font that decodes to replacements (Type0)
-    or through cp1252 (the rest), so one odd font cannot sink the document."""
+    or through cp1252 (the rest), so one odd font cannot sink the document. ToUnicode, widths and
+    encoding are read under independent guards, so a fault in one (a ToUnicode stream that will
+    not decompress, say) does not also cost the font its widths or its encoding."""
     res = _obj(res)
     font = PdfFont(str(res.get("/BaseFont", "/Unknown")).lstrip("/"))
     type0 = str(res.get("/Subtype")) == "/Type0"
@@ -129,6 +131,9 @@ def load_font(res) -> PdfFont:
         tu = res.get("/ToUnicode")
         if tu is not None:
             font.to_unicode, _n = parse_tounicode(_obj(tu).get_data())
+    except Exception:
+        pass
+    try:
         if type0:
             desc = _obj(_obj(res["/DescendantFonts"])[0])
             font.default_width = float(_obj(desc.get("/DW", 1000)))
@@ -140,6 +145,10 @@ def load_font(res) -> PdfFont:
             fd = _obj(res.get("/FontDescriptor")) if res.get("/FontDescriptor") is not None else {}
             if "/MissingWidth" in fd:
                 font.default_width = float(_obj(fd["/MissingWidth"]))
+    except Exception:
+        pass
+    try:
+        if not type0:
             enc = _obj(res.get("/Encoding")) if res.get("/Encoding") is not None else None
             if isinstance(enc, str):
                 font.codec = _BASE.get(str(enc), "cp1252")

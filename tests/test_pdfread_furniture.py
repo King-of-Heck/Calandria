@@ -1,0 +1,110 @@
+from calandria.pdfread.furniture import collect_notes, find_furniture
+from calandria.pdfread.grid import find_grids
+from calandria.pdfread.types import Line, PageLines, Seg, Span
+
+H = 792.0
+
+
+def L(text, y, page=0, x0=72.0, x1=300.0, size=12.0, cell=None, spans=None):
+    return Line(page, x0, x1, y, size, spans or [Span(text, "Arial", size)], cell)
+
+
+def page(i, lines, grids=(), segs=()):
+    return PageLines(i, 612.0, H, sorted(lines, key=lambda l: (l.y, l.x0)), list(grids), list(segs))
+
+
+def doc(n, extra=lambda i: []):
+    return [page(i, [L("Acme Supply Agreement", 40, i), L(f"Body text of page {i + 1}", 300, i),
+                     L(f"Page {i + 1} of {n}", 760, i, x0=270 - i)] + extra(i)) for i in range(n)]
+
+
+def texts(pages, found):
+    return sorted({pages[p].lines[i].text for p, i in found})
+
+
+def test_repeating_header_and_numbered_footer_are_furniture_and_body_is_not():
+    pages = doc(5)
+    assert texts(pages, find_furniture(pages)) == ["Acme Supply Agreement"] + [f"Page {i} of 5" for i in range(1, 6)]
+
+
+def test_a_different_first_page_still_strips_the_rest():
+    pages = doc(5)
+    pages[0] = page(0, [L("DRAFT 3", 40, 0), L("Title", 300, 0)])
+    found = find_furniture(pages)
+    assert "DRAFT 3" not in texts(pages, found) and len([1 for p, _ in found if p > 0]) == 8
+
+
+def test_short_documents_lose_only_page_numbers():
+    pages = doc(2)
+    assert texts(pages, find_furniture(pages)) == ["Page 1 of 2", "Page 2 of 2"]
+    three = doc(3)
+    assert "Acme Supply Agreement" in texts(three, find_furniture(three))
+
+
+def test_bare_and_roman_page_numbers():
+    pages = [page(i, [L("Body", 300, i), L(t, 765, i)]) for i, t in enumerate(["i", "ii", "- 3 -", "4 / 9"])]
+    assert len(find_furniture(pages)) == 4
+
+
+def test_a_repeated_table_header_row_at_the_page_top_is_not_furniture():
+    def with_table(i):
+        segs = [Seg(72, 80, 540, 80), Seg(72, 100, 540, 100), Seg(72, 600, 540, 600),
+                Seg(72, 80, 72, 600), Seg(300, 80, 300, 600), Seg(540, 80, 540, 600)]
+        return find_grids(segs), [L("Item", 94, i, cell=(0, 0)), L("Price", 94, i, x0=310, cell=(0, 1))]
+    pages = []
+    for i in range(4):
+        grids, cells = with_table(i)
+        pages.append(page(i, cells + [L(f"Page {i + 1}", 760, i)], grids))
+    assert texts(pages, find_furniture(pages)) == ["Page 1", "Page 2", "Page 3", "Page 4"]
+
+
+def test_a_header_that_is_a_small_table_is_furniture():
+    segs = [Seg(72, 20, 540, 20), Seg(72, 60, 540, 60), Seg(72, 20, 72, 60), Seg(300, 20, 300, 60), Seg(540, 20, 540, 60)]
+    pages = [page(i, [L("Acme", 45, i, cell=(0, 0)), L("Confidential", 45, i, x0=310, cell=(0, 1)), L("Body", 300, i)],
+                  find_grids(segs)) for i in range(4)]
+    assert texts(pages, find_furniture(pages)) == ["Acme", "Confidential"]
+
+
+def note(n, text, y, page=0):
+    return L("", y, page, size=9.0, spans=[Span(str(n), "Arial", 6.0, True), Span(" " + text, "Arial", 9.0)])
+
+
+def test_footnotes_under_a_short_rule_are_lifted_with_their_numbers_stripped():
+    rule = Seg(72, 690, 216, 690)
+    pages = [page(0, [L("Body one", 300), L("Body two", 320), note(1, "First note", 702), L("continues here", 713, size=9.0),
+                      note(2, "Second note", 724)], segs=[rule])]
+    notes, taken = collect_notes(pages, set(), 72.0, 12.0)
+    assert {n: [ln.text for ln in lines] for n, lines in notes.items()} == {
+        1: ["First note", "continues here"], 2: ["Second note"]}
+    assert taken == {(0, 2), (0, 3), (0, 4)}
+
+
+def test_a_plain_number_start_begins_a_note_only_when_it_is_the_next_number():
+    rule = Seg(72, 690, 216, 690)
+    pages = [page(0, [L("Body", 300), L("1 See clause 4 which runs for", 702, size=9.0), L("12 months from signing.", 713, size=9.0),
+                      L("2. Second note", 724, size=9.0)], segs=[rule])]
+    notes, _ = collect_notes(pages, set(), 72.0, 12.0)
+    assert {n: [ln.text for ln in lines] for n, lines in notes.items()} == {
+        1: ["See clause 4 which runs for", "12 months from signing."], 2: ["Second note"]}
+
+
+def test_a_continuation_rule_appends_to_the_previous_pages_last_note():
+    pages = [page(0, [L("Body", 300), note(1, "A note that runs", 702)], segs=[Seg(72, 690, 216, 690)]),
+             page(1, [L("More body", 300, 1), L("over the page.", 702, 1, size=9.0)], segs=[Seg(72, 690, 540, 690)])]
+    notes, taken = collect_notes(pages, set(), 72.0, 12.0)
+    assert [ln.text for ln in notes[1]] == ["A note that runs", "over the page."] and len(taken) == 2
+
+
+def test_rules_that_are_not_footnote_separators():
+    body_below = [page(0, [L("Heading", 300), L("Normal body text", 702)], segs=[Seg(72, 690, 216, 690)])]
+    assert collect_notes(body_below, set(), 72.0, 12.0) == ({}, set())
+    high = [page(0, [L("small", 120, size=9.0)], segs=[Seg(72, 100, 216, 100)])]
+    assert collect_notes(high, set(), 72.0, 12.0) == ({}, set())
+    indented = [page(0, [L("small", 702, size=9.0)], segs=[Seg(200, 690, 344, 690)])]
+    assert collect_notes(indented, set(), 72.0, 12.0) == ({}, set())
+
+
+def test_furniture_below_the_notes_is_ignored_when_already_skipped():
+    pages = [page(0, [L("Body", 300), note(1, "Note", 702), L("Page 1", 760)], segs=[Seg(72, 690, 216, 690)])]
+    notes, taken = collect_notes(pages, {(0, 2)}, 72.0, 12.0)
+    assert list(notes) == [1] and taken == {(0, 1)}

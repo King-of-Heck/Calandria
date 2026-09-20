@@ -41,6 +41,7 @@ def parse_pdf(data: bytes, progress=None) -> Document:
     skipped = tuple(i + 1 for i, p in enumerate(raw) if unreadable(p))
     pages = [page_lines(i, p, pos) for pos, (i, p) in enumerate(good)]
     skip = find_furniture(pages)
-    left, _right, body_size = body_metrics(pages, skip)
+    left, _right, body_size = body_metrics(pages, skip)   # a second call happens inside build_document,
+    # with `skip | note_lines` (footnote lines left out too) — a different `skip` set on purpose, not a duplicate to collapse
     notes, note_lines = collect_notes(pages, skip, left, body_size)
     return build_document(pages, skip | note_lines, notes, len(raw), skipped)

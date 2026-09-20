@@ -18,7 +18,7 @@ _STYLE_TAIL = re.compile(r"^(.+?)(BoldItalic|BoldOblique|Bold|Italic|Oblique)$")
 _WORDS = re.compile(r"[A-Z][a-z]+|[A-Z]+(?![a-z])|[a-z]+|\d+")
 _STYLE_WORDS = {"bold", "italic", "oblique", "regular", "roman", "mt", "ps", "psmt"}
 _CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
-MIN_MARGIN = 18.0
+MIN_MARGIN = 0.03      # of the page width or height: a measured margin is never less than this
 
 
 def _half(v: float) -> float:
@@ -172,6 +172,15 @@ class _Builder:
         self.tail = (table, offsets, self.row_texts(rows[0]) if rows else None)
 
 
+def _live_grids(pi: int, pg: PageLines, skip: set) -> list[int]:
+    """The indices of `pg.grids` that stay: a grid with no text lines at all (a bare ruled box),
+    or a grid with at least one of its text lines not skipped as furniture. A grid whose every
+    text line was skipped is stripped along with them, so it must not pull a margin toward it."""
+    had_text = {ln.cell[0] for ln in pg.lines if ln.cell is not None}
+    alive = {ln.cell[0] for li, ln in enumerate(pg.lines) if ln.cell is not None and (pi, li) not in skip}
+    return [gi for gi in range(len(pg.grids)) if gi in alive or gi not in had_text]
+
+
 def _section(pages: list[PageLines], skip: set, left: float, right: float) -> Section:
     if not pages:
         return Section()
@@ -179,13 +188,13 @@ def _section(pages: list[PageLines], skip: set, left: float, right: float) -> Se
     tops, bottoms = [], []
     for pi, pg in enumerate(pages):
         ys = [(ln.y - ln.size, ln.y + 0.3 * ln.size) for li, ln in enumerate(pg.lines) if (pi, li) not in skip]
-        ys += [(g.y0, g.y1) for g in pg.grids]
+        ys += [(g.y0, g.y1) for gi, g in enumerate(pg.grids) if gi in _live_grids(pi, pg, skip)]
         if ys and (pg.width, pg.height) == (w, h):
             tops.append(min(t for t, _b in ys))
             bottoms.append(max(b for _t, b in ys))
 
     def clamp(v: float, dim: float) -> float:
-        return _half(min(max(v, MIN_MARGIN), 0.4 * dim))
+        return _half(min(max(v, MIN_MARGIN * dim), 0.4 * dim))
     return Section(page_w_pt=w, page_h_pt=h,
                    margin_top_pt=clamp(min(tops), h) if tops else 72.0,
                    margin_bottom_pt=clamp(h - max(bottoms), h) if bottoms else 72.0,
@@ -225,10 +234,9 @@ def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line
         for ln in live:
             if ln.cell is not None:
                 by_cell.setdefault(ln.cell, []).append(ln)
-        had_text = {ln.cell[0] for ln in pg.lines if ln.cell is not None}
-        alive = {gi for gi, _ci in by_cell}
+        live_grids = set(_live_grids(pi, pg, skip))
         items = [(ln.y - ln.size, 0, ln) for ln in live if ln.cell is None]
-        items += [(g.y0, 1, gi) for gi, g in enumerate(pg.grids) if gi in alive or gi not in had_text]
+        items += [(g.y0, 1, gi) for gi, g in enumerate(pg.grids) if gi in live_grids]
         items.sort(key=lambda t: (t[0], t[1]))
         for n, (_top, kind, item) in enumerate(items):
             if kind == 0:

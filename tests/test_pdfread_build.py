@@ -38,6 +38,25 @@ def test_split_font(name, want):
     assert split_font(name) == want
 
 
+def test_the_margin_floor_is_a_share_of_the_page_not_an_absolute_number():
+    pg = page(0, [L(FULL, 100, x0=5, x1=200)])
+    (sec,) = build_document([pg], set(), {}, 1, ()).sections
+    assert sec.margin_left_pt == 18.5                      # 0.03 * 612 = 18.36 -> _half -> 18.5
+    wide = PageLines(0, 1224.0, 792.0, list(pg.lines), pg.grids, pg.segs)
+    (sec_wide,) = build_document([wide], set(), {}, 1, ()).sections
+    assert sec_wide.margin_left_pt == 36.5                  # 0.03 * 1224 = 36.72 -> _half -> 36.5
+    assert sec_wide.margin_left_pt > 2 * sec.margin_left_pt - 1
+
+
+def test_a_stripped_header_grid_does_not_pull_the_top_margin():
+    segs = lattice([72, 272, 472], [20, 60])
+    pg = page(0, [L("Left", 40, x0=78, x1=110, cell=(0, 0)), L("Right", 40, x0=278, x1=310, cell=(0, 1)),
+                  L("Body", 300, x1=200)], segs)
+    skip = {(0, 0), (0, 1)}
+    (sec,) = build_document([pg], skip, {}, 1, ()).sections
+    assert sec.margin_top_pt == 288.0                       # 300 - 12, not pulled up to 20 by the stripped grid
+
+
 def test_body_metrics_take_the_margin_not_an_outlier_and_the_commonest_size():
     lines = [L(FULL, 100 + 14 * i) for i in range(10)] + [L("x", 300, x0=60, x1=80), L("Big", 60, size=20, x1=120)]
     assert body_metrics([page(0, lines)], set()) == (72.0, 540.0, 12.0)
@@ -53,6 +72,7 @@ def test_paragraphs_runs_and_the_section():
     assert first.props.space_after_pt == 32.5 and second.props.space_after_pt == 32.5      # the last one takes the commonest
     (sec,) = doc.sections
     assert (sec.page_w_pt, sec.page_h_pt, sec.margin_left_pt, sec.margin_right_pt) == (612.0, 792.0, 72.0, 72.0)
+    assert (sec.margin_top_pt, sec.margin_bottom_pt) == (88.0, 317.0)      # top: 100-12; bottom: 792-(160+0.3*12)
     assert (doc.source_kind, doc.source_pages, doc.skipped_pages, doc.default_font, doc.default_size_pt) == (
         "pdf", 1, (), "Arial", 12.0)
 

@@ -714,9 +714,41 @@ INS_RUN = '<w:ins w:id="1" w:author="A"><w:r><w:t>new</w:t></w:r></w:ins>'
 
 def test_inspect_counts_one_file_without_touching_the_session(srv):
     body = {"name": "draft.docx", "data": _b64(_docx("<w:p>" + INS_RUN + "</w:p>" + P("x")))}
-    assert _json(srv.url + "api/inspect", "POST", body) == (200, {"name": "draft.docx", "tracked": 1})
+    assert _json(srv.url + "api/inspect", "POST", body) == (
+        200, {"name": "draft.docx", "kind": "docx", "tracked": 1, "pages": None})
     assert _json(srv.url + "api/inspect", "POST", {"name": "c.docx", "data": _b64(_docx(P("x")))})[1]["tracked"] == 0
     assert _json(srv.url + "api/state")[1]["loaded"] is False
+
+
+from calandria.testing.makepdf import make_pdf
+
+
+def test_inspect_counts_a_pdfs_pages_without_reading_its_text(srv):
+    data = make_pdf([[("text", 72, 100, 12, "one")], [("text", 72, 100, 12, "two")]])
+    assert _json(srv.url + "api/inspect", "POST", {"name": "deal.pdf", "data": _b64(data)}) == (
+        200, {"name": "deal.pdf", "kind": "pdf", "tracked": None, "pages": 2})
+    assert _json(srv.url + "api/state")[1]["loaded"] is False
+
+
+def test_inspect_gives_a_protected_pdfs_reason(srv):
+    data = make_pdf([[("text", 72, 100, 12, "x")]], user_password="secret")
+    status, d = _json(srv.url + "api/inspect", "POST", {"name": "locked.pdf", "data": _b64(data)})
+    assert status == 400 and d["error"] == "locked.pdf: This PDF is password-protected. Open it and print it to a new PDF first."
+
+
+def test_progress_is_empty_when_idle_and_answers_while_the_session_lock_is_held(srv):
+    assert _json(srv.url + "api/progress") == (200, {})
+    assert _json(srv.url + "api/progress", "POST", {})[0] == 405
+    srv.session.progress = {"name": "a.pdf", "page": 3, "pages": 9}
+    with srv.session.lock:                                   # a compare in flight holds this
+        assert _json(srv.url + "api/progress") == (200, {"name": "a.pdf", "page": 3, "pages": 9})
+
+
+def test_two_pdfs_compare_over_http(srv):
+    body = {"a": {"name": "a.pdf", "data": _b64(make_pdf([[("text", 72, 100, 12, "Alpha beta")]]))},
+            "b": {"name": "b.pdf", "data": _b64(make_pdf([[("text", 72, 100, 12, "Alpha gamma")]]))}}
+    status, d = _json(srv.url + "api/compare", "POST", body)
+    assert status == 200 and d["source"]["kind"] == "pdf" and d["summary"]["total"] >= 1
 
 
 def test_inspect_rejects_a_missing_file_and_a_non_docx(srv):

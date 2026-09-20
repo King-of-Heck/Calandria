@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, quote, urlsplit
 from .. import __version__
 from ..docx.package import Package
 from ..docx.revisions import count_revisions
+from ..reader import kind_of
 from .session import BadRequest, NoComparison, Session, check_render, parse_options, parse_sides
 from .launch import open_viewer
 
@@ -258,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise _Bad(404, "not found")
             route = path[len("/api/"):]
             allowed = {"state": "GET", "pages": "GET", "pdf": "GET", "compare": "POST", "layout": "POST",
-                       "inspect": "POST", "ping": "POST", "quit": "POST"}.get(route)
+                       "inspect": "POST", "progress": "GET", "ping": "POST", "quit": "POST"}.get(route)
             if allowed is None:
                 raise _Bad(404, "not found")
             if allowed != method:
@@ -308,17 +309,32 @@ class Handler(BaseHTTPRequestHandler):
         self._json(payload)      # written outside the lock: a slow client must not stall the rest
 
     def _api_inspect(self, session, query):
-        """One dropped file's tracked-revision count, for the source card; touches no session state."""
+        """One dropped file for the source card: a Word document's tracked-revision count, or a
+        PDF's page count (its text is not read here). Touches no session state."""
         body = self._body()
         if not isinstance(body.get("name"), str):
             raise _Bad(400, "a file (name, data) is required")
         name, data = _file({"file": body}, "file")
+        if kind_of(data) == "pdf":
+            from ..pdfread.extract import page_count
+            from ..pdfread.types import PdfRefused
+            try:
+                pages = page_count(data)
+            except PdfRefused as e:
+                raise _Bad(400, f"{name}: {e}") from None
+            self._json({"name": name, "kind": "pdf", "tracked": None, "pages": pages})
+            return
         try:
             with Package.open(data) as pkg:
                 tracked = count_revisions(pkg)
         except Exception as e:
             raise _Bad(400, f"{name}: not a Word document ({type(e).__name__})") from None
-        self._json({"name": name, "tracked": tracked})
+        self._json({"name": name, "kind": "docx", "tracked": tracked, "pages": None})
+
+    def _api_progress(self, session, query):
+        """How far the PDF being read has got. Deliberately NOT under the session lock: the
+        compare that is doing the reading holds it."""
+        self._json(session.progress or {})
 
     def _api_layout(self, session, query):
         body = self._body()

@@ -21,8 +21,12 @@ read: a loopback server is reachable from every page the browser has open.
                               -> {"render_set", "change_bars", "pages", "report_lines"}
   GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none&changed_only=0|1
                               -> application/pdf as an attachment
-  POST /api/inspect           {"name", "data" (base64 .docx)} -> {"name", "tracked"}: the file's
-                              tracked changes (read as accepted); touches no session state
+  POST /api/inspect           {"name", "data" (base64 .docx or PDF)} -> {"name", "kind", "tracked",
+                              "pages"}: a Word document's tracked changes (read as accepted, "pages"
+                              null) or a PDF's page count ("tracked" null, its text not read here);
+                              touches no session state
+  GET  /api/progress          {} when idle, else {"name", "page", "pages"}: how far the PDF being
+                              read by a compare in flight has got; never takes the session lock
   POST /api/ping?hidden=0|1   {"ok": true}; the page sends one every 2 s and on every change of
                               its visibility, saying whether it is hidden
   POST /api/quit              {"ok": true}, then the server stops

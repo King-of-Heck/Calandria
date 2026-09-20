@@ -12,6 +12,7 @@ SUP_SIZE = 0.85       # a superscript is smaller than this share of the line's s
 SUP_RISE = 0.15       # ... and raised by more than this share of it
 SPACE_GAP = 0.12      # a word space is 0.22 em in Calibri, 0.25 in Times, 0.28 in Arial; kerning moves far less
 TAB_GAP = 2.0
+SAME_SPOT = 0.05      # of the font size: the same text this close to an earlier run is that run drawn again (fake bold)
 
 
 def _half(v: float) -> float:
@@ -21,7 +22,10 @@ def _half(v: float) -> float:
 def _dedupe(runs: list[TextRun]) -> list[TextRun]:
     out: list[TextRun] = []
     for r in runs:
-        if any(o.text == r.text and abs(o.x0 - r.x0) < 0.6 and abs(o.y - r.y) < 0.6 for o in out[-8:]):
+        # A duplicate is drawn right after its original, so a short trailing window is enough to
+        # catch it; this keeps the scan linear instead of comparing against every run seen so far.
+        if any(o.text == r.text and abs(o.x0 - r.x0) < SAME_SPOT * r.size and abs(o.y - r.y) < SAME_SPOT * r.size
+               for o in out[-8:]):
             continue
         out.append(r)
     return out

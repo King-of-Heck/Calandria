@@ -50,6 +50,13 @@ def test_text_drawn_twice_for_fake_bold_is_read_once():
     assert ln.text == "Heading"
 
 
+def test_a_redrawn_run_is_measured_against_its_own_font_size():
+    (ln,) = build_lines([R("Heading", 72, 120, size=24), R("Heading", 73.0, 121.0, size=24)])
+    assert ln.text == "Heading"
+    (ln,) = build_lines([R("x", 72, 75, size=6), R("x", 72.5, 75.5, size=6)])
+    assert ln.text.count("x") == 2
+
+
 def test_blank_lines_are_dropped_and_edges_ignore_outer_whitespace():
     lines = build_lines([R("   ", 72, 80, y=50), R(" padded ", 72, 120)])
     assert [ln.text for ln in lines] == ["padded"]

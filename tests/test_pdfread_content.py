@@ -68,9 +68,20 @@ def test_cm_scales_position_and_size_and_q_restores():
 
 def test_rotated_text_is_dropped_and_nul_text_is_empty():
     rot = [([], b"BT"), (["/F1", 10.0], b"Tf"), ([0.0, 1.0, -1.0, 0.0, 100.0, 100.0], b"Tm"), ([b"A"], b"Tj"), ([], b"ET")]
-    assert run(rot).runs == []
+    p = run(rot)
+    assert p.runs == [] and p.chars == 0             # dropped text is never counted either
     nul = PdfFont("N", to_unicode={65: "\x00"})
     assert run(text_ops(([b"A"], b"Tj")), fonts={"/F1": nul}).runs == []
+
+
+def test_a_malformed_text_operand_is_ignored_and_the_good_runs_around_it_read_correctly():
+    ops = [([], b"BT"), (["/F1", 10.0], b"Tf"), ([72.0, 700.0], b"Td"), ([b"A"], b"Tj"),
+           (["/F1"], b"Tf"),               # malformed: Tf with one operand
+           ([5.0], b"Tj"),                 # malformed: Tj with a number, not bytes
+           ([b"B"], b"Tj"), ([], b"ET")]
+    a, b = run(ops).runs
+    assert (a.text, a.x0, a.x1) == ("A", 72.0, 77.0)
+    assert (b.text, b.x0, b.x1) == ("B", 77.0, 82.0)
 
 
 def test_an_unknown_font_name_still_reads_as_cp1252():

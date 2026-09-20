@@ -25,7 +25,7 @@ def _half(v: float) -> float:
 def prevailing_pitch(lines: list[Line]) -> float:
     seen: Counter = Counter()
     for p, l in zip(lines, lines[1:]):
-        if p.page == l.page and p.cell == l.cell and l.y > p.y and abs(p.size - l.size) < 0.26:
+        if p.page == l.page and p.cell == l.cell and l.y > p.y and p.size == l.size:
             seen[round((l.y - p.y) / l.size / PITCH_STEP)] += 1
     if not seen:
         return DEFAULT_PITCH

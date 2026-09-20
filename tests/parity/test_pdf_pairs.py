@@ -40,6 +40,7 @@ def cases():
 
 
 def test_the_expectations_file_is_well_formed():
+    assert isinstance(EXPECTED, list)
     for e in EXPECTED:
         assert {"alias", "variant", "field", "reason", "pdf"} <= e.keys(), e
         assert e["field"] in FIELDS and e["variant"] in VARIANTS and e["reason"].strip(), e

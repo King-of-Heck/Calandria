@@ -76,6 +76,13 @@ def test_rotated_text_is_dropped_and_nul_text_is_empty():
 def test_an_unknown_font_name_still_reads_as_cp1252():
     p = run(text_ops(([b"Hi"], b"Tj")), fonts={})
     assert p.runs[0].text == "Hi" and p.runs[0].font == "Unknown"
+    assert (p.chars, p.bad_chars) == (2, 2)          # counted as unreadable: its font was lost
+
+
+def test_a_page_shown_entirely_through_an_unknown_font_is_unreadable():
+    from calandria.pdfread.extract import unreadable
+    p = run(text_ops(([b"Hi"], b"Tj")), fonts={})
+    assert unreadable(p)
 
 
 def test_a_stroked_rectangle_gives_four_segments_and_a_line_gives_one():

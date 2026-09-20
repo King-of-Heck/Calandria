@@ -81,7 +81,11 @@ def _page(reader, page, font_cache: dict) -> PageData:
     rotation = int(page.rotation or 0) % 360
     w, h = box[2] - box[0], box[3] - box[1]
     out = PageData(*((h, w) if rotation in (90, 270) else (w, h)))
-    res = _obj(page.get("/Resources")) or {}
+    if hasattr(page, "get_inherited"):
+        res = _obj(page.get_inherited("/Resources"))
+    else:
+        res = _obj(page.get("/Resources"))
+    res = res or {}
     fonts: dict[str, PdfFont] = {}
     for name, ref in (_obj(res.get("/Font")) or {}).items():
         key = (getattr(ref, "idnum", None), getattr(ref, "generation", None))

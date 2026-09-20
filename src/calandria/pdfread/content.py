@@ -62,6 +62,7 @@ def interpret(ops, fonts: dict[str, PdfFont], xobjects: dict[str, str], base, pa
 
     def show(raw: bytes):
         nonlocal tm
+        no_font = st.font_name not in fonts
         font = fonts.get(st.font_name, unknown)
         m = mul(tm, full())
         x_start, y_start = apply(m, 0.0, st.rise)
@@ -74,6 +75,8 @@ def interpret(ops, fonts: dict[str, PdfFont], xobjects: dict[str, str], base, pa
         text = "".join(pieces).replace("\x00", "")
         page.chars += len(text)
         page.bad_chars += text.count(REPLACEMENT)
+        if no_font:
+            page.bad_chars += len(text)
         upright = m[0] > 0 and m[3] < 0 and abs(m[1]) < 0.01 * abs(m[0]) and abs(m[2]) < 0.01 * abs(m[3])
         if text and upright:
             page.runs.append(TextRun(text, x_start, x_end, y_start, st.size * abs(m[3]), font.name))

@@ -1,3 +1,4 @@
+import io
 import sys
 
 import pytest
@@ -71,6 +72,36 @@ def test_the_messages_are_the_agreed_wording():
     assert NO_TEXT == ("This PDF has no text, so it looks scanned. Calandria can only compare PDFs "
                        "that contain real text.")
     assert PROTECTED == "This PDF is password-protected. Open it and print it to a new PDF first."
+
+
+def test_page_reads_resources_inherited_from_the_pages_tree():
+    """pypdf's own reader.pages flattens /Resources onto every page it hands out (verified against
+    the installed pypdf 6.19 by reading PdfDocCommon._flatten), so the inherited case cannot be
+    reached through the public extract_pages() API; PdfWriter re-inlines it too when a page is
+    moved and re-written. This stands _page() up directly against a minimal page-like object whose
+    plain get("/Resources") is empty but whose get_inherited("/Resources") is not, the shape a
+    genuinely un-flattened pypdf page would have."""
+    from pypdf import PdfReader
+
+    data = make_pdf(ONE)
+    real_page = PdfReader(io.BytesIO(data)).pages[0]
+
+    class NoDirectResources:
+        cropbox = real_page.cropbox
+        rotation = real_page.rotation
+
+        def get(self, key, default=None):
+            return default if key == "/Resources" else real_page.get(key, default)
+
+        def get_inherited(self, key, default=None):
+            return real_page.get(key, default) if key == "/Resources" else default
+
+        def get_contents(self):
+            return real_page.get_contents()
+
+    reader = PdfReader(io.BytesIO(data))
+    out = extract._page(reader, NoDirectResources(), {})
+    assert out.runs[0].text == "Hello world" and out.runs[0].font == "Helvetica"
 
 
 def test_importing_the_reader_does_not_import_pypdf():

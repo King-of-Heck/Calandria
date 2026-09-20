@@ -17,9 +17,10 @@ GIBBERISH = 0.3       # a page with more than this share of unmappable character
 
 
 def unreadable(page: PageData) -> bool:
-    """A scanned page (an image, no text) or one whose text does not decode. A blank page is fine."""
+    """A scanned page (an image, no text), a page whose text lives in a form XObject we did not
+    walk into, or one whose text does not decode. A blank page is fine."""
     if page.chars == 0:
-        return page.images > 0
+        return page.images > 0 or page.forms > 0
     return page.bad_chars / page.chars > GIBBERISH
 
 

@@ -33,6 +33,7 @@ def test_progress_is_called_per_page_and_page_count_matches():
 
 def test_unreadable_means_a_scan_or_gibberish_not_a_blank_page():
     assert unreadable(PageData(1, 1, images=1))
+    assert unreadable(PageData(1, 1, forms=1))
     assert unreadable(PageData(1, 1, chars=10, bad_chars=4))
     assert not unreadable(PageData(1, 1))
     assert not unreadable(PageData(1, 1, chars=10, bad_chars=3, images=2))

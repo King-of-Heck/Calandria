@@ -103,8 +103,8 @@ def test_a_thin_filled_rectangle_is_a_segment_and_a_fat_one_is_shading():
     assert [(s.x0, s.y0, s.x1, s.y1) for s in segs] == pytest.approx([(72, 220.25, 272, 220.25), (300.3, 92, 300.3, 192)])
 
 
-def test_a_clip_path_is_not_a_border_and_images_are_counted():
+def test_a_clip_path_is_not_a_border_and_images_and_forms_are_counted():
     ops = [([72.0, 642.0, 200.0, -40.0], b"re"), ([], b"W"), ([], b"n"),
            (["/Im1"], b"Do"), (["/Fm1"], b"Do"), ([{}], b"INLINE IMAGE")]
     p = run(ops, xobjects={"/Im1": "image", "/Fm1": "form"})
-    assert p.segs == [] and p.images == 2
+    assert p.segs == [] and p.images == 2 and p.forms == 1

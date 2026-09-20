@@ -186,8 +186,11 @@ def interpret(ops, fonts: dict[str, PdfFont], xobjects: dict[str, str], base, pa
             elif op == b"n":
                 subpaths = []
             elif op == b"Do":
-                if xobjects.get(operands[0]) == "image":
+                kind = xobjects.get(operands[0])
+                if kind == "image":
                     page.images += 1
+                elif kind == "form":
+                    page.forms += 1
             elif op == b"INLINE IMAGE":
                 page.images += 1
         except (IndexError, TypeError, ValueError):

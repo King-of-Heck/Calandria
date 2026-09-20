@@ -43,6 +43,7 @@ class PageData:
     runs: list[TextRun] = field(default_factory=list)
     segs: list[Seg] = field(default_factory=list)
     images: int = 0
+    forms: int = 0         # Do operators drawing a form XObject (text that may live off-page)
     chars: int = 0        # characters decoded on the page
     bad_chars: int = 0    # of them, characters the font could not map
 

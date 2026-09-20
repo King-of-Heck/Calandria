@@ -29,6 +29,7 @@ class ReportInfo:
     changed_only: tuple[int, int] | None = None   # (pages emitted, pages in the layout) for a changed-pages-only PDF
     comments: tuple | None = None   # (added, removed, edited) counts, None when no comment changed
     tracked: tuple[int, int] | None = None    # (original, modified) tracked changes read as accepted; None when both are zero
+    source: tuple | None = None     # (original, modified) skipped page numbers when the sources are PDFs; None for Word
 
 
 def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
@@ -41,12 +42,30 @@ def report_info(cmp: Comparison, original: str, modified: str, render_set: str,
                     sum(c.state == "edited" for c in flagged))
     counts = tuple(d.tracked_changes if d is not None else 0 for d in (cmp.a_doc, cmp.b_doc))
     tracked = counts if any(counts) else None
+    docs = (cmp.a_doc, cmp.b_doc)
+    source = None
+    if all(d is not None and d.source_kind == "pdf" for d in docs):
+        source = tuple(tuple(d.skipped_pages) for d in docs)
     return ReportInfo(original, modified, when or datetime.now(), render_set, dict(cmp.summary),
-                      cmp.ignore_case, cmp.count_numbering, comments=comments, tracked=tracked)
+                      cmp.ignore_case, cmp.count_numbering, comments=comments, tracked=tracked, source=source)
 
 
 def _onoff(b: bool) -> str:
     return "on" if b else "off"
+
+
+def _page_list(pages) -> str:
+    """(41, 42, 44) -> '41-42, 44'; () -> 'none'."""
+    if not pages:
+        return "none"
+    out, start, prev = [], pages[0], pages[0]
+    for p in list(pages[1:]) + [None]:
+        if p is not None and p == prev + 1:
+            prev = p
+            continue
+        out.append(str(start) if start == prev else f"{start}-{prev}")
+        start = prev = p
+    return ", ".join(out)
 
 
 def report_lines(info: ReportInfo) -> list[str]:
@@ -63,6 +82,12 @@ def report_lines(info: ReportInfo) -> list[str]:
     if info.tracked and any(info.tracked):
         a, b = info.tracked
         lines.insert(5, f"Tracked changes in sources: original {a}, modified {b} (compared as accepted)")
+    if info.source is not None:
+        extra = ["Sources: PDFs, text and tables re-read from the pages (layout approximate, images not shown)"]
+        if any(info.source):
+            a, b = info.source
+            extra.append(f"Pages with no text, not compared: original {_page_list(a)}, modified {_page_list(b)}")
+        lines[5:5] = extra
     if info.comments:
         add, rem, edt = info.comments
         lines.append(f"Comments: {add} added, {rem} removed, {edt} edited (not counted)")

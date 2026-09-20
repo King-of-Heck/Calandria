@@ -144,3 +144,24 @@ def test_report_info_reads_the_counts_from_the_documents():
 
 def test_report_omits_the_tracked_line_for_an_explicit_zero_pair():
     assert not any(ln.startswith("Tracked changes") for ln in report_lines(_info(tracked=(0, 0))))
+
+
+def test_pdf_sources_are_named_in_the_report():
+    from dataclasses import replace
+    base = _info()                               # the file's existing helper for a plain ReportInfo
+    assert not any("Sources:" in ln for ln in report_lines(base))
+    lines = report_lines(replace(base, source=((), ())))
+    assert lines[5] == "Sources: PDFs, text and tables re-read from the pages (layout approximate, images not shown)"
+    assert not any("not compared" in ln for ln in lines)
+    lines = report_lines(replace(base, source=((41, 42, 44), ())))
+    assert lines[6] == "Pages with no text, not compared: original 41-42, 44, modified none"
+    assert all(ln.isascii() for ln in lines)
+
+
+def test_report_info_reads_the_source_kind_from_the_documents():
+    from calandria.diff.compare import compare
+    from calandria.pdfread import parse_pdf
+    from calandria.testing.makepdf import make_pdf
+    a = parse_pdf(make_pdf([[("text", 72, 100, 12, "Alpha")], [("image", 0, 0, 612, 792)]]))
+    b = parse_pdf(make_pdf([[("text", 72, 100, 12, "Alpha beta")]]))
+    assert report_info(compare(a, b), "a.pdf", "b.pdf", "Standard").source == ((2,), ())

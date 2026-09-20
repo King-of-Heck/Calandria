@@ -83,10 +83,20 @@ def test_longtable_pair_has_a_repeating_header_and_a_mid_table_insert():
     db = parse_docx(io.BytesIO(gen_pairs.build(b)))
     ta = next(t for t in da.blocks if isinstance(t, Table))
     tb = next(t for t in db.blocks if isinstance(t, Table))
-    assert len(ta.rows) == 90                    # header + 89 data rows
-    assert len(tb.rows) == 91                    # one row inserted mid-table
+    assert len(ta.rows) == 110                   # header + 109 data rows
+    assert len(tb.rows) == 111                   # one row inserted mid-table
     c = compare(parse_docx(io.BytesIO(gen_pairs.build(a))), parse_docx(io.BytesIO(gen_pairs.build(b))))
     assert c.summary["total"] > 0
+
+
+def test_ruled_tables_carry_all_six_tbl_borders_sides():
+    # A regression that drops a border side (or the whole w:tblBorders element) must fail here.
+    a, _b = gen_pairs.PAIRS["grid"]
+    xml = a["word/document.xml"]
+    assert "<w:tblBorders>" in xml
+    borders = xml.split("<w:tblBorders>", 1)[1].split("</w:tblBorders>", 1)[0]
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        assert f'<w:{side} w:val="single"' in borders, side
 
 
 def test_schedule_pair_has_two_ruled_tables_and_numbered_clauses():

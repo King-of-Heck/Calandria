@@ -197,15 +197,19 @@ _PAIR_GRID = _pair(P("Pricing Grid") + _GRID_A + P("End of grid"),
                    P("Pricing Grid") + _GRID_B + P("End of grid"))
 
 
-# gen-longtable: a ruled 90-row x 3-column table with a repeating header row, long enough to run
-# over three pages. B changes a cell near the start, middle and end, and inserts a row mid-table.
+# gen-longtable: a ruled 110-row x 3-column table with a repeating header row, long enough to run
+# over three pages. B changes a cell near the start, middle and end (landing on three different
+# pages), and inserts a row mid-table.
+_LT_ROW_COUNT = 110
+
+
 def _lt_row(i: int, value: str | None = None, note: str | None = None) -> str:
     return _row(_cell(f"Row {i}") + _cell(value or f"Value {i}") + _cell(note or f"Note {i}"))
 
 
 def _lt_rows(overrides: dict | None = None, insert_after: int | None = None, insert_row: str = "") -> str:
     rows = _row(_cell("Row") + _cell("Value") + _cell("Note"), header=True)
-    for i in range(1, 90):
+    for i in range(1, _LT_ROW_COUNT):
         o = (overrides or {}).get(i, {})
         rows += _lt_row(i, **o)
         if i == insert_after:
@@ -215,9 +219,9 @@ def _lt_rows(overrides: dict | None = None, insert_after: int | None = None, ins
 
 _LONGTABLE_A = _ruled(_lt_rows(), grid=[2000, 2000, 4000])
 _LONGTABLE_B = _ruled(_lt_rows(
-    overrides={10: {"value": "Value 10 (updated)"}, 45: {"note": "Note 45 revised"},
-               80: {"value": "Value 80 (updated)"}},
-    insert_after=45, insert_row=_lt_row("45b")), grid=[2000, 2000, 4000])
+    overrides={15: {"value": "Value 15 (updated)"}, 55: {"note": "Note 55 revised"},
+               100: {"value": "Value 100 (updated)"}},
+    insert_after=55, insert_row=_lt_row("55b")), grid=[2000, 2000, 4000])
 _PAIR_LONGTABLE = _pair(P("Long Table") + _LONGTABLE_A + P("End of table"),
                         P("Long Table") + _LONGTABLE_B + P("End of table"))
 

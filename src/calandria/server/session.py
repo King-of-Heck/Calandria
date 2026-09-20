@@ -257,7 +257,14 @@ class Session:
     def load(self, a_name: str, a_bytes: bytes, b_name: str, b_bytes: bytes,
              options: Options | None = None) -> None:
         """Nothing is committed until the new pair has compared AND laid out, so a bad file or a
-        failure part way leaves the session showing exactly what it was showing before."""
+        failure part way leaves the session showing exactly what it was showing before. A Word
+        document against a PDF is refused from the bytes alone, before either is parsed; an
+        unknown kind still gets its own per-file message from the parse below, and the
+        source_kind check after parsing stays as the invariant (kind_of and a reader's own idea
+        of what it read should never disagree, but the check costs nothing to keep)."""
+        a_kind, b_kind = kind_of(a_bytes), kind_of(b_bytes)
+        if a_kind is not None and b_kind is not None and a_kind != b_kind:
+            raise BadDocument(MIXED)
         t0 = perf_counter()
         try:
             a, b = self._read(a_name, a_bytes), self._read(b_name, b_bytes)

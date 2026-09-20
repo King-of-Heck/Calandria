@@ -407,6 +407,15 @@ def test_a_word_document_against_a_pdf_is_refused_and_changes_nothing():
     assert s.a_name == "a.docx" and s.b_name == "b.docx"
 
 
+def test_a_word_document_against_a_pdf_is_refused_before_either_is_parsed(monkeypatch):
+    calls = []
+    monkeypatch.setattr(session_module, "read_document", lambda *a, **k: calls.append(1))
+    s = Session(fonts=FR)
+    with pytest.raises(BadDocument, match="Comparing a Word document with a PDF"):
+        s.load("a.docx", _docx(P("x")), "b.pdf", _pdf("x"))
+    assert calls == []
+
+
 def test_a_refused_pdf_names_the_file_and_gives_the_reason():
     s = Session(fonts=FR)
     with pytest.raises(BadDocument) as e:

@@ -159,8 +159,46 @@ def test_the_same_header_on_both_pages_of_a_two_page_document_is_furniture():
 def test_a_numbered_body_line_at_the_page_top_is_not_furniture():
     """gen-hf-A.pdf: every clause reads 'Section one paragraph N ...', so blanking the digits gives
     them all one signature, and the clause that happened to land at the top of each page repeated
-    at the same height and was stripped -- four paragraphs a page, gone from the body."""
-    pages = [page(i, [L(f"Section one paragraph {i * 3} with enough words.", 80, i),
-                      L(f"Section one paragraph {i * 3 + 1} with enough words.", 300, i),
+    at the same height and was stripped -- four paragraphs a page, gone from the body. The clause
+    signature is body text because it is mostly body text: in gen-hf-A its three clause signatures
+    run 52, 106 and 112 mid-page against 8, 14 and 8 in the band, while the header signature that
+    carries a number runs 3 mid-page against 9. The headers are still stripped, the one whose number
+    changes per page along with the rest."""
+    pages = [page(i, [L("Acme Supply Agreement", 40, i), L(f"Schedule 3 - Page {i + 1}", 60, i),
+                      L(f"Section one paragraph {i * 4} with enough words.", 80, i),
+                      L(f"Page {i + 1} of 5", 760, i)]
+                  + [L(f"Section one paragraph {i * 4 + k} with enough words.", 100 * k + 200, i) for k in (1, 2, 3)])
+             for i in range(5)]
+    found = [pages[p].lines[i].text for p, i in find_furniture(pages)]
+    assert not [t for t in found if t.startswith("Section one paragraph")]
+    assert sorted(found) == sorted(["Acme Supply Agreement"] * 5 + [f"Schedule 3 - Page {i}" for i in range(1, 6)]
+                                   + [f"Page {i} of 5" for i in range(1, 6)])
+
+
+def test_one_mid_page_copy_does_not_keep_a_running_header_in_the_body():
+    """A header stripped on no page at all because the cover page repeats its words once in the
+    text is worse than the stray copy it was guarding against."""
+    pages = doc(5)
+    pages[0] = page(0, [L("Acme Supply Agreement", 40, 0), L("Acme Supply Agreement", 300, 0),
+                        L("Body text of page 1", 500, 0), L("Page 1 of 5", 760, 0)])
+    found = find_furniture(pages)
+    assert sum(1 for p, i in found if pages[p].lines[i].text == "Acme Supply Agreement") == 5
+
+
+def test_a_header_as_common_in_the_body_as_in_the_band_is_still_furniture():
+    """A tie is not evidence that the words are body text: the band copies are stripped."""
+    pages = [page(i, [L("Acme Supply Agreement", 40, i), L("Acme Supply Agreement", 300, i),
                       L(f"Page {i + 1} of 5", 760, i)]) for i in range(5)]
-    assert texts(pages, find_furniture(pages)) == [f"Page {i} of 5" for i in range(1, 6)]
+    found = find_furniture(pages)
+    assert sum(1 for p, i in found if pages[p].lines[i].text == "Acme Supply Agreement") == 5
+
+
+def test_one_bare_number_in_the_body_does_not_keep_a_repeating_year_line_in_it():
+    """Every page number shares the '#' signature with any bare number in the text, so a single
+    figure or table cell mid-page must not keep the repeating in-band line."""
+    pages = doc(5, extra=lambda i: [L("2026", 700, i)])
+    pages[2] = page(2, [L("Acme Supply Agreement", 40, 2), L("42", 300, 2), L("2026", 700, 2),
+                        L("Page 3 of 5", 760, 2)])
+    found = find_furniture(pages)
+    assert sum(1 for p, i in found if pages[p].lines[i].text == "2026") == 5
+    assert "42" not in texts(pages, found)

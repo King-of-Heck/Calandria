@@ -5,6 +5,7 @@ body, and the footnotes go to the notes stream."""
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import replace
 
 from ..model import collapse_ws
@@ -57,8 +58,14 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     seen: dict[str, list[tuple[float, int, int]]] = {}
     # A running header never also appears in the middle of a page, but a numbered clause does, and
     # blanking its digits makes every clause one signature; without this the clause that lands in
-    # the band at each page top repeats there and is stripped out of the body.
-    body = {_signature(ln.text) for pg in pages for ln in pg.lines if not _in_band(pg, ln)}
+    # the band at each page top repeats there and is stripped out of the body. Counted rather than
+    # merely seen, because one stray copy of a header's words in the text is not evidence that the
+    # words are body text: a signature is body text only where it is mostly body text.
+    mid: Counter = Counter()
+    banded: Counter = Counter()
+    for pg in pages:
+        for ln in pg.lines:
+            (banded if _in_band(pg, ln) else mid)[_signature(ln.text)] += 1
     for pi, pg in enumerate(pages):
         for li, ln in enumerate(pg.lines):
             if not _in_band(pg, ln):
@@ -66,7 +73,7 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
             sig = _signature(ln.text)
             if sig == "#" and _outer_half(pg, ln):
                 found.add((pi, li))
-            elif sig and sig not in body:
+            elif sig and mid[sig] <= banded[sig]:
                 seen.setdefault(sig, []).append((ln.y / pg.height, pi, li))
     if need is None:
         return found

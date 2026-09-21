@@ -13,10 +13,17 @@ MARKER = re.compile(r"^(\(?\d{1,3}(\.\d{1,3})*[.)]?|\(?[A-Za-z][.)]|\(?[ivxlcdm]
                     r"|[•·▪●◦])(?=[ \t])")
 TOL = 0.3             # of the font size: positions closer than this are the same position
 GAP = 1.25            # of the prevailing pitch: a wider line gap is a paragraph gap
-LINE_MAX = 1.7        # of the font size: the widest a single line's pitch ever is. Word's own PDFs
-# put every wrapped line within 1.45 of its size and every paragraph gap beyond 1.95, so a gap this
-# wide is a paragraph gap whatever the commonest gap says -- which matters in a document where
-# nothing wraps, where the commonest gap IS the paragraph gap and the pitch rule can never fire.
+# LINE_MAX: of the font size, the widest a single line's pitch ever is at single spacing. Word's
+# singly spaced PDFs put every wrapped line within 1.45 of its size and every paragraph gap beyond
+# 1.95, so a gap this wide is a paragraph gap whatever the commonest gap says -- which matters in a
+# document where nothing wraps, where the commonest gap IS the paragraph gap and the pitch rule can
+# never fire. It is a cap only in such a document: '1.5 lines' (about 1.73) and 'double' (about
+# 2.30) put ordinary wrapped lines beyond it, so `nothing_wraps` decides whether it applies.
+LINE_MAX = 1.7
+EDGE = 1.0            # of the font size: a line ending this near the right edge reached the edge
+WRAPS = 0.7           # share of full lines carrying a sentence on, above which the document wraps
+ENOUGH = 20           # full lines are enough to judge wrapping by at a twentieth of the document
+SENTENCE_END = re.compile(r"[.:;!?][\"'’)\]]*$")
 SIZE_CHANGE = 0.05
 PITCH_STEP = 0.05
 DEFAULT_PITCH = 1.2
@@ -35,6 +42,25 @@ def prevailing_pitch(lines: list[Line]) -> float:
         return DEFAULT_PITCH
     top = max(seen.values())
     return round(min(k for k, n in seen.items() if n == top) * PITCH_STEP, 2)
+
+
+def nothing_wraps(lines: list[Line], right: float) -> bool:
+    """Whether every paragraph in the document is one line, which is what LINE_MAX assumes. Asked
+    of the whole document at once, so the answer cannot depend on which page a line landed on.
+
+    A line that runs within 1 em of the inferred right edge and has another line under it either
+    wrapped or is a one-line paragraph that happens to be a long one, and its text says which: a
+    wrapped line stops mid-sentence, a paragraph ends its sentence. Measured on the corpus, the
+    share of such full lines carrying a sentence on is 1.00 where text wraps (bench, pages) and
+    0.00 where every paragraph is one line (big200, gen-hf, spacing), so any threshold between
+    reads them apart. Line ends alone do not: 0.16 to 0.40 of the lines reach the edge in a
+    wrapped document, but so do only 0.19 of gen-hf's one-line paragraphs, whose longest lines are
+    what the edge is inferred from, and 0.95 of big200's."""
+    full = [a for a, b in zip(lines, lines[1:])
+            if a.page == b.page and a.cell == b.cell and b.y > a.y and right - a.x1 <= EDGE * a.size]
+    if len(full) < max(3, len(lines) // ENOUGH):
+        return True                        # too few full lines to read anything from
+    return sum(1 for a in full if not SENTENCE_END.search(a.text.strip())) / len(full) < WRAPS
 
 
 @dataclass
@@ -65,7 +91,7 @@ def _ended_short(cur: list[Line], nxt: Line, right: float, tol: float) -> bool:
     return _edge(cur, nxt, right, tol) - cur[-1].x1 > 1.2 * first + 0.5 * nxt.size
 
 
-def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float) -> bool:
+def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float, no_wrap: bool) -> bool:
     prev = cur[-1]
     size = max(prev.size, nxt.size)
     tol = TOL * size
@@ -74,7 +100,8 @@ def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float) -> bool:
         return True
     if abs(nxt.size - prev.size) > SIZE_CHANGE * size:
         return True
-    if same_page and (nxt.y - prev.y) / size > min(pitch * GAP, LINE_MAX):
+    limit = min(pitch * GAP, LINE_MAX) if no_wrap else pitch * GAP
+    if same_page and (nxt.y - prev.y) / size > limit:
         return True
     if _ended_short(cur, nxt, right, tol):
         return True
@@ -137,10 +164,11 @@ def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch:
     return PdfPara(lines, _join(lines), align, ind_left, ind_first, ind_hanging, space_after)
 
 
-def build_paragraphs(lines: list[Line], left: float, right: float, pitch: float) -> list[PdfPara]:
+def build_paragraphs(lines: list[Line], left: float, right: float, pitch: float,
+                     no_wrap: bool = True) -> list[PdfPara]:
     groups: list[list[Line]] = []
     for ln in lines:
-        if groups and not _breaks(groups[-1], ln, right, pitch):
+        if groups and not _breaks(groups[-1], ln, right, pitch, no_wrap):
             groups[-1].append(ln)
         else:
             groups.append([ln])

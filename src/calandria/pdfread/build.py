@@ -10,7 +10,7 @@ from dataclasses import replace
 from ..model import (Cell, Document, NoteRef, Paragraph, ParaProps, Row, Run, RunProps, Section, Table,
                      TabStop, collapse_ws)
 from .grid import TOL, Grid, GridCell
-from .paras import MARKER, PdfPara, build_paragraphs, prevailing_pitch
+from .paras import MARKER, PdfPara, build_paragraphs, nothing_wraps, prevailing_pitch
 from .types import Line, PageLines
 
 _SUBSET = re.compile(r"^[A-Z]{6}\+")
@@ -66,8 +66,8 @@ def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float
 
 
 class _Builder:
-    def __init__(self, left: float, right: float, pitch: float, known_notes: set[int]):
-        self.left, self.right, self.pitch = left, right, pitch
+    def __init__(self, left: float, right: float, pitch: float, no_wrap: bool, known_notes: set[int]):
+        self.left, self.right, self.pitch, self.no_wrap = left, right, pitch, no_wrap
         self.known_notes = known_notes
         self.note_numbers: dict[NoteRef, int] = {}
         self.blocks: list = []
@@ -111,7 +111,9 @@ class _Builder:
         return Paragraph(runs, props)
 
     def paragraphs(self, lines: list[Line], left: float, right: float, pitch: float) -> list[Paragraph]:
-        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch)]
+        # Body, table cells and notes all use the one document-level answer: the same call on both
+        # PDFs cancels out, and a cell or a note is far too little text to measure wrapping on.
+        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch, self.no_wrap)]
 
     def flush(self) -> None:
         if self.pending:
@@ -227,8 +229,9 @@ def _all_paragraphs(blocks):
 def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line]], total_pages: int,
                    skipped: tuple) -> Document:
     left, right, body_size = body_metrics(pages, skip)
-    pitch = prevailing_pitch(_body(pages, skip))
-    b = _Builder(left, right, pitch, set(notes))
+    body_lines = _body(pages, skip)
+    pitch = prevailing_pitch(body_lines)
+    b = _Builder(left, right, pitch, nothing_wraps(body_lines, right), set(notes))
     for pi, pg in enumerate(pages):
         live = [ln for li, ln in enumerate(pg.lines) if (pi, li) not in skip]
         by_cell: dict[tuple, list[Line]] = {}

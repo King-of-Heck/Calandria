@@ -1,4 +1,4 @@
-from calandria.pdfread.paras import MARKER, build_paragraphs, prevailing_pitch
+from calandria.pdfread.paras import MARKER, build_paragraphs, nothing_wraps, prevailing_pitch
 from calandria.pdfread.types import Line, Span
 
 LEFT, RIGHT = 72.0, 540.0
@@ -114,6 +114,48 @@ def test_centred_and_right_aligned_lines():
 
 def test_no_lines_no_paragraphs():
     assert build_paragraphs([], LEFT, RIGHT, 1.15) == []
+
+
+PASSAGE = [(FULL, RIGHT), (FULL, RIGHT), (FULL, RIGHT), ("and no later.", 130.0),
+           (FULL, RIGHT), ("the second paragraph ends.", 200.0)]
+
+
+def spaced(rows, step):
+    return [L(t, 100 + step * i, x1=x1) for i, (t, x1) in enumerate(rows)]
+
+
+def test_the_wrap_statistic_reads_the_lines_that_reach_the_right_edge():
+    """A line that reaches the edge and does not finish its sentence wrapped; one that reaches the
+    edge and ends there is a paragraph of its own."""
+    wrapping = [L(FULL, 100 + 14 * i) for i in range(6)] + [L("and no later.", 184, x1=130)]
+    assert nothing_wraps(wrapping, RIGHT) is False
+    one_liners = [L(f"Clause {i} remains identical.", 100 + 14 * i) for i in range(6)] + [L("End.", 184, x1=130)]
+    assert nothing_wraps(one_liners, RIGHT) is True
+    assert nothing_wraps(wrapping[:3], RIGHT) is True                  # too few full lines to judge
+    assert nothing_wraps([], RIGHT) is True
+
+
+def test_one_and_a_half_line_spacing_keeps_a_wrapped_passage_whole():
+    """Word's '1.5 lines' is about 1.73 em, wider than LINE_MAX, so the cap alone would make every
+    wrapped line its own paragraph. In a document where text really wraps the cap is off."""
+    lines = spaced(PASSAGE, 20.75)
+    assert prevailing_pitch(lines) == 1.75 and nothing_wraps(lines, RIGHT) is False
+    assert [len(p.lines) for p in build_paragraphs(lines, LEFT, RIGHT, 1.75, no_wrap=False)] == [4, 2]
+
+
+def test_double_line_spacing_keeps_a_wrapped_passage_whole():
+    lines = spaced(PASSAGE, 27.6)
+    assert prevailing_pitch(lines) == 2.3 and nothing_wraps(lines, RIGHT) is False
+    assert [len(p.lines) for p in build_paragraphs(lines, LEFT, RIGHT, 2.3, no_wrap=False)] == [4, 2]
+
+
+def test_a_heading_between_double_spaced_paragraphs_still_splits_off():
+    body = [(FULL, RIGHT), (FULL, RIGHT), ("ends here.", 150.0)]
+    lines = spaced(body + [("Heading One", 200.0)] + body + [("Heading Two", 210.0)] + body, 27.6)
+    assert nothing_wraps(lines, RIGHT) is False
+    paras = build_paragraphs(lines, LEFT, RIGHT, prevailing_pitch(lines), no_wrap=False)
+    assert [len(p.lines) for p in paras] == [3, 1, 3, 1, 3]
+    assert texts(paras)[1::2] == ["Heading One", "Heading Two"]
 
 
 def test_a_document_of_one_line_paragraphs_does_not_read_as_one_paragraph():

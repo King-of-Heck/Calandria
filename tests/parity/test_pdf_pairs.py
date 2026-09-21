@@ -20,6 +20,7 @@ FIELDS = ("insertions", "deletions", "ins_text", "del_text")
 TEXT_FIELDS = ("ins_text", "del_text")
 VARIANTS = {"save": ".pdf", "print": ".print.pdf"}
 EXPECTED = json.loads((HERE / "pdf-expected.json").read_text("utf8"))
+PARA_COUNTS = json.loads((HERE / "pdf-paragraphs.json").read_text("utf8"))
 
 
 def sha(text: str) -> str:
@@ -55,10 +56,12 @@ def test_the_expectations_file_is_well_formed():
         assert e["alias"] != "real1", e          # the confidential pair is never written down here
         if e["field"] in TEXT_FIELDS:            # a text goes in by its hash, never by its content
             assert e.keys() <= {"alias", "variant", "field", "reason", "pdf_sha256", "kind"}, e
+            assert "pdf_sha256" in e, e
             assert isinstance(e["pdf_sha256"], str) and len(e["pdf_sha256"]) == 64, e
             assert e.get("kind", "subset-of-word") == "subset-of-word", e
         else:
             assert e.keys() <= {"alias", "variant", "field", "reason", "pdf"}, e
+            assert "pdf" in e, e
             assert isinstance(e["pdf"], int), e
 
 
@@ -73,7 +76,11 @@ def test_a_pdf_pair_compares_like_its_word_pair(pair, variant, a_pdf, b_pdf):
         e = known.get(f)
         if e is None:
             if pdf[f] != word[f]:
-                problems.append(f"{f}: word {ascii(word[f])}, pdf {ascii(pdf[f])}")
+                if f in TEXT_FIELDS:            # no recorded entry: never print the text itself
+                    problems.append(f"{f}: no recorded entry; word sha256 {sha(word[f])} len {len(word[f])}, "
+                                     f"pdf sha256 {sha(pdf[f])} len {len(pdf[f])}")
+                else:
+                    problems.append(f"{f}: word {ascii(word[f])}, pdf {ascii(pdf[f])}")
         elif f not in TEXT_FIELDS:
             if pdf[f] != e["pdf"]:
                 problems.append(f"{f}: recorded {ascii(e['pdf'])}, now {ascii(pdf[f])}")
@@ -84,3 +91,21 @@ def test_a_pdf_pair_compares_like_its_word_pair(pair, variant, a_pdf, b_pdf):
             if e.get("kind") == "subset-of-word" and not Counter(pdf[f].split()) <= Counter(word[f].split()):
                 problems.append(f"{f}: not a sub-multiset of the Word text, now {ascii(pdf[f])}")
     assert not problems, "\n".join(problems)
+
+
+def corpus_pdfs() -> list:
+    return sorted(CORPUS.glob("*.pdf")) if CORPUS.exists() else []
+
+
+@pytest.mark.skipif(not corpus_pdfs(), reason="no corpus PDFs present")
+@pytest.mark.parametrize("pdf_path", corpus_pdfs(), ids=lambda p: p.name)
+def test_a_corpus_pdf_keeps_its_recorded_paragraph_count(pdf_path):
+    """A text-free guard on paragraph structure: the four compared fields (insertions, deletions,
+    ins_text, del_text) cannot see a paragraph rule that collapses a whole document into one
+    paragraph, since a change list can end up identical either way. This counts paragraphs alone,
+    against a number pinned in pdf-paragraphs.json -- no document text, just a filename and an
+    integer, so it can stay in a public repo."""
+    count = len(list(parse_pdf(pdf_path.read_bytes()).paragraphs()))
+    assert pdf_path.name in PARA_COUNTS, (
+        f"no recorded paragraph count for {pdf_path.name} (it parses to {count} now)")
+    assert count == PARA_COUNTS[pdf_path.name]

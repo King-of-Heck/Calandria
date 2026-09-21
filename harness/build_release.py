@@ -46,11 +46,12 @@ SMOKE_SERVE = ["-m", "calandria", "serve", "--no-browser", "--idle=1", "--grace=
 CACHE = ROOT / "build" / "cache"
 STAGE = ROOT / "build" / "stage"
 DIST = ROOT / "dist"
-SMOKE_IMPORTS = "from lxml import etree; from PIL import Image; from fontTools.ttLib import TTFont; import fpdf, calandria"
+SMOKE_IMPORTS = ("from lxml import etree; from PIL import Image; from fontTools.ttLib import TTFont; "
+                  "import fpdf, calandria, pypdf")
 
 DESCRIPTION = (
-    "**Calandria** is an offline Word (`.docx`) redline / compare tool from HeckSoft (a King of Heck "
-    "Company), the successor to SorkWhare Compare. Extract the zip anywhere, double-click "
+    "**Calandria** is an offline Word (`.docx`) and PDF redline / compare tool from HeckSoft (a King of "
+    "Heck Company), the successor to SorkWhare Compare. Extract the zip anywhere, double-click "
     "`Calandria.cmd`: Calandria opens in its own window (no console, no browser tabs). Drop the "
     "original and the modified document on the page: the redline is laid out page by page on "
     "screen and saved as a PDF from the same drawing. Closing the window stops it. No install, no "
@@ -293,6 +294,9 @@ def smoke(stage_dir: Path, version: str) -> None:
                stage_dir)
     if '"pages": 1' not in out or not (work / "out.pdf").read_bytes().startswith(b"%PDF"):
         raise RuntimeError(f"pdf smoke: {out!r}")
+    out = _run([py, "-m", "calandria", "compare", str(work / "out.pdf"), str(work / "out.pdf")], stage_dir)
+    if '"total": 0' not in out:
+        raise RuntimeError(f"pdf compare smoke: {out!r}")
     log = work / "calandria.log"
     out = _run([py, *SMOKE_SERVE, f"--log={log}"], stage_dir, timeout=60)
     if '"url": "http://127.0.0.1:' not in out:

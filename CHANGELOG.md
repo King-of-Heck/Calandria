@@ -1,5 +1,28 @@
 # Calandria changelog
 
+## v2.10.0 — PDF comparison (2026-09-21)
+
+- Two text PDFs made from Word can now be compared: the text, ruled tables and footnotes are
+  re-read from the pages and shown as the usual redline, so layout is approximate and images are
+  not shown. Headers, footers and page numbers are detected and left out of a PDF comparison,
+  though a one-page document has nothing for its header to repeat against (so its header reads as
+  body text) and a short document can occasionally have a real line of text mistaken for one.
+  Pages with no text (a scanned signature page) are skipped and named rather than compared; a
+  scanned PDF with no text anywhere, and a password-protected PDF, are both refused with a
+  message. A Word document cannot yet be compared with a PDF — both files of a pair must be the
+  same kind.
+- Known limits of the reader: clause and list numbers are plain text, so an inserted clause
+  renumbers what follows and each renumbered marker shows as a change; only tables with drawn
+  borders are read as tables, and a table row split across a page break is read as two rows;
+  footnotes are recognised only when printed smaller than the body text, and endnotes are always
+  read as ordinary paragraphs; comments, tracked changes and anything drawn as a picture are not
+  in a PDF's text and are not compared; paragraph boundaries are inferred from spacing and line
+  ends, so an unusual layout can split or join a paragraph; wrapped text at one-and-a-half or
+  double line spacing is the least-tested case in this release. The reader has been measured only
+  against PDFs saved from Word (Save As PDF).
+- A fifth vendored library, pypdf (pure Python), reads the PDF file structure. Reading a long
+  PDF shows its progress page by page, and Swap no longer re-reads the files.
+
 ## v2.9.0 — Tracked changes notice (2026-09-17)
 
 - A source document that still holds tracked changes has always been read as if every change were

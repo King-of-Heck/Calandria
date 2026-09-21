@@ -231,7 +231,8 @@ def _fake_stage(tmp_path):
 
 def _fake_run(serve_writes_log):
     """A stand-in for _run that answers the smoke's commands: the version, the imports, the sys.path
-    check, the pdf (a %PDF file) and the serve (the url line, and the log only when asked)."""
+    check, the pdf (a %PDF file), the pdf compare (itself, total 0) and the serve (the url line, and
+    the log only when asked)."""
     def run(cmd, cwd, timeout=300):
         if cmd[1:] == ["-m", "calandria", "version"]:
             return "calandria 9.9.9\n"
@@ -240,6 +241,8 @@ def _fake_run(serve_writes_log):
         if cmd[1:4] == ["-m", "calandria", "pdf"]:
             Path(cmd[6]).write_bytes(b"%PDF-1.7 fake")
             return '{"pages": 1, "out": "x"}\n'
+        if cmd[1:4] == ["-m", "calandria", "compare"]:
+            return '{\n "total": 0\n}\n'
         assert cmd[1:1 + len(br.SMOKE_SERVE)] == br.SMOKE_SERVE
         log = Path(cmd[-1].removeprefix("--log="))
         if serve_writes_log:

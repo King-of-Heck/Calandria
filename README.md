@@ -1,6 +1,6 @@
 # Calandria
 
-Offline Word (`.docx`) redline / compare tool from HeckSoft (a King of Heck Company).
+Offline Word (`.docx`) and PDF redline / compare tool from HeckSoft (a King of Heck Company).
 Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
@@ -95,6 +95,45 @@ written back to Word.
 
 The corpus gate `tests/parity/test_pdf.py` checks that every pair's PDF has exactly the layout's
 page count and that its text reads back.
+
+## Comparing PDFs
+
+A pair of text PDFs — the ones a "Save As PDF" from Word produces — can be dropped and compared
+the same way a pair of `.docx` files is; the two files of a pair must be the same kind, so a
+`.docx` cannot yet be compared with a PDF. Reading a PDF re-extracts its text, ruled tables and
+footnotes from the printed pages rather than from any document structure, so the result is
+approximate and comes with limits worth knowing before relying on it:
+
+- Running headers, footers and page numbers are detected and left out of the comparison, so an
+  edit made only inside a header or footer is not reported. A one-page document has nothing for
+  its header to repeat against, so its header text is compared as body text instead, and on a
+  two-page document a line of real text sitting at the very top or bottom of both pages can
+  occasionally be mistaken for a running header and left out too.
+- Clause and list numbering is plain text in a PDF, not a generated field, so inserting a clause
+  renumbers what follows and every renumbered marker shows as its own change.
+- Only tables with drawn borders are read as tables; a borderless table is read as ordinary lines,
+  so an added row may show as one changed line rather than an inserted row. A table row split
+  across a page break is read as two rows, so a row can show as changed if the two PDFs paginate
+  differently.
+- Footnotes are recognised only when they print smaller than the body text; footnotes at body
+  size, and endnotes always, are compared as ordinary paragraphs.
+- Comments, tracked changes and anything drawn as a picture are not part of a PDF's text and are
+  not compared, and images are not shown.
+- A page with no readable text (a scanned signature page, say) is named in the panel and the
+  report and left out rather than compared; a PDF with no readable text anywhere is refused. A
+  password-protected PDF is also refused, with a message — open it and print it to a new,
+  unprotected PDF first.
+- Paragraph boundaries are inferred from spacing and where lines end, so an unusual layout can
+  split one paragraph into two or join two into one, which shows up as changed text.
+- Wrapped text set at one-and-a-half or double line spacing is the least-tested case in this
+  release and may report more differences than it should.
+- The reader has been measured only against PDFs saved from Word (Save As PDF); a PDF from a
+  scanner, a phone, "Print to PDF", or another program's export is outside what has been tested.
+- The redline itself is re-laid-out text: fonts, spacing and page breaks are approximate, and the
+  pages do not look like the source PDFs.
+
+Reading a long PDF shows its progress page by page. Documents never leave the machine, the same
+as for `.docx`.
 
 ## Viewer
 

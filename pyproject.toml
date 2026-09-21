@@ -1,7 +1,7 @@
 [project]
 name = "calandria"
-version = "2.9.0"
-description = "Calandria — offline Word (.docx) redline / compare tool with a paged viewer and PDF output"
+version = "2.10.0"
+description = "Calandria — offline Word (.docx) and PDF redline / compare tool with a paged viewer and PDF output"
 readme = "README.md"
 authors = [
     { name = "King-of-Heck", email = "39289801+King-of-Heck@users.noreply.github.com" }

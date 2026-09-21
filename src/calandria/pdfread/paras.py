@@ -17,13 +17,16 @@ GAP = 1.25            # of the prevailing pitch: a wider line gap is a paragraph
 # singly spaced PDFs put every wrapped line within 1.45 of its size and every paragraph gap beyond
 # 1.95, so a gap this wide is a paragraph gap whatever the commonest gap says -- which matters in a
 # document where nothing wraps, where the commonest gap IS the paragraph gap and the pitch rule can
-# never fire. It is a cap only in such a document: '1.5 lines' (about 1.73) and 'double' (about
-# 2.30) put ordinary wrapped lines beyond it, so `nothing_wraps` decides whether it applies.
+# never fire. The switch is inert everywhere else: it is a cap only when `pitch * GAP <= LINE_MAX`,
+# true up to a pitch of 1.36 (single spacing and a little over); '1.5 lines' (about 1.73) and
+# 'double' (about 2.30) put ordinary wrapped lines beyond it, so `nothing_wraps` decides whether it
+# applies at those wider pitches.
 LINE_MAX = 1.7
 EDGE = 1.0            # of the font size: a line ending this near the right edge reached the edge
-WRAPS = 0.7           # share of full lines carrying a sentence on, above which the document wraps
-ENOUGH = 20           # full lines are enough to judge wrapping by at a twentieth of the document
-SENTENCE_END = re.compile(r"[.:;!?][\"'’)\]]*$")
+WRAPS = 0.5           # share of full lines carrying a sentence on, above which the document wraps
+EVIDENCE = 0.05       # of the document's lines: fewer full lines than this (or than 3) are not
+                      # evidence of wrapping either way, so the document defaults to "nothing wraps"
+SENTENCE_END = re.compile(r"[.:;!?…][\"'’”)\]]*$")
 SIZE_CHANGE = 0.05
 PITCH_STEP = 0.05
 DEFAULT_PITCH = 1.2
@@ -49,18 +52,34 @@ def nothing_wraps(lines: list[Line], right: float) -> bool:
     of the whole document at once, so the answer cannot depend on which page a line landed on.
 
     A line that runs within 1 em of the inferred right edge and has another line under it either
-    wrapped or is a one-line paragraph that happens to be a long one, and its text says which: a
-    wrapped line stops mid-sentence, a paragraph ends its sentence. Measured on the corpus, the
-    share of such full lines carrying a sentence on is 1.00 where text wraps (bench, pages) and
-    0.00 where every paragraph is one line (big200, gen-hf, spacing), so any threshold between
-    reads them apart. Line ends alone do not: 0.16 to 0.40 of the lines reach the edge in a
-    wrapped document, but so do only 0.19 of gen-hf's one-line paragraphs, whose longest lines are
-    what the edge is inferred from, and 0.95 of big200's."""
-    full = [a for a, b in zip(lines, lines[1:])
+    wrapped or is a one-line paragraph that happens to be a long one, and its text says which -- but
+    not on its own: an ordinary one-line contract clause ending "; and", a schedule row, a heading
+    or a TOC line often has no terminal punctuation either, so "does not end a sentence" alone reads
+    them as wrapped. It counts as wrapping only when, in addition, the line under it carries the
+    same sentence on: its first non-space character is lowercase. A wrapped line's continuation
+    starts lowercase far more often than a fresh clause, row or heading does. Measured across all 26
+    corpus PDFs with a throwaway script, the share of full lines meeting both conditions is 1.00 for
+    benchA, 0.73 for benchB, 1.00 for pages-A and 1.00 for pages-B (the wrapped documents) and 0.00
+    for every other file -- including gen-fmt, gen-table and gen-grid, which scored 1.00 under the
+    old single-condition rule and were rescued only by the evidence floor below. WRAPS sits at 0.5,
+    comfortably between 0.73 and 0.00. Line ends alone do not separate them: 0.16 to 0.40 of the
+    lines reach the edge in a wrapped document, but so do only 0.19 of gen-hf's one-line paragraphs,
+    whose longest lines are what the edge is inferred from, and 0.95 of big200's.
+
+    EVIDENCE is a floor, not a threshold: a document with fewer full lines than EVIDENCE's share of
+    it (or fewer than 3, whichever is more) has not shown enough of them to trust the share either
+    way, so it defaults to "nothing wraps" -- the safe assumption once LINE_MAX is inert anyway
+    outside single spacing (see LINE_MAX's comment)."""
+    full = [(a, b) for a, b in zip(lines, lines[1:])
             if a.page == b.page and a.cell == b.cell and b.y > a.y and right - a.x1 <= EDGE * a.size]
-    if len(full) < max(3, len(lines) // ENOUGH):
+    if len(full) < max(3, int(len(lines) * EVIDENCE)):
         return True                        # too few full lines to read anything from
-    return sum(1 for a in full if not SENTENCE_END.search(a.text.strip())) / len(full) < WRAPS
+
+    def wraps(a: Line, b: Line) -> bool:
+        nxt = b.text.lstrip()
+        return not SENTENCE_END.search(a.text.strip()) and bool(nxt) and nxt[0].islower()
+
+    return sum(1 for a, b in full if wraps(a, b)) / len(full) < WRAPS
 
 
 @dataclass

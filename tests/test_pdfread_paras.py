@@ -125,9 +125,13 @@ def spaced(rows, step):
 
 
 def test_the_wrap_statistic_reads_the_lines_that_reach_the_right_edge():
-    """A line that reaches the edge and does not finish its sentence wrapped; one that reaches the
-    edge and ends there is a paragraph of its own."""
-    wrapping = [L(FULL, 100 + 14 * i) for i in range(6)] + [L("and no later.", 184, x1=130)]
+    """A line that reaches the edge, does not finish its sentence AND is followed by a line that
+    carries on in lowercase wrapped; one that reaches the edge and ends there is a paragraph of its
+    own. WRAPPING's text is realistic wrapped prose -- each continuation line picks up lowercase,
+    the way a clause that runs past the margin actually looks on the page (unlike FULL, which
+    starts a fresh capitalised clause and so would not read as a continuation)."""
+    CONT = "the following provisions shall apply without limiting the generality of the foregoing"
+    wrapping = [L(CONT, 100 + 14 * i) for i in range(6)] + [L("and no later.", 184, x1=130)]
     assert nothing_wraps(wrapping, RIGHT) is False
     one_liners = [L(f"Clause {i} remains identical.", 100 + 14 * i) for i in range(6)] + [L("End.", 184, x1=130)]
     assert nothing_wraps(one_liners, RIGHT) is True
@@ -167,3 +171,29 @@ def test_a_document_of_one_line_paragraphs_does_not_read_as_one_paragraph():
     pitch = prevailing_pitch(lines)
     assert pitch == 2.05
     assert len(build_paragraphs(lines, 72.1, 533.4, pitch)) == 4
+
+
+def test_a_schedule_of_one_line_clauses_ending_mid_word_does_not_collapse():
+    """The reviewer's worst case: 20 full-width one-line clauses, 12 pt, 24.77 pt apart, each
+    ending "; and" with no terminal punctuation at all. Under the old rule ("doesn't end a
+    sentence" alone) every line reads as a wrapped continuation and the whole schedule collapses
+    into one paragraph. None of them actually wrap: each next line starts with a fresh "(x)"
+    marker, not a lowercase continuation, so nothing_wraps must read this as "nothing wraps" and
+    the LINE_MAX cap must split the 20 clauses apart."""
+    lines = [L(f"({i + 1}) the Supplier shall deliver the Goods to the Delivery Point on the "
+                "agreed date; and", 100 + 24.77 * i)
+             for i in range(20)]
+    assert nothing_wraps(lines, RIGHT) is True
+    pitch = prevailing_pitch(lines)
+    paras = build_paragraphs(lines, LEFT, RIGHT, pitch, no_wrap=nothing_wraps(lines, RIGHT))
+    assert len(paras) == 20
+
+
+def test_a_line_ending_a_right_double_quote_counts_as_a_sentence_end():
+    """Word's right double quotation mark ("as is.”) closes a sentence just as an ASCII quote
+    does. Six full-width lines each end that way, and every one is followed by a lowercase word --
+    the shape that would otherwise read as wrapping -- but a line ending in ” must never count
+    as carrying a sentence on, so the document must read as "nothing wraps" regardless."""
+    full = [L(f"clause {i} ends with a right double quote as is.”", 100 + 24.77 * i)
+            for i in range(6)] + [L("the schedule continues below.", 250.0, x1=200)]
+    assert nothing_wraps(full, RIGHT) is True

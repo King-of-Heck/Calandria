@@ -13,6 +13,10 @@ MARKER = re.compile(r"^(\(?\d{1,3}(\.\d{1,3})*[.)]?|\(?[A-Za-z][.)]|\(?[ivxlcdm]
                     r"|[•·▪●◦])(?=[ \t])")
 TOL = 0.3             # of the font size: positions closer than this are the same position
 GAP = 1.25            # of the prevailing pitch: a wider line gap is a paragraph gap
+LINE_MAX = 1.7        # of the font size: the widest a single line's pitch ever is. Word's own PDFs
+# put every wrapped line within 1.45 of its size and every paragraph gap beyond 1.95, so a gap this
+# wide is a paragraph gap whatever the commonest gap says -- which matters in a document where
+# nothing wraps, where the commonest gap IS the paragraph gap and the pitch rule can never fire.
 SIZE_CHANGE = 0.05
 PITCH_STEP = 0.05
 DEFAULT_PITCH = 1.2
@@ -70,7 +74,7 @@ def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float) -> bool:
         return True
     if abs(nxt.size - prev.size) > SIZE_CHANGE * size:
         return True
-    if same_page and (nxt.y - prev.y) / size > pitch * GAP:
+    if same_page and (nxt.y - prev.y) / size > min(pitch * GAP, LINE_MAX):
         return True
     if _ended_short(cur, nxt, right, tol):
         return True

@@ -114,3 +114,14 @@ def test_centred_and_right_aligned_lines():
 
 def test_no_lines_no_paragraphs():
     assert build_paragraphs([], LEFT, RIGHT, 1.15) == []
+
+
+def test_a_document_of_one_line_paragraphs_does_not_read_as_one_paragraph():
+    """Word's numbers, from big200A.pdf: 200 clauses of near-identical length, each its own
+    paragraph, 12 pt, 24.77 pt apart. Nothing wraps, so the commonest gap IS the paragraph gap and
+    the pitch rule alone would join the lot; no line of text sits 2 em below the line before it."""
+    lines = [Line(0, 72.1, 519.94, 83.33 + 24.77 * i, 12.0, [Span(f"Clause {i} remains identical.", "Arial", 12.0)])
+             for i in range(4)]
+    pitch = prevailing_pitch(lines)
+    assert pitch == 2.05
+    assert len(build_paragraphs(lines, 72.1, 533.4, pitch)) == 4

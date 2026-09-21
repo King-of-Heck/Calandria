@@ -22,40 +22,40 @@ def test_prevailing_pitch_is_the_commonest_ratio_and_has_a_default():
 
 
 def test_full_lines_at_the_prevailing_pitch_are_one_paragraph():
-    (p,) = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L("and no later.", 127.6, x1=150)], LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L("and no later.", 127.6, x1=150)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([p]) == [FULL + " " + FULL + " and no later."]
     assert (p.align, p.ind_left, p.ind_first, p.ind_hanging) == ("justify", 0.0, 0.0, 0.0)
 
 
 def test_a_wider_gap_starts_a_new_paragraph_and_gives_space_after():
-    a, b = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L(FULL, 139.6), L(FULL, 153.4)], LEFT, RIGHT, 1.15)
+    a, b = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L(FULL, 139.6), L(FULL, 153.4)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(a.lines) == 2 and len(b.lines) == 2
     assert a.space_after == 12.0 and b.space_after is None        # 25.8 - 13.8
 
 
 def test_a_line_that_ended_short_closes_its_paragraph_even_at_the_same_pitch():
-    a, b = build_paragraphs([L("Short heading", 100, x1=160), L(FULL, 113.8)], LEFT, RIGHT, 1.15)
+    a, b = build_paragraphs([L("Short heading", 100, x1=160), L(FULL, 113.8)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([a, b]) == ["Short heading", FULL]
 
 
 def test_a_paragraph_flows_across_a_page_break_but_a_short_line_still_ends_it():
-    (p,) = build_paragraphs([L(FULL, 700), L(FULL, 90, page=1)], LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs([L(FULL, 700), L(FULL, 90, page=1)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(p.lines) == 2
-    a, b = build_paragraphs([L("The end.", 700, x1=120), L(FULL, 90, page=1)], LEFT, RIGHT, 1.15)
+    a, b = build_paragraphs([L("The end.", 700, x1=120), L(FULL, 90, page=1)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([a, b]) == ["The end.", FULL]
 
 
 def test_first_line_and_hanging_indents_are_measured():
-    (p,) = build_paragraphs([L(FULL, 100, x0=108), L(FULL, 113.8), L(FULL, 127.6)], LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs([L(FULL, 100, x0=108), L(FULL, 113.8), L(FULL, 127.6)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert (p.ind_left, p.ind_first, p.ind_hanging) == (0.0, 36.0, 0.0)
-    (p,) = build_paragraphs([L("(a)\t" + FULL, 100), L(FULL, 113.8, x0=108), L(FULL, 127.6, x0=108)], LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs([L("(a)\t" + FULL, 100), L(FULL, 113.8, x0=108), L(FULL, 127.6, x0=108)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert (p.ind_left, p.ind_first, p.ind_hanging) == (36.0, 0.0, 36.0)
 
 
 def test_a_changed_continuation_indent_or_size_starts_a_new_paragraph():
-    paras = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L(FULL, 127.6, x0=108)], LEFT, RIGHT, 1.15)
+    paras = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L(FULL, 127.6, x0=108)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert [len(p.lines) for p in paras] == [2, 1]
-    paras = build_paragraphs([L(FULL, 100, size=14), L(FULL, 116)], LEFT, RIGHT, 1.15)
+    paras = build_paragraphs([L(FULL, 100, size=14), L(FULL, 116)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(paras) == 2
 
 
@@ -67,54 +67,54 @@ def test_markers():
 
 
 def test_a_marker_with_a_tab_starts_a_paragraph_but_a_wrapped_clause_reference_does_not():
-    a, b = build_paragraphs([L(FULL, 100), L("12.3\t" + FULL, 113.8)], LEFT, RIGHT, 1.15)
+    a, b = build_paragraphs([L(FULL, 100), L("12.3\t" + FULL, 113.8)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(a.lines) == len(b.lines) == 1
-    (p,) = build_paragraphs([L(FULL, 100), L("12.3 of this Agreement applies to " + FULL[:40], 113.8)], LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs([L(FULL, 100), L("12.3 of this Agreement applies to " + FULL[:40], 113.8)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(p.lines) == 2
 
 
 def test_a_hanging_marker_without_a_tab_is_found_by_its_position():
     lines = [L("(a) " + FULL, 100), L(FULL, 113.8, x0=96), L("(b) " + FULL, 127.6), L(FULL, 141.4, x0=96)]
-    a, b = build_paragraphs(lines, LEFT, RIGHT, 1.15)
+    a, b = build_paragraphs(lines, LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(a.lines) == len(b.lines) == 2
 
 
 def test_an_indented_justified_block_is_one_paragraph():
     lines = [L(FULL, 100, x0=108, x1=504), L(FULL, 113.8, x0=108, x1=504), L("the end.", 127.6, x0=108, x1=160)]
-    (p,) = build_paragraphs(lines, LEFT, RIGHT, 1.15)
+    (p,) = build_paragraphs(lines, LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(p.lines) == 3 and p.ind_left == 36.0
 
 
 def test_hyphens_join_without_a_space_and_soft_hyphens_vanish():
     (p,) = build_paragraphs([L("the parties agree a non-", 100), L("compete clause which is long enough to fill", 113.8)],
-                            LEFT, RIGHT, 1.15)
+                            LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([p])[0].startswith("the parties agree a non-compete clause")
     (p,) = build_paragraphs([L("an obli­", 100), L("gation that carries on to the right margin here", 113.8)],
-                            LEFT, RIGHT, 1.15)
+                            LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([p])[0].startswith("an obligation that")
     (p,) = build_paragraphs([L("between 5 -", 100), L("10 days of the notice reaching the other party", 113.8)],
-                            LEFT, RIGHT, 1.15)
+                            LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([p])[0].startswith("between 5 - 10 days")
 
 
 def test_spans_keep_their_format_across_the_join():
     bold = [Span("Definitions. ", "Arial,Bold", 12.0), Span("In this Agreement the following words have", "Arial", 12.0)]
     (p,) = build_paragraphs([L("", 100, spans=bold), L("the meanings given to them below in each case", 113.8)],
-                            LEFT, RIGHT, 1.15)
+                            LEFT, RIGHT, 1.15, no_wrap=True)
     assert [(s.text[:12], s.font) for s in p.spans] == [("Definitions.", "Arial,Bold"), ("In this Agre", "Arial")]
     assert p.spans[1].text.endswith("following words have the meanings given to them below in each case")
 
 
 def test_centred_and_right_aligned_lines():
-    (c,) = build_paragraphs([L("SCHEDULE 1", 100, x0=266, x1=346)], LEFT, RIGHT, 1.15)
-    (r,) = build_paragraphs([L("Ref: 2026/17", 100, x0=470, x1=540)], LEFT, RIGHT, 1.15)
-    (lf,) = build_paragraphs([L("Left text", 100, x1=130)], LEFT, RIGHT, 1.15)
+    (c,) = build_paragraphs([L("SCHEDULE 1", 100, x0=266, x1=346)], LEFT, RIGHT, 1.15, no_wrap=True)
+    (r,) = build_paragraphs([L("Ref: 2026/17", 100, x0=470, x1=540)], LEFT, RIGHT, 1.15, no_wrap=True)
+    (lf,) = build_paragraphs([L("Left text", 100, x1=130)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert (c.align, r.align, lf.align) == ("center", "right", "left")
     assert (c.ind_left, r.ind_left) == (0.0, 0.0)
 
 
 def test_no_lines_no_paragraphs():
-    assert build_paragraphs([], LEFT, RIGHT, 1.15) == []
+    assert build_paragraphs([], LEFT, RIGHT, 1.15, no_wrap=True) == []
 
 
 PASSAGE = [(FULL, RIGHT), (CONT, RIGHT), (CONT, RIGHT), ("and no later.", 130.0),
@@ -170,7 +170,7 @@ def test_a_document_of_one_line_paragraphs_does_not_read_as_one_paragraph():
              for i in range(4)]
     pitch = prevailing_pitch(lines)
     assert pitch == 2.05
-    assert len(build_paragraphs(lines, 72.1, 533.4, pitch)) == 4
+    assert len(build_paragraphs(lines, 72.1, 533.4, pitch, no_wrap=True)) == 4
 
 
 def test_a_schedule_of_one_line_clauses_ending_mid_word_does_not_collapse():

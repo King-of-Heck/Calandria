@@ -194,7 +194,7 @@ def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch:
 
 
 def build_paragraphs(lines: list[Line], left: float, right: float, pitch: float,
-                     no_wrap: bool = True) -> list[PdfPara]:
+                     *, no_wrap: bool) -> list[PdfPara]:
     groups: list[list[Line]] = []
     for ln in lines:
         if groups and not _breaks(groups[-1], ln, right, pitch, no_wrap):

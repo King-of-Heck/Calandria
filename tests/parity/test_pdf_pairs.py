@@ -2,7 +2,10 @@
 as the .docx pair it came from. Text and counts only, never geometry. A known difference is
 written down in pdf-expected.json with its reason, so a NEW difference fails: a count by its
 value, a text by the sha256 of its text, because the corpus is git-ignored to keep its text out
-of a public repo and this file is tracked. Skips when the PDFs are not in the corpus."""
+of a public repo and this file is tracked. Skips when the PDFs are not in the corpus.
+
+A new corpus PDF -- including any future `*.print.pdf` variant -- needs an entry in
+pdf-paragraphs.json before this suite is green."""
 import hashlib
 import json
 from collections import Counter
@@ -50,15 +53,23 @@ def cases():
 
 def test_the_expectations_file_is_well_formed():
     assert isinstance(EXPECTED, list)
+    seen = set()
     for e in EXPECTED:
         assert {"alias", "variant", "field", "reason"} <= e.keys(), e
         assert e["field"] in FIELDS and e["variant"] in VARIANTS and e["reason"].strip(), e
         assert e["alias"] != "real1", e          # the confidential pair is never written down here
+        key = (e["alias"], e["variant"], e["field"])
+        assert key not in seen, e                # never two entries for the same (alias, variant, field)
+        seen.add(key)
         if e["field"] in TEXT_FIELDS:            # a text goes in by its hash, never by its content
             assert e.keys() <= {"alias", "variant", "field", "reason", "pdf_sha256", "kind"}, e
             assert "pdf_sha256" in e, e
             assert isinstance(e["pdf_sha256"], str) and len(e["pdf_sha256"]) == 64, e
-            assert e.get("kind", "subset-of-word") == "subset-of-word", e
+            # "subset-of-word": the PDF text is a sub-multiset of the Word text, checked below.
+            # "differs": the PDF text is genuinely not a sub-multiset (e.g. renumbered markers);
+            # the subset check is skipped for it. Required so a misspelled key cannot silently
+            # disable the check.
+            assert e.get("kind") in ("subset-of-word", "differs"), e
         else:
             assert e.keys() <= {"alias", "variant", "field", "reason", "pdf"}, e
             assert "pdf" in e, e
@@ -85,11 +96,13 @@ def test_a_pdf_pair_compares_like_its_word_pair(pair, variant, a_pdf, b_pdf):
             if pdf[f] != e["pdf"]:
                 problems.append(f"{f}: recorded {ascii(e['pdf'])}, now {ascii(pdf[f])}")
         else:
-            if sha(pdf[f]) != e["pdf_sha256"]:
-                problems.append(f"{f}: recorded sha256 {e['pdf_sha256']}, now {ascii(pdf[f])}")
+            if sha(pdf[f]) != e["pdf_sha256"]:      # a RECORDED text mismatch: never print the text itself
+                problems.append(f"{f}: recorded sha256 {e['pdf_sha256']}, now sha256 {sha(pdf[f])} "
+                                 f"len {len(pdf[f])}")
             # A difference whose only cause is text the PDF never sees can add nothing of its own.
             if e.get("kind") == "subset-of-word" and not Counter(pdf[f].split()) <= Counter(word[f].split()):
-                problems.append(f"{f}: not a sub-multiset of the Word text, now {ascii(pdf[f])}")
+                problems.append(f"{f}: not a sub-multiset of the Word text, now sha256 {sha(pdf[f])} "
+                                 f"len {len(pdf[f])}")
     assert not problems, "\n".join(problems)
 
 

@@ -113,7 +113,7 @@ class _Builder:
     def paragraphs(self, lines: list[Line], left: float, right: float, pitch: float) -> list[Paragraph]:
         # Body, table cells and notes all use the one document-level answer: the same call on both
         # PDFs cancels out, and a cell or a note is far too little text to measure wrapping on.
-        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch, self.no_wrap)]
+        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch, no_wrap=self.no_wrap)]
 
     def flush(self) -> None:
         if self.pending:

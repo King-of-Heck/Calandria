@@ -18,6 +18,7 @@
   "variant": "save",
   "field": "ins_text",
   "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion: the renumbered markers are text the Word comparison never sees",
+  "kind": "differs",
   "pdf_sha256": "851c3ed5614d1113ae5d9d058d734cadd896824096ea0f71d3d800073848152f"
  },
  {
@@ -25,6 +26,7 @@
   "variant": "save",
   "field": "del_text",
   "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion: the renumbered markers are text the Word comparison never sees",
+  "kind": "differs",
   "pdf_sha256": "e1c6f278f4f370d2c33d1fbad1d8adb6c53acbbce6a19b84222e7cfbfb0fd9fb"
  },
  {
@@ -69,6 +71,7 @@
   "variant": "save",
   "field": "ins_text",
   "reason": "the fixture's styles.xml defines no style at all, footnote text and footnote reference included, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
+  "kind": "differs",
   "pdf_sha256": "7a6aaad11193878e47abd886f909c024ed7c205b723b409f245b5e8d97ef3a99"
  },
  {
@@ -76,6 +79,7 @@
   "variant": "save",
   "field": "del_text",
   "reason": "the fixture's styles.xml defines no style at all, footnote text and footnote reference included, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
+  "kind": "differs",
   "pdf_sha256": "5de851d1af510a449e18262040ec8f8538538c6784747c0682340908e7b8fcbd"
  },
  {

@@ -17,15 +17,15 @@
   "alias": "r3",
   "variant": "save",
   "field": "ins_text",
-  "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion",
-  "pdf": "2 3 4 5 1. brand new obligation"
+  "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion: the renumbered markers are text the Word comparison never sees",
+  "pdf_sha256": "851c3ed5614d1113ae5d9d058d734cadd896824096ea0f71d3d800073848152f"
  },
  {
   "alias": "r3",
   "variant": "save",
   "field": "del_text",
-  "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion",
-  "pdf": "1 2 3 4"
+  "reason": "numbering is literal text in a PDF, so inserting a clause renumbers every marker after it and each renumbered marker reads as an insertion and a deletion: the renumbered markers are text the Word comparison never sees",
+  "pdf_sha256": "e1c6f278f4f370d2c33d1fbad1d8adb6c53acbbce6a19b84222e7cfbfb0fd9fb"
  },
  {
   "alias": "bench",
@@ -46,14 +46,16 @@
   "variant": "save",
   "field": "ins_text",
   "reason": "header and footer text is not compared for PDFs, so the VERSION A/B edit in the running header is absent from the PDF comparison",
-  "pdf": "B October Revised monthly , and annual reliability planning adequately trained 30 3 1 day Monthly 10 month two and may apply the service credits described in Schedule C binding contractual commitments subject to the exclusions expressly stated in this Agreement 528,000 45 A not The Provider identify expected staffing, -level impact before commencing changed work Emergency changes necessary to protect personnel or equipment may be implemented immediately, with written confirmation within two business days. seven and for internal security monitoring that does not identify individual personnel , conduct annual security training, within 24 hours remediation, preservation of relevant records a party’s confidentiality obligations, Security Incident caused by a failure to comply with its cybersecurity two times punitive damages. Consequential damages are excluded except to the extent they arise from a confidentiality breach or misuse of Customer Data four 20 60 The Customer may also terminate immediately if the Provider suffers a material cybersecurity event and fails to implement an acceptable remediation plan within 15 days. 45 22 24/7 monitoring Cedar Valley Solar Western Ontario 31 MW 24/7 monitoring 155 235 195 295 240 360 B Schedule C — Service Credits Failure Credit Critical response target missed 2% of monthly fee per event On-site response target missed 1% of monthly fee per event Monthly report more than 5 business days late 0.5% of monthly fee"
+  "kind": "subset-of-word",
+  "pdf_sha256": "c5ee012c3b473506dbbdc29ab916d2382444f369f1d018616a93b47c3037fe39"
  },
  {
   "alias": "bench",
   "variant": "save",
   "field": "del_text",
   "reason": "header and footer text is not compared for PDFs, so the VERSION A/B edit in the running header is absent from the PDF comparison",
-  "pdf": "A September and quarterly commercially reasonable 60 4 2 days Quarterly 15 quarter three operational objectives and do not constitute guaranteed availability 486,000 30 No A change order state resulting adjustment to levels five without undue delay remediation confidentiality indirect, incidental, special, or consequential damages three 30 90 42 19 Business hours + emergency 145 215 185 275 225 335 A"
+  "kind": "subset-of-word",
+  "pdf_sha256": "d9e61c81019556f2013889e765b453b7e5ca1e5dafb06ba306db9ec2759e6935"
  },
  {
   "alias": "gen-table",
@@ -66,15 +68,15 @@
   "alias": "gen-notes",
   "variant": "save",
   "field": "ins_text",
-  "reason": "the fixture defines no footnote styles, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
-  "pdf": "of a valid invoice3 business 3 Same words as a note"
+  "reason": "the fixture's styles.xml defines no style at all, footnote text and footnote reference included, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
+  "pdf_sha256": "7a6aaad11193878e47abd886f909c024ed7c205b723b409f245b5e8d97ef3a99"
  },
  {
   "alias": "gen-notes",
   "variant": "save",
   "field": "del_text",
-  "reason": "the fixture defines no footnote styles, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
-  "pdf": "This clause goes away3. calendar 3 A note that goes away with its clause."
+  "reason": "the fixture's styles.xml defines no style at all, footnote text and footnote reference included, so Word drew the note text at body size and the note marks on the baseline; footnotes and endnotes alike read as body paragraphs at the end, which reorders the changed text",
+  "pdf_sha256": "5de851d1af510a449e18262040ec8f8538538c6784747c0682340908e7b8fcbd"
  },
  {
   "alias": "gen-hf",
@@ -88,6 +90,7 @@
   "variant": "save",
   "field": "ins_text",
   "reason": "header and footer text is not compared for PDFs, so the Even side header edit is absent from the PDF comparison",
-  "pdf": "B"
+  "kind": "subset-of-word",
+  "pdf_sha256": "df7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c"
  }
 ]

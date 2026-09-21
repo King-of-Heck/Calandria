@@ -55,6 +55,10 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     need = 3 if n >= 4 else 2 if n >= 2 else None
     found: set[tuple[int, int]] = set()
     seen: dict[str, list[tuple[float, int, int]]] = {}
+    # A running header never also appears in the middle of a page, but a numbered clause does, and
+    # blanking its digits makes every clause one signature; without this the clause that lands in
+    # the band at each page top repeats there and is stripped out of the body.
+    body = {_signature(ln.text) for pg in pages for ln in pg.lines if not _in_band(pg, ln)}
     for pi, pg in enumerate(pages):
         for li, ln in enumerate(pg.lines):
             if not _in_band(pg, ln):
@@ -62,7 +66,7 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
             sig = _signature(ln.text)
             if sig == "#" and _outer_half(pg, ln):
                 found.add((pi, li))
-            elif sig:
+            elif sig and sig not in body:
                 seen.setdefault(sig, []).append((ln.y / pg.height, pi, li))
     if need is None:
         return found

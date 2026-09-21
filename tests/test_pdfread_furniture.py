@@ -154,3 +154,13 @@ def test_the_same_header_on_both_pages_of_a_two_page_document_is_furniture():
     assert texts(two, find_furniture(two)) == ["Acme Supply Agreement", "Page 1 of 2", "Page 2 of 2"]
     one = doc(1)
     assert texts(one, find_furniture(one)) == ["Page 1 of 1"]      # nothing to repeat against
+
+
+def test_a_numbered_body_line_at_the_page_top_is_not_furniture():
+    """gen-hf-A.pdf: every clause reads 'Section one paragraph N ...', so blanking the digits gives
+    them all one signature, and the clause that happened to land at the top of each page repeated
+    at the same height and was stripped -- four paragraphs a page, gone from the body."""
+    pages = [page(i, [L(f"Section one paragraph {i * 3} with enough words.", 80, i),
+                      L(f"Section one paragraph {i * 3 + 1} with enough words.", 300, i),
+                      L(f"Page {i + 1} of 5", 760, i)]) for i in range(5)]
+    assert texts(pages, find_furniture(pages)) == [f"Page {i} of 5" for i in range(1, 6)]

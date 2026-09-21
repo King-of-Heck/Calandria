@@ -3,6 +3,7 @@ from calandria.pdfread.types import Line, Span
 
 LEFT, RIGHT = 72.0, 540.0
 FULL = "The Supplier shall deliver the Goods to the Buyer at the Delivery Point on the agreed date"
+CONT = "the following provisions shall apply without limiting the generality of the foregoing"
 
 
 def L(text, y, x0=LEFT, x1=RIGHT, page=0, size=12.0, font="Arial", spans=None):
@@ -116,7 +117,7 @@ def test_no_lines_no_paragraphs():
     assert build_paragraphs([], LEFT, RIGHT, 1.15) == []
 
 
-PASSAGE = [(FULL, RIGHT), (FULL, RIGHT), (FULL, RIGHT), ("and no later.", 130.0),
+PASSAGE = [(FULL, RIGHT), (CONT, RIGHT), (CONT, RIGHT), ("and no later.", 130.0),
            (FULL, RIGHT), ("the second paragraph ends.", 200.0)]
 
 
@@ -130,7 +131,6 @@ def test_the_wrap_statistic_reads_the_lines_that_reach_the_right_edge():
     own. WRAPPING's text is realistic wrapped prose -- each continuation line picks up lowercase,
     the way a clause that runs past the margin actually looks on the page (unlike FULL, which
     starts a fresh capitalised clause and so would not read as a continuation)."""
-    CONT = "the following provisions shall apply without limiting the generality of the foregoing"
     wrapping = [L(CONT, 100 + 14 * i) for i in range(6)] + [L("and no later.", 184, x1=130)]
     assert nothing_wraps(wrapping, RIGHT) is False
     one_liners = [L(f"Clause {i} remains identical.", 100 + 14 * i) for i in range(6)] + [L("End.", 184, x1=130)]
@@ -154,7 +154,7 @@ def test_double_line_spacing_keeps_a_wrapped_passage_whole():
 
 
 def test_a_heading_between_double_spaced_paragraphs_still_splits_off():
-    body = [(FULL, RIGHT), (FULL, RIGHT), ("ends here.", 150.0)]
+    body = [(FULL, RIGHT), (CONT, RIGHT), ("ends here.", 150.0)]
     lines = spaced(body + [("Heading One", 200.0)] + body + [("Heading Two", 210.0)] + body, 27.6)
     assert nothing_wraps(lines, RIGHT) is False
     paras = build_paragraphs(lines, LEFT, RIGHT, prevailing_pitch(lines), no_wrap=False)

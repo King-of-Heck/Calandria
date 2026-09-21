@@ -34,9 +34,9 @@ def test_a_different_first_page_still_strips_the_rest():
     assert "DRAFT 3" not in texts(pages, found) and len([1 for p, _ in found if p > 0]) == 8
 
 
-def test_short_documents_lose_only_page_numbers():
-    pages = doc(2)
-    assert texts(pages, find_furniture(pages)) == ["Page 1 of 2", "Page 2 of 2"]
+def test_a_one_page_document_loses_only_its_page_number():
+    pages = doc(1)
+    assert texts(pages, find_furniture(pages)) == ["Page 1 of 1"]
     three = doc(3)
     assert "Acme Supply Agreement" in texts(three, find_furniture(three))
 
@@ -69,8 +69,8 @@ def test_a_body_word_made_of_roman_letters_is_not_stripped_as_a_page_number():
 
 
 def test_a_lone_number_line_is_furniture_only_in_the_outer_half_of_the_band():
-    short = doc(2)
-    assert texts(short, find_furniture(short)) == ["Page 1 of 2", "Page 2 of 2"]
+    short = doc(1)
+    assert texts(short, find_furniture(short)) == ["Page 1 of 1"]
 
     inner_body = doc(5)
     inner_body[2] = page(2, [L("Acme Supply Agreement", 40, 2), L("2026", 100, 2), L("Page 3 of 5", 760, 2)])
@@ -144,3 +144,13 @@ def test_furniture_below_the_notes_is_ignored_when_already_skipped():
     pages = [page(0, [L("Body", 300), note(1, "Note", 702), L("Page 1", 760)], segs=[Seg(72, 690, 216, 690)])]
     notes, taken = collect_notes(pages, {(0, 2)}, 72.0, 12.0)
     assert list(notes) == [1] and taken == {(0, 1)}
+
+
+def test_the_same_header_on_both_pages_of_a_two_page_document_is_furniture():
+    """benchA.pdf is two pages and benchB.pdf is three of the same document: when two pages were
+    not enough to repeat against, A kept its running header and footer in the body and B did not,
+    so the pair compared as changes that are not in the document."""
+    two = doc(2)
+    assert texts(two, find_furniture(two)) == ["Acme Supply Agreement", "Page 1 of 2", "Page 2 of 2"]
+    one = doc(1)
+    assert texts(one, find_furniture(one)) == ["Page 1 of 1"]      # nothing to repeat against

@@ -49,7 +49,10 @@ def _outer_half(pg: PageLines, ln: Line) -> bool:
 
 def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     n = len(pages)
-    need = 3 if n >= 4 else 2 if n == 3 else None
+    # Two pages are enough to repeat against; only a single page has nothing to repeat against.
+    # (The same document saved twice can paginate differently, and a header must not survive in the
+    # shorter copy only because it had one page fewer to repeat on.)
+    need = 3 if n >= 4 else 2 if n >= 2 else None
     found: set[tuple[int, int]] = set()
     seen: dict[str, list[tuple[float, int, int]]] = {}
     for pi, pg in enumerate(pages):

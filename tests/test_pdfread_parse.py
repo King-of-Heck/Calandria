@@ -51,8 +51,9 @@ def test_two_versions_compare_to_the_edited_words_and_a_pdf_equals_itself():
 
 
 def test_a_paragraph_running_over_a_page_break_is_one_paragraph():
-    p1 = [("text", 72, 100 + 13 * i, 11, FULL) for i in range(3)]
-    p2 = [("text", 72, 100, 11, FULL), ("text", 72, 113, 11, END)]
+    # Below the header band: an identical line at an identical height on every page is furniture.
+    p1 = [("text", 72, 200 + 13 * i, 11, FULL) for i in range(3)]
+    p2 = [("text", 72, 200, 11, FULL), ("text", 72, 213, 11, END)]
     doc = parse_pdf(make_pdf([p1, p2], ttf=ARIAL))
     assert len(doc.blocks) == 1 and doc.blocks[0].text.count("The Supplier") == 4
 

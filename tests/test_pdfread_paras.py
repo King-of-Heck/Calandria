@@ -1,4 +1,4 @@
-from calandria.pdfread.paras import MARKER, build_paragraphs, nothing_wraps, prevailing_pitch
+from calandria.pdfread.paras import MARKER, build_paragraphs, justified_document, nothing_wraps, prevailing_pitch
 from calandria.pdfread.types import Line, Span
 
 LEFT, RIGHT = 72.0, 540.0
@@ -43,6 +43,22 @@ def test_a_paragraph_flows_across_a_page_break_but_a_short_line_still_ends_it():
     assert len(p.lines) == 2
     a, b = build_paragraphs([L("The end.", 700, x1=120), L(FULL, 90, page=1)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert texts([a, b]) == ["The end.", FULL]
+
+
+def test_a_bold_heading_at_the_top_of_a_page_does_not_join_the_paragraph_before_it():
+    bold = "Arial,Bold"
+    a, b = build_paragraphs([L(FULL + ".", 700), L("APPENDIX A", 90, page=1, x0=250, x1=330, font=bold)],
+                            LEFT, RIGHT, 1.15, no_wrap=True)
+    assert texts([a, b]) == [FULL + ".", "APPENDIX A"]
+    a, b = build_paragraphs([L(FULL, 686.2), L("convenient.", 700, x1=500), L("6.6 Dispute", 90, page=1, x1=160, font=bold)],
+                            LEFT, RIGHT, 1.15, no_wrap=True)
+    assert texts([b]) == ["6.6 Dispute"]
+    mixed = [Span("the “", "Arial", 12.0), Span("Receiving Party", bold, 12.0), Span("” agrees.", "Arial", 12.0)]
+    (p,) = build_paragraphs([L(FULL, 700), L("", 90, page=1, x1=200, spans=mixed)], LEFT, RIGHT, 1.15, no_wrap=True)
+    assert len(p.lines) == 2                              # a defined term in bold is not a heading
+    (p,) = build_paragraphs([L(FULL, 700, font=bold), L("ends here.", 90, page=1, x1=150, font=bold)],
+                            LEFT, RIGHT, 1.15, no_wrap=True)
+    assert len(p.lines) == 2                              # a bold paragraph carries on in bold
 
 
 def test_first_line_and_hanging_indents_are_measured():
@@ -111,6 +127,41 @@ def test_centred_and_right_aligned_lines():
     (lf,) = build_paragraphs([L("Left text", 100, x1=130)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert (c.align, r.align, lf.align) == ("center", "right", "left")
     assert (c.ind_left, r.ind_left) == (0.0, 0.0)
+
+
+def test_a_two_line_paragraph_is_justified_when_the_document_is():
+    two = [L(FULL, 100), L("and no later.", 113.8, x1=150)]
+    (p,) = build_paragraphs(two, LEFT, RIGHT, 1.15, no_wrap=True, justified=True)
+    assert p.align == "justify"
+    (p,) = build_paragraphs(two, LEFT, RIGHT, 1.15, no_wrap=True)
+    assert p.align == "left"                              # one wrapped line proves nothing on its own
+    ragged = [L(FULL, 100, x1=RIGHT - 8), L("and no later.", 113.8, x1=150)]
+    (p,) = build_paragraphs(ragged, LEFT, RIGHT, 1.15, no_wrap=True, justified=True)
+    assert p.align == "left"                              # its first line stopped short of the edge
+
+
+def test_a_document_is_justified_when_most_of_its_longer_paragraphs_are():
+    just = build_paragraphs([L(FULL, 100), L(CONT, 113.8), L("and no later.", 127.6, x1=150)], LEFT, RIGHT, 1.15, no_wrap=True)
+    ragged = build_paragraphs([L(FULL, 200, x1=530), L(CONT, 213.8), L("and no later.", 227.6, x1=150)], LEFT, RIGHT, 1.15, no_wrap=True)
+    short = build_paragraphs([L(FULL, 300, x1=530), L("and no later.", 313.8, x1=150)], LEFT, RIGHT, 1.15, no_wrap=True)
+    assert [p.align for p in just + ragged] == ["justify", "left"]
+    assert justified_document(just * 2 + ragged + short * 5)
+    assert not justified_document(just + ragged)
+    assert not justified_document(short) and not justified_document([])
+
+
+def test_lines_hanging_from_a_left_edge_are_not_centred_or_set_right():
+    def align(lines):
+        (p,) = build_paragraphs(lines, LEFT, RIGHT, 1.15, no_wrap=True)
+        return p.align
+    assert align([L("1.1 Definitions ........................ 2", 100, x0=90)]) == "left"     # a TOC line
+    assert align([L("(1)	" + FULL, 100, x0=144)]) == "left"
+    assert align([L("(m) " + FULL, 100, x0=108)]) == "left"
+    clause = [L("(e)	" + FULL, 100, x0=108)] + [L(CONT, 113.8 + 13.8 * i, x0=144) for i in range(3)]
+    assert align(clause) == "justify"
+    assert align([L(FULL, 100, x0=144), L(CONT, 113.8, x0=144)]) == "left"
+    assert align([L("November 2023 Template", 100, x0=420)]) == "right"
+    assert align([L("Prepared for", 100, x0=470), L("the Buyer and the Seller", 113.8, x0=400)]) == "right"
 
 
 def test_no_lines_no_paragraphs():

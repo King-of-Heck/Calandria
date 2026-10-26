@@ -63,6 +63,12 @@ def test_body_metrics_take_the_margin_not_an_outlier_and_the_commonest_size():
     assert body_metrics([page(0, [])], set()) == (72.0, 540.0, 11.0)
 
 
+def test_a_few_lines_past_the_margin_do_not_move_the_right_edge():
+    lines = [L(FULL, 100 + 2 * i) for i in range(300)] + [L("(SEAL)", 720, x0=500, x1=544.4)]
+    assert body_metrics([page(0, lines)], set())[1] == 540.0
+    assert body_metrics([page(0, [L(FULL, 100), L("(SEAL)", 120, x0=500, x1=544.4)])], set())[1] == 544.4
+
+
 def test_one_landscape_page_does_not_widen_the_text_column():
     portrait = page(0, [L(FULL, 100 + 14 * i) for i in range(10)])
     landscape = PageLines(1, 792.0, 612.0, [L(FULL, 100 + 14 * i, page=1, x1=720.0) for i in range(3)], [], [])
@@ -100,6 +106,12 @@ def test_a_full_width_toc_line_does_not_count_as_text_running_on_to_the_next_pag
     pages = [page(0, [L(FULL + ".", 100), L(toc, 130)]), page(1, [L("Schedules", 100, page=1, x1=150)])]
     blocks = build_document(pages, set(), {}, 2, ()).blocks
     assert blocks[-1].text == "Schedules" and blocks[-1].props.page_break_before
+
+
+def test_a_two_line_paragraph_in_a_justified_document_is_justified():
+    lines = [L(FULL, 100), L(FULL, 113.8), L("ends.", 127.6, x1=120), L(FULL, 160), L("ends.", 173.8, x1=120)]
+    three, two = build_document([page(0, lines)], set(), {}, 1, ()).blocks
+    assert (three.props.align, two.props.align) == ("justify", "justify")
 
 
 def test_a_hanging_marker_gets_a_tab_and_a_tab_stop():

@@ -3,23 +3,20 @@ ONE stream of body items in reading order, page after page, so a paragraph or a 
 continues over a page break comes out whole."""
 from __future__ import annotations
 
-import re
 from collections import Counter
 from dataclasses import replace
 
 from ..model import (Cell, Document, NoteRef, Paragraph, ParaProps, Row, Run, RunProps, Section, Table,
                      TabStop, collapse_ws)
+from .fontname import split_font
 from .grid import TOL, Grid, GridCell
-from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, nothing_wraps,
-                    prevailing_pitch)
+from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, justified_document,
+                    nothing_wraps, prevailing_pitch)
 from .types import Line, PageLines
 
-_SUBSET = re.compile(r"^[A-Z]{6}\+")
-_STYLE_TAIL = re.compile(r"^(.+?)(BoldItalic|BoldOblique|Bold|Italic|Oblique)$")
-_WORDS = re.compile(r"[A-Z][a-z]+|[A-Z]+(?![a-z])|[a-z]+|\d+")
-_STYLE_WORDS = {"bold", "italic", "oblique", "regular", "roman", "mt", "ps", "psmt"}
-_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 MIN_MARGIN = 0.03      # of the page width or height: a measured margin is never less than this
+OUTLIERS = 200         # one line in this many may end past the right margin without moving it (a "(SEAL)"
+                       # set out in a signature block ran 4.4 pt past a 198-page contract's margin)
 # BREAK_ROOM: of the text column's height. Measured on Word's PDF of a 198-page contract (room above
 # the footnotes), a page the text flowed off left at most 0.118 of its column empty (a heading kept
 # with its paragraph); every page followed by a new title (schedule, appendix, form, the table of
@@ -31,22 +28,6 @@ def _half(v: float) -> float:
     return round(v * 2) / 2
 
 
-def split_font(name: str) -> tuple[str, bool, bool]:
-    """'ABCDEF+TimesNewRomanPS-BoldItalicMT' -> ('Times New Roman', True, True)."""
-    base = _SUBSET.sub("", name)
-    head, tail = (re.split(r"[,-]", base, maxsplit=1) + [""])[:2]
-    head = re.sub(r"(PSMT|PS|MT)$", "", head)
-    m = _STYLE_TAIL.match(head)
-    if m:
-        head, tail = m.group(1), m.group(2) + tail
-    words = _WORDS.findall(tail)                     # 'BoldItalicMT' -> Bold, Italic, MT; 'Semibold' stays one word
-    low = [w.lower() for w in words]
-    bold, italic = "bold" in low, "italic" in low or "oblique" in low
-    rest = [w for w in words if w.lower() not in _STYLE_WORDS]
-    family = " ".join([_CAMEL.sub(" ", head.replace("_", " ")).strip(), *rest]).strip()
-    return family or "Unknown", bold, italic
-
-
 def _body(pages: list[PageLines], skip: set) -> list[Line]:
     return [ln for pi, pg in enumerate(pages) for li, ln in enumerate(pg.lines)
             if ln.cell is None and (pi, li) not in skip]
@@ -54,7 +35,8 @@ def _body(pages: list[PageLines], skip: set) -> list[Line]:
 
 def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float]:
     """(left edge, right edge, body font size) of the text column. The left edge is the leftmost
-    x that a fair number of lines start at, so one outdented line does not move the margin. Both
+    x that a fair number of lines start at, so one outdented line does not move the margin; the right
+    edge is where all but one line in OUTLIERS end, for the same reason. Both
     edges come from pages of the commonest size only: one landscape page's wider lines would
     otherwise set the right edge for the whole document."""
     all_lines = _body(pages, skip)
@@ -67,7 +49,8 @@ def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float
     floor = max(2, len(lines) // 50) if len(lines) >= 10 else 1
     common = [x for x, n in starts.items() if n >= floor]
     left = min(common) if common else min(starts)
-    right = max(ln.x1 for ln in lines if ln.x0 >= left - 0.5) if any(ln.x0 >= left - 0.5 for ln in lines) else max(ln.x1 for ln in lines)
+    ends = sorted((ln.x1 for ln in lines if ln.x0 >= left - 0.5), reverse=True) or [max(ln.x1 for ln in lines)]
+    right = ends[min(len(ends) - 1, len(ends) // OUTLIERS)]
     sizes: Counter = Counter()
     for ln in all_lines:
         sizes[ln.size] += len(ln.text)
@@ -76,8 +59,9 @@ def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float
 
 
 class _Builder:
-    def __init__(self, left: float, right: float, pitch: float, no_wrap: bool, known_notes: set[int]):
-        self.left, self.right, self.pitch, self.no_wrap = left, right, pitch, no_wrap
+    def __init__(self, left: float, right: float, pitch: float, no_wrap: bool, justified: bool,
+                 known_notes: set[int]):
+        self.left, self.right, self.pitch, self.no_wrap, self.justified = left, right, pitch, no_wrap, justified
         self.known_notes = known_notes
         self.note_numbers: dict[NoteRef, int] = {}
         self.blocks: list = []
@@ -139,9 +123,10 @@ class _Builder:
         return Paragraph(runs, props)
 
     def paragraphs(self, lines: list[Line], left: float, right: float, pitch: float) -> list[Paragraph]:
-        # Body, table cells and notes all use the one document-level answer: the same call on both
+        # Body, table cells and notes all use the one document-level answers: the same call on both
         # PDFs cancels out, and a cell or a note is far too little text to measure wrapping on.
-        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch, no_wrap=self.no_wrap)]
+        return [self.paragraph(p) for p in build_paragraphs(lines, left, right, pitch, no_wrap=self.no_wrap,
+                                                            justified=self.justified)]
 
     def flush(self) -> None:
         if self.pending:
@@ -302,7 +287,10 @@ def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line
     left, right, body_size = body_metrics(pages, skip)
     body_lines = _body(pages, skip)
     pitch = prevailing_pitch(body_lines)
-    b = _Builder(left, right, pitch, nothing_wraps(body_lines, right), set(notes))
+    no_wrap = nothing_wraps(body_lines, right)
+    # A first reading of the whole body, page breaks ignored, only to ask whether it justifies.
+    justified = justified_document(build_paragraphs(body_lines, left, right, pitch, no_wrap=no_wrap))
+    b = _Builder(left, right, pitch, no_wrap, justified, set(notes))
     section = _section(pages, skip, left, right)
     breaks = _hard_breaks(pages, skip, notes, section, right)
     marks: list[int] = []

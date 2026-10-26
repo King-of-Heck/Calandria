@@ -17,6 +17,11 @@ class TextRun:
     y: float          # the baseline
     size: float       # the font size as drawn
     font: str         # /BaseFont without the slash (a subset prefix still on it)
+    ink_x1: float | None = None   # where the last non-blank glyph ends; None = at x1
+
+    @property
+    def ink_end(self) -> float:
+        return self.x1 if self.ink_x1 is None else self.ink_x1
 
 
 @dataclass(frozen=True)

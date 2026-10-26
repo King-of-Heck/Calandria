@@ -67,7 +67,9 @@ def _line(row: list[TextRun], page: int, cell) -> Line:
     spans[0] = replace(spans[0], text=spans[0].text.lstrip())
     spans[-1] = replace(spans[-1], text=spans[-1].text.rstrip())
     inked = [r for r in row if r.text.strip()]
-    return Line(page, inked[0].x0, inked[-1].x1, y, size, [s for s in spans if s.text], cell)
+    # The right end is the ink's: Word draws the spaces after a sentence's full stop, which would
+    # put a paragraph's last line past the margin and make a justified line look ragged.
+    return Line(page, inked[0].x0, inked[-1].ink_end, y, size, [s for s in spans if s.text], cell)
 
 
 def build_lines(runs: list[TextRun], page: int = 0, cell: tuple | None = None) -> list[Line]:

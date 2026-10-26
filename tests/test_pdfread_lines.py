@@ -60,3 +60,10 @@ def test_a_redrawn_run_is_measured_against_its_own_font_size():
 def test_blank_lines_are_dropped_and_edges_ignore_outer_whitespace():
     lines = build_lines([R("   ", 72, 80, y=50), R(" padded ", 72, 120)])
     assert [ln.text for ln in lines] == ["padded"]
+
+
+def test_a_line_ends_where_its_ink_ends_not_after_trailing_spaces():
+    (ln,) = build_lines([R("ends here.", 72, 120), TextRun("  More ", 120, 160, 100.0, 12.0, "Arial", ink_x1=154)])
+    assert (ln.x0, ln.x1) == (72, 154)
+    (ln,) = build_lines([R("no ink end given", 72, 150)])
+    assert ln.x1 == 150

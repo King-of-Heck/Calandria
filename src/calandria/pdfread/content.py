@@ -69,11 +69,15 @@ def interpret(ops, fonts: dict[str, PdfFont], xobjects: dict[str, str], base, pa
         m = mul(tm, full())
         x_start, y_start = apply(m, 0.0, st.rise)
         pieces = []
+        ink_tm = tm                   # the text matrix after the last non-blank glyph
         for code, text, w in font.decode(raw):
             pieces.append(text)
             tx = (w / 1000.0 * st.size + st.tc + (st.tw if font.nbytes == 1 and code == 32 else 0.0)) * st.th
             tm = mul((1.0, 0.0, 0.0, 1.0, tx, 0.0), tm)
+            if text.strip():
+                ink_tm = tm
         x_end, _ = apply(mul(tm, full()), 0.0, st.rise)
+        ink_end, _ = apply(mul(ink_tm, full()), 0.0, st.rise)
         text = "".join(pieces).replace("\x00", "")
         upright = m[0] > 0 and m[3] < 0 and abs(m[1]) < 0.01 * abs(m[0]) and abs(m[2]) < 0.01 * abs(m[3])
         if text and upright:
@@ -81,7 +85,7 @@ def interpret(ops, fonts: dict[str, PdfFont], xobjects: dict[str, str], base, pa
             page.bad_chars += text.count(REPLACEMENT)
             if no_font:
                 page.bad_chars += len(text)
-            page.runs.append(TextRun(text, x_start, x_end, y_start, st.size * abs(m[3]), font.name))
+            page.runs.append(TextRun(text, x_start, x_end, y_start, st.size * abs(m[3]), font.name, ink_end))
 
     def newline(tx: float, ty: float):
         nonlocal tm, tlm

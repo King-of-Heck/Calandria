@@ -7,6 +7,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from .fontname import split_font
 from .types import Line, Span
 
 MARKER = re.compile(r"^(\(?\d{1,3}(\.\d{1,3})*[.)]?|\(?[A-Za-z][.)]|\(?[ivxlcdm]{1,7}[.)]"
@@ -122,12 +123,20 @@ def _ended_short(cur: list[Line], nxt: Line, right: float, tol: float) -> bool:
     return _edge(cur, nxt, right, tol) - cur[-1].x1 > 1.2 * first + 0.5 * nxt.size
 
 
+def _all_bold(ln: Line) -> bool:
+    return all(split_font(s.font)[1] for s in ln.spans if s.text.strip())
+
+
 def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float, no_wrap: bool) -> bool:
     prev = cur[-1]
     size = max(prev.size, nxt.size)
     tol = TOL * size
     same_page = prev.page == nxt.page
     if same_page and nxt.y <= prev.y:
+        return True
+    # Across a page break there is no gap to show a heading: a short line all in bold after one
+    # that is not is a heading, not the paragraph carried on.
+    if not same_page and right - nxt.x1 > EDGE * nxt.size and _all_bold(nxt) and not _all_bold(prev):
         return True
     if TOC_END.search(prev.text.rstrip()):
         return True
@@ -166,22 +175,46 @@ def _join(lines: list[Line]) -> list[Span]:
     return [replace(s, text=s.text.replace("­", "")) for s in out]
 
 
-def _align(lines: list[Line], left: float, right: float, tol: float) -> str:
+def _flush_left(lines: list[Line], tol: float) -> bool:
+    """Whether the lines show they hang from a left edge: a tab or a dot leader sets text out from
+    the left, and wrapped lines that all start at one x were not centred or pushed right. Without
+    this a justified clause whose every line reaches the margin reads as right aligned."""
+    if any("\t" in l.text or LEADER.search(l.text) for l in lines):
+        return True
+    starts = [l.x0 for l in (lines if len(lines) == 2 else lines[1:])]
+    return len(starts) >= 2 and max(starts) - min(starts) <= tol
+
+
+def _align(lines: list[Line], left: float, right: float, tol: float, justified: bool) -> str:
     mid = (left + right) / 2
-    if all(abs((l.x0 + l.x1) / 2 - mid) <= tol and l.x0 - left > tol and right - l.x1 > tol for l in lines):
+    if _flush_left(lines, tol):
+        pass
+    elif all(abs((l.x0 + l.x1) / 2 - mid) <= tol and l.x0 - left > tol and right - l.x1 > tol for l in lines):
         return "center"
-    if all(right - l.x1 <= tol and l.x0 - left > tol for l in lines):
-        return "right"
+    elif all(right - l.x1 <= tol and l.x0 - left > tol for l in lines) and not MARKER.match(lines[0].text):
+        return "right"                    # a numbered clause that fills its line is not set right
     body = lines[:-1]
     if len(body) >= 2 and max(l.x1 for l in body) - min(l.x1 for l in body) <= tol:
+        return "justify"
+    # One wrapped line cannot show it was stretched: a ragged line can end at the edge by chance. In
+    # a document that justifies, a two-line paragraph whose first line reaches the edge is taken to.
+    if justified and len(lines) == 2 and right - lines[0].x1 <= tol:
         return "justify"
     return "left"
 
 
-def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch: float) -> PdfPara:
+def justified_document(paras: list[PdfPara]) -> bool:
+    """Whether the document justifies its text: most of its paragraphs of three lines or more,
+    the ones whose alignment their own line ends show, are justified."""
+    seen = Counter(p.align for p in paras if len(p.lines) >= 3)
+    return seen["justify"] > seen["left"]
+
+
+def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch: float,
+          justified: bool) -> PdfPara:
     size = lines[0].size
     tol = TOL * size
-    align = _align(lines, left, right, tol)
+    align = _align(lines, left, right, tol, justified)
     ind_left = ind_first = ind_hanging = 0.0
     if align in ("left", "justify"):
         first_x = lines[0].x0
@@ -198,12 +231,12 @@ def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch:
 
 
 def build_paragraphs(lines: list[Line], left: float, right: float, pitch: float,
-                     *, no_wrap: bool) -> list[PdfPara]:
+                     *, no_wrap: bool, justified: bool = False) -> list[PdfPara]:
     groups: list[list[Line]] = []
     for ln in lines:
         if groups and not _breaks(groups[-1], ln, right, pitch, no_wrap):
             groups[-1].append(ln)
         else:
             groups.append([ln])
-    return [_para(g, groups[i + 1][0] if i + 1 < len(groups) else None, left, right, pitch)
+    return [_para(g, groups[i + 1][0] if i + 1 < len(groups) else None, left, right, pitch, justified)
             for i, g in enumerate(groups)]

@@ -119,3 +119,11 @@ def test_a_clip_path_is_not_a_border_and_images_and_forms_are_counted():
            (["/Im1"], b"Do"), (["/Fm1"], b"Do"), ([{}], b"INLINE IMAGE")]
     p = run(ops, xobjects={"/Im1": "image", "/Fm1": "form"})
     assert p.segs == [] and p.images == 2 and p.forms == 1
+
+
+def test_a_run_ending_in_spaces_has_its_ink_end_before_them():
+    p = run(text_ops(([b"AB  "], b"Tj"), ([b"   "], b"Tj")))
+    a, blank = p.runs
+    assert a.x1 == pytest.approx(87.0)                       # the pen moves past the two spaces ...
+    assert a.ink_x1 == pytest.approx(82.0)                   # ... the ink stops after the B
+    assert blank.ink_x1 == pytest.approx(blank.x0)          # nothing inked: the ink ends where it starts

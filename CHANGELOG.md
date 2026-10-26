@@ -1,5 +1,12 @@
 # Calandria changelog
 
+## v2.10.3 — PDF pair reading (2026-10-26)
+
+- The two PDFs of a comparison are now read by the same rules: whether the document's text wraps
+  and whether it is justified are judged from both PDFs together, so a short or lightly edited
+  side can no longer be read differently from the other and show changes that are not there.
+- A long line that starts at an indent and runs to the margin is no longer shown right aligned.
+
 ## v2.10.2 — PDF paragraph fixes (2026-10-26)
 
 - A heading at the top of a page in a PDF is no longer joined to the end of the paragraph on the

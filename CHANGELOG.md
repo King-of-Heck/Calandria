@@ -1,5 +1,15 @@
 # Calandria changelog
 
+## v2.10.2 — PDF paragraph fixes (2026-10-26)
+
+- A heading at the top of a page in a PDF is no longer joined to the end of the paragraph on the
+  page before it.
+- Justified text in a PDF is shown justified, including two-line paragraphs; line ends are
+  measured where the text ends, not after the spaces that follow a full stop, and the right
+  margin is no longer measured too wide.
+- Numbered clauses and table of contents lines that fill their line are no longer shown centred
+  or right aligned.
+
 ## v2.10.1 — PDF comparison fixes (2026-10-26)
 
 - A PDF with one landscape page no longer lays out every page too wide; the text column is now

@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from calandria.reader import UnknownKind, kind_of, read_document
+from calandria.reader import UnknownKind, documents, kind_of, read_document, read_source
 from calandria.testing.makedocx import DOC, P, make_docx
 from calandria.testing.makepdf import make_pdf
 
@@ -40,3 +40,10 @@ def test_a_word_comparison_never_imports_pypdf():
             "print('pypdf' in sys.modules)\n")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
+
+
+def test_a_pdf_is_read_on_its_own_and_finished_with_the_other_side():
+    pdf, word = read_source(PDF), read_source(DOCX)
+    assert (pdf.source_kind, word.source_kind) == ("pdf", "docx")
+    a, b = documents(pdf, word)
+    assert "Hello from a PDF" in a.blocks[0].text and b is word

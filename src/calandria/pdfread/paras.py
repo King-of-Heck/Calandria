@@ -79,20 +79,32 @@ def nothing_wraps(lines: list[Line], right: float) -> bool:
     way, so it defaults to "nothing wraps" -- every corpus document that falls under this floor is
     in fact one of one-line paragraphs, never a genuinely wrapped one too short to prove it.
 
-    The decision is made once per document, so the two sides of a compared pair are read
-    independently and could in principle disagree; measured across the corpus, none do, though the
-    wrap share itself can still differ within a pair (bench A 1.00 vs bench B 0.73, both correctly
-    False). Wrapped text at 1.5 or double line spacing is not represented in the corpus."""
+    A compared pair is asked once, both sides' lines counted together (`wrap_votes`, `nothing_wraps_by`),
+    so the two sides are always read by the same rule: a side too short to show its wrapping on its
+    own (fewer full lines than the floor) is read the way the other side shows the document wraps.
+    The wrap share can differ within a pair (bench A 1.00 vs bench B 0.73, both correctly False).
+    Wrapped text at 1.5 or double line spacing is not represented in the corpus."""
+    return nothing_wraps_by(wrap_votes(lines, right))
+
+
+def wrap_votes(lines: list[Line], right: float) -> tuple[int, int, int]:
+    """(full lines that carry a sentence on, full lines, all lines): `nothing_wraps`'s evidence."""
     full = [(a, b) for a, b in zip(lines, lines[1:])
             if a.page == b.page and a.cell == b.cell and b.y > a.y and right - a.x1 <= EDGE * a.size]
-    if len(full) < max(3, int(len(lines) * EVIDENCE)):
-        return True                        # too few full lines to read anything from
 
     def wraps(a: Line, b: Line) -> bool:
         nxt = b.text.lstrip()
         return not SENTENCE_END.search(a.text.strip()) and bool(nxt) and nxt[0].islower()
 
-    return sum(1 for a, b in full if wraps(a, b)) / len(full) < WRAPS
+    return sum(1 for a, b in full if wraps(a, b)), len(full), len(lines)
+
+
+def nothing_wraps_by(*votes: tuple[int, int, int]) -> bool:
+    """`nothing_wraps` over the evidence of one or more documents counted together."""
+    wrapped, full, total = (sum(v[i] for v in votes) for i in range(3))
+    if full < max(3, int(total * EVIDENCE)):
+        return True                        # too few full lines to read anything from
+    return wrapped / full < WRAPS
 
 
 @dataclass
@@ -191,8 +203,10 @@ def _align(lines: list[Line], left: float, right: float, tol: float, justified: 
         pass
     elif all(abs((l.x0 + l.x1) / 2 - mid) <= tol and l.x0 - left > tol and right - l.x1 > tol for l in lines):
         return "center"
-    elif all(right - l.x1 <= tol and l.x0 - left > tol for l in lines) and not MARKER.match(lines[0].text):
-        return "right"                    # a numbered clause that fills its line is not set right
+    elif all(right - l.x1 <= tol and l.x0 > mid for l in lines) and not MARKER.match(lines[0].text):
+        # Text set right starts in the right half of the column: a numbered clause, or a long line
+        # from an indent, that fills its line to the margin is not set right.
+        return "right"
     body = lines[:-1]
     if len(body) >= 2 and max(l.x1 for l in body) - min(l.x1 for l in body) <= tol:
         return "justify"
@@ -205,9 +219,19 @@ def _align(lines: list[Line], left: float, right: float, tol: float, justified: 
 
 def justified_document(paras: list[PdfPara]) -> bool:
     """Whether the document justifies its text: most of its paragraphs of three lines or more,
-    the ones whose alignment their own line ends show, are justified."""
+    the ones whose alignment their own line ends show, are justified. A compared pair is asked
+    once, both sides' paragraphs counted together (`justify_votes`, `justified_by`)."""
+    return justified_by(justify_votes(paras))
+
+
+def justify_votes(paras: list[PdfPara]) -> tuple[int, int]:
+    """(justified, left aligned) among the paragraphs of three lines or more."""
     seen = Counter(p.align for p in paras if len(p.lines) >= 3)
-    return seen["justify"] > seen["left"]
+    return seen["justify"], seen["left"]
+
+
+def justified_by(*votes: tuple[int, int]) -> bool:
+    return sum(v[0] for v in votes) > sum(v[1] for v in votes)
 
 
 def _para(lines: list[Line], nxt: Line | None, left: float, right: float, pitch: float,

@@ -409,7 +409,7 @@ def test_a_word_document_against_a_pdf_is_refused_and_changes_nothing():
 
 def test_a_word_document_against_a_pdf_is_refused_before_either_is_parsed(monkeypatch):
     calls = []
-    monkeypatch.setattr(session_module, "read_document", lambda *a, **k: calls.append(1))
+    monkeypatch.setattr(session_module, "read_source", lambda *a, **k: calls.append(1))
     s = Session(fonts=FR)
     with pytest.raises(BadDocument, match="Comparing a Word document with a PDF"):
         s.load("a.docx", _docx(P("x")), "b.pdf", _pdf("x"))
@@ -427,8 +427,8 @@ def test_a_refused_pdf_names_the_file_and_gives_the_reason():
 
 def test_a_file_is_parsed_once_however_often_it_is_loaded(monkeypatch):
     calls = []
-    real = session_module.read_document
-    monkeypatch.setattr(session_module, "read_document", lambda data, progress=None: calls.append(1) or real(data, progress))
+    real = session_module.read_source
+    monkeypatch.setattr(session_module, "read_source", lambda data, progress=None: calls.append(1) or real(data, progress))
     s = Session(fonts=FR)
     a, b = _pdf("Alpha"), _pdf("Alpha beta")
     s.load("a.pdf", a, "b.pdf", b)
@@ -448,7 +448,7 @@ def test_progress_is_visible_while_a_pdf_is_read(monkeypatch):
         progress(1, 2)
         seen.append(dict(s.progress))
         return real(data)
-    real = session_module.read_document
-    monkeypatch.setattr(session_module, "read_document", slow)
+    real = session_module.read_source
+    monkeypatch.setattr(session_module, "read_source", slow)
     s.load("a.pdf", _pdf("x"), "b.pdf", _pdf("y"))
     assert seen[0] == {"name": "a.pdf", "page": 1, "pages": 2} and s.progress is None

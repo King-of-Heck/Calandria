@@ -1,5 +1,9 @@
 """One seam for reading a source file: the reader is picked from the file's first bytes, never
-from its name. Both readers return the same Document. The PDF reader is imported on first use."""
+from its name. Both readers return the same Document. The PDF reader is imported on first use.
+
+A PDF is read in two steps: `read_source` reads each file on its own (what a cache keeps), and
+`documents` finishes a pair together, so both PDFs of a pair are read by the same rules.
+`read_document` is the one-file shortcut."""
 from __future__ import annotations
 
 from .model import Document
@@ -17,12 +21,29 @@ def kind_of(data: bytes) -> str | None:
     return None
 
 
-def read_document(data: bytes, progress=None) -> Document:
+def read_source(data: bytes, progress=None):
+    """A Word document's Document, or a PDF's PdfReading for `documents` to finish. Either has a
+    `source_kind`."""
     kind = kind_of(data)
     if kind == "pdf":
-        from .pdfread import parse_pdf
-        return parse_pdf(data, progress)
+        from .pdfread import read_pdf
+        return read_pdf(data, progress)
     if kind == "docx":
         from .docx.parser import parse_docx
         return parse_docx(data)
     raise UnknownKind("not a Word document or a PDF")
+
+
+def documents(*sources) -> list[Document]:
+    """The Documents of `read_source` results: the PDFs among them finished together."""
+    pdfs = [s for s in sources if not isinstance(s, Document)]
+    if not pdfs:
+        return list(sources)
+    from .pdfread import finish
+    done = iter(finish(*pdfs))
+    return [s if isinstance(s, Document) else next(done) for s in sources]
+
+
+def read_document(data: bytes, progress=None) -> Document:
+    (doc,) = documents(read_source(data, progress))
+    return doc

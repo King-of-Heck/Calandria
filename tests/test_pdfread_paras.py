@@ -161,6 +161,7 @@ def test_lines_hanging_from_a_left_edge_are_not_centred_or_set_right():
     assert align(clause) == "justify"
     assert align([L(FULL, 100, x0=144), L(CONT, 113.8, x0=144)]) == "left"
     assert align([L("November 2023 Template", 100, x0=420)]) == "right"
+    assert align([L(FULL, 100, x0=108)]) == "left"       # a long line from an indent that fills to the margin
     assert align([L("Prepared for", 100, x0=470), L("the Buyer and the Seller", 113.8, x0=400)]) == "right"
 
 

@@ -4,14 +4,14 @@ continues over a page break comes out whole."""
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from ..model import (Cell, Document, NoteRef, Paragraph, ParaProps, Row, Run, RunProps, Section, Table,
                      TabStop, collapse_ws)
 from .fontname import split_font
 from .grid import TOL, Grid, GridCell
-from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, justified_document,
-                    nothing_wraps, prevailing_pitch)
+from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, justified_by, justify_votes,
+                    nothing_wraps_by, prevailing_pitch, wrap_votes)
 from .types import Line, PageLines
 
 MIN_MARGIN = 0.03      # of the page width or height: a measured margin is never less than this
@@ -282,15 +282,35 @@ def _all_paragraphs(blocks):
                     yield from _all_paragraphs(cell.blocks)
 
 
+@dataclass(frozen=True)
+class Style:
+    """How the document sets its text, where a PDF cannot show it line by line: whether anything
+    wraps (`nothing_wraps`) and whether it justifies (`justified_document`). Decided once for a
+    compared pair from both PDFs together, so the two sides are always read by the same rules."""
+    no_wrap: bool
+    justified: bool
+
+
+def pair_style(sides: list[tuple[list[PageLines], set]]) -> Style:
+    """The Style of one PDF, or of a compared pair: each side is (pages, skip)."""
+    measured = []
+    for pages, skip in sides:
+        left, right, _size = body_metrics(pages, skip)
+        lines = _body(pages, skip)
+        measured.append((left, right, lines, prevailing_pitch(lines)))
+    no_wrap = nothing_wraps_by(*(wrap_votes(lines, right) for _l, right, lines, _p in measured))
+    # A first reading of each whole body, page breaks ignored, only to ask whether it justifies.
+    justified = justified_by(*(justify_votes(build_paragraphs(lines, left, right, pitch, no_wrap=no_wrap))
+                               for left, right, lines, pitch in measured))
+    return Style(no_wrap, justified)
+
+
 def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line]], total_pages: int,
-                   skipped: tuple) -> Document:
+                   skipped: tuple, style: Style | None = None) -> Document:
+    style = style or pair_style([(pages, skip)])
     left, right, body_size = body_metrics(pages, skip)
-    body_lines = _body(pages, skip)
-    pitch = prevailing_pitch(body_lines)
-    no_wrap = nothing_wraps(body_lines, right)
-    # A first reading of the whole body, page breaks ignored, only to ask whether it justifies.
-    justified = justified_document(build_paragraphs(body_lines, left, right, pitch, no_wrap=no_wrap))
-    b = _Builder(left, right, pitch, no_wrap, justified, set(notes))
+    pitch = prevailing_pitch(_body(pages, skip))
+    b = _Builder(left, right, pitch, style.no_wrap, style.justified, set(notes))
     section = _section(pages, skip, left, right)
     breaks = _hard_breaks(pages, skip, notes, section, right)
     marks: list[int] = []

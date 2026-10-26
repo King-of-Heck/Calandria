@@ -2,11 +2,16 @@
 
     extract (pypdf: file structure only) -> grids -> lines -> furniture, footnotes -> paragraphs -> Document
 
-Structure is inferred from geometry alone; see each module for its rules."""
+Structure is inferred from geometry alone; see each module for its rules. A compared pair is read
+in two steps: `read_pdf` each side up to its lines (the slow part, cached by the app), then `finish`
+both together, so the rules that read the document's style judge the pair as one."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import ClassVar
+
 from ..model import Document
-from .build import body_metrics, build_document
+from .build import body_metrics, build_document, pair_style
 from .extract import NO_TEXT, extract_pages, unreadable
 from .furniture import collect_notes, find_furniture
 from .grid import find_grids
@@ -33,7 +38,19 @@ def page_lines(index: int, pd: PageData, pos: int) -> PageLines:
     return PageLines(index, pd.width, pd.height, lines, grids, pd.segs)
 
 
-def parse_pdf(data: bytes, progress=None) -> Document:
+@dataclass(frozen=True)
+class PdfReading:
+    """A PDF read as far as it can be without the other side of the pair: its lines, with the
+    header/footer lines and the footnote lines set aside."""
+    pages: list[PageLines]
+    skip: set                        # (page, line) not in the body: furniture and footnote lines
+    notes: dict = field(default_factory=dict)
+    total_pages: int = 0
+    skipped: tuple = ()              # 1-based numbers of the pages with no readable text
+    source_kind: ClassVar[str] = "pdf"
+
+
+def read_pdf(data: bytes, progress=None) -> PdfReading:
     raw = extract_pages(data, progress)
     good = [(i, p) for i, p in enumerate(raw) if not unreadable(p)]
     if sum(p.chars for _i, p in good) == 0:
@@ -44,4 +61,16 @@ def parse_pdf(data: bytes, progress=None) -> Document:
     left, _right, body_size = body_metrics(pages, skip)   # a second call happens inside build_document,
     # with `skip | note_lines` (footnote lines left out too) — a different `skip` set on purpose, not a duplicate to collapse
     notes, note_lines = collect_notes(pages, skip, left, body_size)
-    return build_document(pages, skip | note_lines, notes, len(raw), skipped)
+    return PdfReading(pages, skip | note_lines, notes, len(raw), skipped)
+
+
+def finish(*readings: PdfReading) -> list[Document]:
+    """The Documents of one PDF or of a compared pair, every side read by the pair's one Style."""
+    style = pair_style([(r.pages, r.skip) for r in readings])
+    return [build_document(r.pages, r.skip, r.notes, r.total_pages, r.skipped, style) for r in readings]
+
+
+def parse_pdf(data: bytes, progress=None) -> Document:
+    """One PDF on its own. Two PDFs to compare go through `finish` together."""
+    (doc,) = finish(read_pdf(data, progress))
+    return doc

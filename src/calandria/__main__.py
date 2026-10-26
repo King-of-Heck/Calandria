@@ -29,7 +29,7 @@ from .pdf.rendersets import RENDER_SETS
 from .pdf.report import report_info
 from .pdf.writer import REPORTS, render
 from .pdfread.types import PdfRefused
-from .reader import read_document
+from .reader import documents, read_source
 from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
 from .server.shortcut import write_shortcut
 
@@ -86,7 +86,7 @@ def _read(path: str):
     with open(path, "rb") as f:
         data = f.read()
     try:
-        return read_document(data)
+        return read_source(data)
     except PdfRefused as e:
         raise SystemExit(f"{os.path.basename(path)}: {e}") from None
 
@@ -95,6 +95,7 @@ def _compare(flags, pa, pb):
     a, b = _read(pa), _read(pb)
     if a.source_kind != b.source_kind:
         raise SystemExit("Comparing a Word document with a PDF isn't supported yet.")
+    a, b = documents(a, b)
     return compare(a, b, ignore_case="--ignore-case" in flags,
                    count_numbering="--no-count-numbering" not in flags)
 
@@ -121,7 +122,7 @@ def main(argv) -> int:
         print(f"calandria {__version__}")
         return 0
     if len(argv) == 2 and argv[0] == "dump":
-        print(json.dumps(flatten(_read(argv[1])), ensure_ascii=True, indent=1))
+        print(json.dumps(flatten(documents(_read(argv[1]))[0]), ensure_ascii=True, indent=1))
         return 0
     if argv and argv[0] in ("compare", "layout"):
         parsed = _parse(argv[1:], _COMPARE_FLAGS if argv[0] == "compare" else _LAYOUT_FLAGS)

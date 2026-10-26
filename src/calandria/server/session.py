@@ -24,13 +24,13 @@ from ..pdf.report import report_info, report_lines
 from ..pdf.rendersets import RENDER_SETS
 from ..pdf.writer import REPORTS, render
 from ..pdfread.types import PdfRefused
-from ..reader import UnknownKind, kind_of, read_document
+from ..reader import UnknownKind, documents, kind_of, read_source
 from ..viewer.svg import render_pages
 
 OPTION_KEYS = ("ignore_case", "count_numbering", "show_equal", "show_insertions", "show_deletions",
                "show_formatting")
 MIXED = "Comparing a Word document with a PDF isn't supported yet."
-PARSE_CACHE = 4              # parsed documents kept, by content hash: Swap and a re-compare skip the read
+PARSE_CACHE = 4              # sources read, kept by content hash: Swap and a re-compare skip the read
 
 
 @dataclass(frozen=True)
@@ -82,12 +82,19 @@ def check_render(render_set: str, report: str | None = None) -> None:
 
 def _parse(name: str, data: bytes, progress=None):
     try:
-        return read_document(data, progress)
+        return read_source(data, progress)
     except (PdfRefused, UnknownKind) as e:
         raise BadDocument(f"{name}: {e}") from e
     except Exception as e:
         what = "this PDF could not be read" if kind_of(data) == "pdf" else "not a Word document"
         raise BadDocument(f"{name}: {what} ({type(e).__name__})") from e
+
+
+def _finish(a, b):
+    try:
+        return documents(a, b)
+    except Exception as e:
+        raise BadDocument(f"these PDFs could not be read ({type(e).__name__})") from e
 
 
 def change_marks(lay: Layout, passages=()) -> tuple[dict[int, dict], list[list]]:
@@ -186,7 +193,7 @@ class Session:
         self._drawn: dict[tuple, list[str]] = {}
         self.when: datetime | None = None
         self.timings: list[tuple[str, float]] = []   # (stage, seconds) since begin(): the timing line
-        self._parsed: OrderedDict[str, object] = OrderedDict()   # sha256 of the bytes -> Document
+        self._parsed: OrderedDict[str, object] = OrderedDict()   # sha256 of the bytes -> read_source's result
         self.progress: dict | None = None      # {"name", "page", "pages"} while a PDF is read; read WITHOUT the lock
 
     @property
@@ -270,9 +277,10 @@ class Session:
             a, b = self._read(a_name, a_bytes), self._read(b_name, b_bytes)
         finally:
             self.progress = None
-        self._timed("parse", t0)
         if a.source_kind != b.source_kind:
             raise BadDocument(MIXED)
+        a, b = _finish(a, b)
+        self._timed("parse", t0)
         self._commit(a_name, b_name, a, b, options or self.options)
 
     def relayout(self, options: Options) -> None:

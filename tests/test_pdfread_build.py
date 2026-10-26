@@ -1,7 +1,7 @@
 import pytest
 
 from calandria.model import NoteRef, Paragraph, Table
-from calandria.pdfread.build import body_metrics, build_document, split_font
+from calandria.pdfread.build import body_metrics, build_document, pair_style, split_font
 from calandria.pdfread.grid import find_grids
 from calandria.pdfread.types import Line, PageLines, Seg, Span
 
@@ -112,6 +112,24 @@ def test_a_two_line_paragraph_in_a_justified_document_is_justified():
     lines = [L(FULL, 100), L(FULL, 113.8), L("ends.", 127.6, x1=120), L(FULL, 160), L("ends.", 173.8, x1=120)]
     three, two = build_document([page(0, lines)], set(), {}, 1, ()).blocks
     assert (three.props.align, two.props.align) == ("justify", "justify")
+
+
+CONT = "the following provisions shall apply without limiting the generality of the foregoing"
+
+
+def test_the_two_sides_of_a_pair_are_read_by_the_same_rules():
+    """At 1.5 line spacing a wrapped line sits beyond LINE_MAX, so a side too short to show its
+    wrapping on its own would split every wrapped line into a paragraph. Read with the other side,
+    whose wrapping is plain, both keep their paragraphs whole."""
+    def spaced(rows):
+        return [page(0, [L(t, 100 + 20.75 * i, x1=x1) for i, (t, x1) in enumerate(rows)])]
+    wraps = spaced([(CONT, 540.0)] * 5 + [("and no later.", 130.0), (CONT, 540.0), ("ends.", 120.0)])
+    short = spaced([(CONT, 540.0), ("and no later.", 130.0), (CONT, 540.0), ("ends.", 120.0)])
+    assert len(build_document(short, set(), {}, 1, ()).blocks) == 4          # on its own
+    style = pair_style([(wraps, set()), (short, set())])
+    assert not style.no_wrap
+    assert len(build_document(short, set(), {}, 1, (), style).blocks) == 2
+    assert len(build_document(wraps, set(), {}, 1, (), style).blocks) == 2
 
 
 def test_a_hanging_marker_gets_a_tab_and_a_tab_stop():

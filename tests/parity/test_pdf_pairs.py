@@ -15,7 +15,7 @@ import pytest
 from calandria.diff.compare import compare
 from calandria.docx.parser import parse_docx
 from calandria.model import collapse_ws
-from calandria.pdfread import parse_pdf
+from calandria.pdfread import finish, parse_pdf, read_pdf
 
 from .common import CORPUS, HERE, pairs
 
@@ -80,7 +80,7 @@ def test_the_expectations_file_is_well_formed():
 @pytest.mark.parametrize("pair, variant, a_pdf, b_pdf", cases())
 def test_a_pdf_pair_compares_like_its_word_pair(pair, variant, a_pdf, b_pdf):
     word = signature(compare(parse_docx(CORPUS / pair["a"]), parse_docx(CORPUS / pair["b"])))
-    pdf = signature(compare(parse_pdf(a_pdf.read_bytes()), parse_pdf(b_pdf.read_bytes())))
+    pdf = signature(compare(*finish(read_pdf(a_pdf.read_bytes()), read_pdf(b_pdf.read_bytes()))))
     known = {e["field"]: e for e in EXPECTED if e["alias"] == pair["alias"] and e["variant"] == variant}
     problems = []
     for f in FIELDS:

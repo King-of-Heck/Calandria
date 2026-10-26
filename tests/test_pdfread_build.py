@@ -63,6 +63,14 @@ def test_body_metrics_take_the_margin_not_an_outlier_and_the_commonest_size():
     assert body_metrics([page(0, [])], set()) == (72.0, 540.0, 11.0)
 
 
+def test_one_landscape_page_does_not_widen_the_text_column():
+    portrait = page(0, [L(FULL, 100 + 14 * i) for i in range(10)])
+    landscape = PageLines(1, 792.0, 612.0, [L(FULL, 100 + 14 * i, page=1, x1=720.0) for i in range(3)], [], [])
+    assert body_metrics([portrait, landscape], set())[:2] == (72.0, 540.0)
+    (sec,) = build_document([portrait, landscape], set(), {}, 2, ()).sections
+    assert sec.margin_right_pt == 72.0
+
+
 def test_paragraphs_runs_and_the_section():
     bold = [Span("Term. ", "Arial,Bold", 12.0), Span(FULL[:70], "Arial", 12.0)]
     doc = build_document([page(0, [L("", 100, spans=bold), L(FULL, 113.8), L("The end.", 160, x1=120)])], set(), {}, 1, ())
@@ -77,12 +85,38 @@ def test_paragraphs_runs_and_the_section():
         "pdf", 1, (), "Arial", 12.0)
 
 
+def test_a_page_left_mostly_empty_ends_in_a_page_break_and_a_full_one_flows_on():
+    def filled(i, first):          # a page of one-line paragraphs, 30 pt apart, down to the bottom margin
+        return page(i, [L(f"{first if n == 0 else 'Line'} {n}.", 100 + 30 * n, page=i, x1=150) for n in range(21)])
+    pages = [page(0, [L(FULL + ".", 100), L("Title 0.", 130, x1=150)]), filled(1, "Heading"), filled(2, "Flows")]
+    pages[2].lines[0].x1 = 200     # not the same width as the line before it, or it reads as that line's wrap
+    blocks = build_document(pages, set(), {}, 3, ()).blocks
+    flags = {b.text: b.props.page_break_before for b in blocks if b.text.split()[0] in ("Title", "Heading", "Flows")}
+    assert flags == {"Title 0.": False, "Heading 0.": True, "Flows 0.": False}
+
+
+def test_a_full_width_toc_line_does_not_count_as_text_running_on_to_the_next_page():
+    toc = "16.17 Counterparts ................................................................ 65"
+    pages = [page(0, [L(FULL + ".", 100), L(toc, 130)]), page(1, [L("Schedules", 100, page=1, x1=150)])]
+    blocks = build_document(pages, set(), {}, 2, ()).blocks
+    assert blocks[-1].text == "Schedules" and blocks[-1].props.page_break_before
+
+
 def test_a_hanging_marker_gets_a_tab_and_a_tab_stop():
     lines = [L("(a) " + FULL, 100), L(FULL, 113.8, x0=108), L(FULL, 127.6, x0=108)]
     (p,) = build_document([page(0, lines)], set(), {}, 1, ()).blocks
     assert p.runs[0].text.startswith("(a)\tThe Supplier")
     assert (p.props.ind_left_pt, p.props.ind_hanging_pt) == (36.0, 36.0)
     assert [t.pos_pt for t in p.props.tabs] == [36.0]
+
+
+def test_a_dot_leader_before_a_page_number_becomes_a_right_tab_with_a_dot_leader():
+    toc = [Span("1.1 Definitions ", "Arial", 12.0), Span("....................................... 2", "Arial", 12.0)]
+    blank = "Signed by ......................................................"
+    first, second = build_document([page(0, [L("", 100, spans=toc), L(blank, 160)])], set(), {}, 1, ()).blocks
+    assert "".join(r.text for r in first.runs) == "1.1 Definitions\t2"
+    assert [(t.pos_pt, t.kind, t.leader) for t in first.props.tabs] == [(468.0, "right", "dot")]
+    assert second.text == blank and second.props.tabs == ()                 # no page number after it: left alone
 
 
 def test_a_ruled_grid_becomes_a_table_between_paragraphs_with_merged_cells():

@@ -10,7 +10,8 @@ from dataclasses import replace
 from ..model import (Cell, Document, NoteRef, Paragraph, ParaProps, Row, Run, RunProps, Section, Table,
                      TabStop, collapse_ws)
 from .grid import TOL, Grid, GridCell
-from .paras import MARKER, PdfPara, build_paragraphs, nothing_wraps, prevailing_pitch
+from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, nothing_wraps,
+                    prevailing_pitch)
 from .types import Line, PageLines
 
 _SUBSET = re.compile(r"^[A-Z]{6}\+")
@@ -19,6 +20,11 @@ _WORDS = re.compile(r"[A-Z][a-z]+|[A-Z]+(?![a-z])|[a-z]+|\d+")
 _STYLE_WORDS = {"bold", "italic", "oblique", "regular", "roman", "mt", "ps", "psmt"}
 _CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 MIN_MARGIN = 0.03      # of the page width or height: a measured margin is never less than this
+# BREAK_ROOM: of the text column's height. Measured on Word's PDF of a 198-page contract (room above
+# the footnotes), a page the text flowed off left at most 0.118 of its column empty (a heading kept
+# with its paragraph); every page followed by a new title (schedule, appendix, form, the table of
+# contents) left 0.138 or more, up to 0.83.
+BREAK_ROOM = 0.13
 
 
 def _half(v: float) -> float:
@@ -48,18 +54,22 @@ def _body(pages: list[PageLines], skip: set) -> list[Line]:
 
 def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float]:
     """(left edge, right edge, body font size) of the text column. The left edge is the leftmost
-    x that a fair number of lines start at, so one outdented line does not move the margin."""
-    lines = _body(pages, skip)
-    if not lines:
+    x that a fair number of lines start at, so one outdented line does not move the margin. Both
+    edges come from pages of the commonest size only: one landscape page's wider lines would
+    otherwise set the right edge for the whole document."""
+    all_lines = _body(pages, skip)
+    if not all_lines:
         width = pages[0].width if pages else 612.0
         return 72.0, width - 72.0, 11.0
+    shape, _n = Counter((pg.width, pg.height) for pg in pages).most_common(1)[0]
+    lines = [ln for ln in all_lines if (pages[ln.page].width, pages[ln.page].height) == shape] or all_lines
     starts = Counter(_half(ln.x0) for ln in lines)
     floor = max(2, len(lines) // 50) if len(lines) >= 10 else 1
     common = [x for x, n in starts.items() if n >= floor]
     left = min(common) if common else min(starts)
     right = max(ln.x1 for ln in lines if ln.x0 >= left - 0.5) if any(ln.x0 >= left - 0.5 for ln in lines) else max(ln.x1 for ln in lines)
     sizes: Counter = Counter()
-    for ln in lines:
+    for ln in all_lines:
         sizes[ln.size] += len(ln.text)
     top = max(sizes.values())
     return left, right, min(z for z, n in sizes.items() if n == top)
@@ -97,6 +107,22 @@ class _Builder:
             out.append(Run(s.text, props))
         return out
 
+    @staticmethod
+    def leader_to_tab(runs: list[Run]) -> bool:
+        """A table of contents line's dot leader, drawn as so many dots, back to the tab it was:
+        the dot count depends on the title's width, so two PDFs of one TOC would differ on every
+        line. Only the last leader, and only before a short page number that ends the paragraph."""
+        for i in range(len(runs) - 1, -1, -1):
+            hits = list(LEADER.finditer(runs[i].text))
+            if hits:
+                m = hits[-1]
+                tail = (runs[i].text[m.end():] + "".join(r.text for r in runs[i + 1:])).strip()
+                if not (1 <= len(tail) <= 8 and " " not in tail):
+                    return False
+                runs[i] = Run(runs[i].text[:m.start()] + "\t" + runs[i].text[m.end():], runs[i].props)
+                return True
+        return False
+
     def paragraph(self, p: PdfPara) -> Paragraph:
         runs = self.runs(p)
         tabs = ()
@@ -106,6 +132,8 @@ class _Builder:
                 rest = runs[0].text[m.end():]
                 runs[0] = Run(runs[0].text[:m.end()] + "\t" + rest.lstrip(" \t"), runs[0].props)
                 tabs = (TabStop(pos_pt=p.ind_left),)
+        if self.leader_to_tab(runs):
+            tabs += (TabStop(pos_pt=_half(p.lines[-1].x1 - self.left), kind="right", leader="dot"),)
         props = ParaProps(align=p.align, ind_left_pt=p.ind_left, ind_hanging_pt=p.ind_hanging,
                           ind_first_line_pt=p.ind_first, space_before_pt=0.0, space_after_pt=p.space_after, tabs=tabs)
         return Paragraph(runs, props)
@@ -204,6 +232,49 @@ def _section(pages: list[PageLines], skip: set, left: float, right: float) -> Se
                    margin_left_pt=clamp(left, w), margin_right_pt=clamp(w - right, w))
 
 
+def _hard_breaks(pages: list[PageLines], skip: set, notes: dict[int, list[Line]], sec: Section,
+                 right: float) -> set[int]:
+    """The pages (by position) that start after a page break rather than by text flowing on. Word
+    fills a page to its bottom margin, give or take a kept-together heading or a widowed line, so a
+    page that leaves more than BREAK_ROOM of its text column empty ended in a break. The room is
+    measured to the top of the page's footnotes, which sit at the bottom whatever the body does. A
+    page whose last line runs to the right edge is mid-paragraph and never ends in a break."""
+    note_top: dict[int, float] = {}
+    for lines in notes.values():
+        for ln in lines:
+            note_top[ln.page] = min(note_top.get(ln.page, ln.y), ln.y - ln.size)
+    shape = (sec.page_w_pt, sec.page_h_pt)
+    out = set()
+    for pi, pg in enumerate(pages[:-1]):
+        nxt = pages[pi + 1]
+        if (pg.width, pg.height) != shape or (nxt.width, nxt.height) != shape:
+            out.add(pi + 1)                 # a page of another shape stands on pages of its own
+            continue
+        live_grids = set(_live_grids(pi, pg, skip))
+        ys = [ln.y + 0.3 * ln.size for li, ln in enumerate(pg.lines) if (pi, li) not in skip]
+        ys += [g.y1 for gi, g in enumerate(pg.grids) if gi in live_grids]
+        if not ys:
+            continue
+        body = [ln for li, ln in enumerate(pg.lines) if (pi, li) not in skip and ln.cell is None]
+        last = max(body, key=lambda ln: ln.y) if body else None
+        if (last is not None and last.y + 0.3 * last.size >= max(ys) and right - last.x1 <= EDGE * last.size
+                and not TOC_END.search(last.text.rstrip())):
+            continue                        # its last line runs on to the next page: a paragraph mid-flow
+        floor = min(note_top.get(pi, pg.height), pg.height - sec.margin_bottom_pt)
+        column = pg.height - sec.margin_top_pt - sec.margin_bottom_pt
+        if floor - max(ys) > BREAK_ROOM * column:
+            out.add(pi + 1)
+    return out
+
+
+def _first_paragraph(block) -> Paragraph | None:
+    if isinstance(block, Paragraph):
+        return block
+    if isinstance(block, Table) and block.rows and block.rows[0].cells:
+        return next(iter(_all_paragraphs(block.rows[0].cells[0].blocks)), None)
+    return None
+
+
 def _fill_space_after(blocks: list) -> None:
     paras = [p for p in _all_paragraphs(blocks)]
     known = Counter(p.props.space_after_pt for p in paras if p.props.space_after_pt is not None)
@@ -232,7 +303,14 @@ def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line
     body_lines = _body(pages, skip)
     pitch = prevailing_pitch(body_lines)
     b = _Builder(left, right, pitch, nothing_wraps(body_lines, right), set(notes))
+    section = _section(pages, skip, left, right)
+    breaks = _hard_breaks(pages, skip, notes, section, right)
+    marks: list[int] = []
     for pi, pg in enumerate(pages):
+        if pi in breaks:
+            b.flush()
+            b.tail = None           # a table after a page break is a new table, not the last one continued
+            marks.append(len(b.blocks))
         live = [ln for li, ln in enumerate(pg.lines) if (pi, li) not in skip]
         by_cell: dict[tuple, list[Line]] = {}
         for ln in live:
@@ -248,6 +326,11 @@ def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line
             else:
                 b.add_table(pg.grids[item], {ci: lines for (gi, ci), lines in by_cell.items() if gi == item}, n == 0)
     b.flush()
+    for i in marks:
+        if i < len(b.blocks):
+            first = _first_paragraph(b.blocks[i])
+            if first is not None:
+                first.props.page_break_before = True
     footnotes: dict[int, list] = {}
     referenced = {ref.id for ref in b.note_numbers}
     for n in sorted(notes):
@@ -262,6 +345,6 @@ def build_document(pages: list[PageLines], skip: set, notes: dict[int, list[Line
     for paras in footnotes.values():
         _fill_space_after(paras)
     default_font = b.fonts.most_common(1)[0][0] if b.fonts else None
-    return Document(b.blocks, [_section(pages, skip, left, right)], default_font=default_font,
+    return Document(b.blocks, [section], default_font=default_font,
                     default_size_pt=body_size, footnotes=footnotes, note_numbers=b.note_numbers,
                     source_kind="pdf", source_pages=total_pages, skipped_pages=tuple(skipped))

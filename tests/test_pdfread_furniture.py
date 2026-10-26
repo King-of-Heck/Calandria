@@ -202,3 +202,11 @@ def test_one_bare_number_in_the_body_does_not_keep_a_repeating_year_line_in_it()
     found = find_furniture(pages)
     assert sum(1 for p, i in found if pages[p].lines[i].text == "2026") == 5
     assert "42" not in texts(pages, found)
+
+
+def test_the_same_footnote_under_several_signature_pages_is_a_note_not_furniture():
+    def note(i):
+        mark = [Span(str(90 + i), "Arial", 6.0, sup=True), Span(" Insert the name of the signatory.  If unknown,", "Arial", 9.0)]
+        return [L("", 700, i, size=9.0, spans=mark), L("leave it blank.", 710, i, x0=90, size=9.0)]
+    pages = doc(5, note)
+    assert texts(pages, find_furniture(pages)) == ["Acme Supply Agreement"] + [f"Page {i} of 5" for i in range(1, 6)]

@@ -32,6 +32,8 @@ WRAPS = 0.5           # share of full lines carrying a sentence on, above which 
 EVIDENCE = 0.05       # of the document's lines: fewer full lines than this (or than 3) are not
                       # evidence of wrapping either way, so the document defaults to "nothing wraps"
 SENTENCE_END = re.compile(r"[.:;!?…][\"'’”)\]]*$")
+LEADER = re.compile(r"[ \t]*\.{4,}[ \t]*")      # a dot leader drawn as dots: a TOC line's, before its page number
+TOC_END = re.compile(r"\.{4,}[ \t]*\S{1,8}$")    # a line ending in a leader and a page number ends its paragraph
 SIZE_CHANGE = 0.05
 PITCH_STEP = 0.05
 DEFAULT_PITCH = 1.2
@@ -126,6 +128,8 @@ def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float, no_wrap: boo
     tol = TOL * size
     same_page = prev.page == nxt.page
     if same_page and nxt.y <= prev.y:
+        return True
+    if TOC_END.search(prev.text.rstrip()):
         return True
     if abs(nxt.size - prev.size) > SIZE_CHANGE * size:
         return True

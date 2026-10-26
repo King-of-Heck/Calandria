@@ -48,6 +48,25 @@ def _outer_half(pg: PageLines, ln: Line) -> bool:
     return ln.y < half or ln.y > pg.height - half
 
 
+def _note_text(pg: PageLines) -> set[int]:
+    """The lines of footnote text on a page: a line starting with a superscript number, and the
+    lines wrapped under it at its size. A note repeated at the same height on several pages (the
+    same signature-block note under each signature page) is still a note, not furniture."""
+    out: set[int] = set()
+    start = prev = None
+    for li, ln in enumerate(pg.lines):
+        first = ln.spans[0] if ln.spans else None
+        if first is not None and first.sup and first.text.strip().isdigit():
+            start = prev = ln
+            out.add(li)
+        elif start is not None and abs(ln.size - start.size) < 0.05 * start.size and ln.y - prev.y <= 2 * ln.size:
+            prev = ln
+            out.add(li)
+        else:
+            start = None
+    return out
+
+
 def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     n = len(pages)
     # Two pages are enough to repeat against; only a single page has nothing to repeat against.
@@ -67,8 +86,9 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
         for ln in pg.lines:
             (banded if _in_band(pg, ln) else mid)[_signature(ln.text)] += 1
     for pi, pg in enumerate(pages):
+        notes = _note_text(pg)
         for li, ln in enumerate(pg.lines):
-            if not _in_band(pg, ln):
+            if not _in_band(pg, ln) or li in notes:
                 continue
             sig = _signature(ln.text)
             if sig == "#" and _outer_half(pg, ln):

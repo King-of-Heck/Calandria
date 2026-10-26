@@ -197,3 +197,10 @@ def test_a_line_ending_a_right_double_quote_counts_as_a_sentence_end():
     full = [L(f"clause {i} ends with a right double quote as is.”", 100 + 24.77 * i)
             for i in range(6)] + [L("the schedule continues below.", 250.0, x1=200)]
     assert nothing_wraps(full, RIGHT) is True
+
+
+def test_a_toc_line_ending_in_a_leader_and_page_number_ends_its_paragraph_across_a_page_break():
+    toc = "2.25 Critical Material ........................................................ 30"
+    nxt = "SECTION 3 - OPG'S OBLIGATIONS ................................................. 30"
+    paras = build_paragraphs([L(toc, 700), L(nxt, 72, page=1)], LEFT, RIGHT, 1.15, no_wrap=False)
+    assert texts(paras) == [toc, nxt]

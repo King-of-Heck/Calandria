@@ -1,5 +1,18 @@
 # Calandria changelog
 
+## v2.10.1 — PDF comparison fixes (2026-10-26)
+
+- A PDF with one landscape page no longer lays out every page too wide; the text column is now
+  measured from the pages of the usual size, so two-line paragraphs are no longer split in two
+  and shown as rewritten.
+- Table of contents lines no longer show as changed because their dot leaders differ in length;
+  a leader is read back as a tab with a dot leader, and each contents line is its own paragraph.
+- A footnote repeated at the same place under several pages (such as a note under each
+  signature page) is read as a footnote instead of being dropped as a page footer, so its
+  reference number no longer shows as a change when notes are renumbered.
+- Page breaks in the PDFs are kept: a page that the text did not fill (a title page, the end of
+  a table of contents, a schedule) now ends the same way in the comparison.
+
 ## v2.10.0 — PDF comparison (2026-09-21)
 
 - Two text PDFs made from Word can now be compared: the text, ruled tables and footnotes are

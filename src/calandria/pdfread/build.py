@@ -192,6 +192,16 @@ class _Builder:
         texts = [collapse_ws(" ".join(b.text for b in c.blocks if isinstance(b, Paragraph))) for c in row.cells]
         return texts if any(texts) else None
 
+    @classmethod
+    def broken_row(cls, last: Row, first: Row) -> bool:
+        """Whether the first row of a table carried on over a page is the rest of the last row: Word
+        breaks a row that does not fit, each cell carrying on with what is left of it, so a cell that
+        already ended is empty there. Some cells empty and some not reads as that; every cell full
+        (a broken row whose cells all ran on) is taken as a new row: the borders cannot tell them apart."""
+        texts = cls.row_texts(first)
+        return (texts is not None and not all(texts) and len(last.cells) == len(first.cells)
+                and all(a.grid_span == b.grid_span and b.v_merge is None for a, b in zip(last.cells, first.cells)))
+
     def add_table(self, grid: Grid, cell_lines: dict[int, list[Line]], first_on_page: bool) -> None:
         rows = self.rows(grid, cell_lines)
         offsets = [x - grid.xs[0] for x in grid.xs]
@@ -199,6 +209,11 @@ class _Builder:
             table, prev, header = self.tail
             if len(prev) == len(offsets) and all(abs(a - b) <= 2 * TOL for a, b in zip(prev, offsets)):
                 if header is not None and rows and self.row_texts(rows[0]) == header:
+                    rows = rows[1:]
+                if rows and table.rows and self.broken_row(table.rows[-1], rows[0]):
+                    for prev_cell, cell in zip(table.rows[-1].cells, rows[0].cells):
+                        if any(isinstance(b, Paragraph) and b.text for b in cell.blocks):
+                            prev_cell.blocks.extend(cell.blocks)
                     rows = rows[1:]
                 table.rows.extend(rows)
                 return

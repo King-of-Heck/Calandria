@@ -204,6 +204,19 @@ def test_a_table_continuing_on_the_next_page_is_stitched_and_a_repeated_header_r
     assert [r.cells[0].blocks[0].text for r in table.rows] == ["Item", "Bolt", "Nut", "Washer"]
 
 
+def test_a_row_broken_over_the_page_is_one_row_when_a_cell_has_nothing_left_to_carry():
+    """Word breaks a row that does not fit across the page: on the next page each cell carries on
+    with what is left of it, and a cell that already ended is empty. A first row there with some
+    cells empty and some not is the rest of the last row, not a new one (EPC 16.4 Notice)."""
+    p0 = page(0, [L("If to OPG,", 714, x0=78, x1=130, cell=(0, 0)), L("if to Contractor,", 714, x0=278, x1=360, cell=(0, 1)),
+                  L("Project Name:", 734, x0=78, x1=150, cell=(0, 0))], lattice([72, 272, 472], [700, 740]))
+    p1 = page(1, [L("PO Number:", 94, 1, x0=78, x1=150, cell=(0, 0)), L("Outro", 300, 1, x1=110)],
+              lattice([72, 272, 472], [80, 100]))
+    table, outro = build_document([p0, p1], set(), {}, 2, ()).blocks
+    assert [[[b.text for b in c.blocks] for c in r.cells] for r in table.rows] == [
+        [["If to OPG,", "Project Name:", "PO Number:"], ["if to Contractor,"]]]
+
+
 def test_tables_with_different_columns_or_text_between_them_stay_apart():
     p0 = page(0, [L("A", 714, x0=78, x1=90, cell=(0, 0)), L("B", 714, x0=278, x1=290, cell=(0, 1))],
               lattice([72, 272, 472], [700, 720]))

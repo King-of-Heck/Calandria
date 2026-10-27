@@ -1,5 +1,13 @@
 # Calandria changelog
 
+## v2.10.4 — PDF footnotes and contents (2026-10-26)
+
+- Footnote numbers in a PDF are recognised in more places, so renumbered footnotes no longer show
+  as changes: a mark on a placeholder such as "[•]", two marks side by side, and a footnote long
+  enough to fill most of its page.
+- Page numbers in a table of contents are drawn as printed but no longer compared, as in Word, so
+  an edit that moves the pages after it no longer changes every contents line.
+
 ## v2.10.3 — PDF pair reading (2026-10-26)
 
 - The two PDFs of a comparison are now read by the same rules: whether the document's text wraps

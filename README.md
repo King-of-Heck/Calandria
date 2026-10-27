@@ -5,7 +5,7 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.11.0 (see `CHANGELOG.md`).
+Status: v2.11.1 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
@@ -115,7 +115,8 @@ approximate and comes with limits worth knowing before relying on it:
   per row, or wrapped only after the first column); one with an empty cell, a right-aligned
   column or a wrapped first column is read as ordinary lines, so an added row may show as one
   changed line rather than an inserted row. A table row split
-  across a page break is read as two rows, so a row can show as changed if the two PDFs paginate
+  across a page break is read as one row when some of its cells ended before the break; when
+  every cell runs on, it is read as two rows, so it can show as changed if the two PDFs paginate
   differently.
 - Footnotes are recognised only when they print smaller than the body text; footnotes at body
   size, and endnotes always, are compared as ordinary paragraphs.

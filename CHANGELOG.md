@@ -1,5 +1,11 @@
 # Calandria changelog
 
+## v2.11.1 — PDF table rows over a page (2026-10-27)
+
+- A table row that breaks across a page in a PDF is read as one row when some of its cells ended
+  before the break, so a line at the top of the next page stays in its own cell instead of
+  showing as moved when the other PDF breaks the page elsewhere.
+
 ## v2.11.0 — PDF borderless tables (2026-10-27)
 
 - A table drawn without borders in a PDF (a list of schedules, an index of forms) is read as a

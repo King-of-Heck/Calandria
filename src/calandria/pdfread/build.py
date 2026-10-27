@@ -58,6 +58,27 @@ def body_metrics(pages: list[PageLines], skip: set) -> tuple[float, float, float
     return left, right, min(z for z, n in sizes.items() if n == top)
 
 
+def _note_numbers(digits: str, known: set[int]) -> list[int]:
+    """The notes a raised number refers to: itself when it is a note, else consecutive notes drawn
+    side by side ("142143" -> 142, 143); [] when it is neither (an ordinal, a stray number)."""
+    if not digits.isdigit():
+        return []
+    if int(digits) in known:
+        return [int(digits)]
+    for k in range(1, len(digits)):
+        first = int(digits[:k])
+        if first not in known or digits[k] == "0":
+            continue
+        out, rest, n = [first], digits[k:], first
+        while rest and rest.startswith(str(n + 1)) and n + 1 in known:
+            n += 1
+            out.append(n)
+            rest = rest[len(str(n)):]
+        if not rest:
+            return out
+    return []
+
+
 class _Builder:
     def __init__(self, left: float, right: float, pitch: float, no_wrap: bool, justified: bool,
                  known_notes: set[int]):
@@ -75,15 +96,16 @@ class _Builder:
         for s in p.spans:
             family, bold, italic = split_font(s.font)
             props = RunProps(bold=bold, italic=italic, font=family, size_pt=s.size)
-            digits = s.text.strip()
-            if s.sup and digits.isdigit() and int(digits) in self.known_notes:
-                ref = NoteRef("footnote", int(digits))
-                self.note_numbers.setdefault(ref, int(digits))
+            numbers = _note_numbers(s.text.strip(), self.known_notes) if s.sup else []
+            if numbers:
                 lead = s.text[:len(s.text) - len(s.text.lstrip())]
                 trail = s.text[len(s.text.rstrip()):]
                 if lead:
                     out.append(Run(lead, props))
-                out.append(Run("", replace(props, note=ref)))
+                for n in numbers:
+                    ref = NoteRef("footnote", n)
+                    self.note_numbers.setdefault(ref, n)
+                    out.append(Run("", replace(props, note=ref)))
                 if trail:
                     out.append(Run(trail, props))
                 continue
@@ -95,7 +117,9 @@ class _Builder:
     def leader_to_tab(runs: list[Run]) -> bool:
         """A table of contents line's dot leader, drawn as so many dots, back to the tab it was:
         the dot count depends on the title's width, so two PDFs of one TOC would differ on every
-        line. Only the last leader, and only before a short page number that ends the paragraph."""
+        line. Only the last leader, and only before a short page number that ends the paragraph.
+        The page number becomes a PAGEREF field, as it is in Word: drawn as printed, compared as
+        its token, so an edit that moves the pages after it does not change every contents line."""
         for i in range(len(runs) - 1, -1, -1):
             hits = list(LEADER.finditer(runs[i].text))
             if hits:
@@ -103,7 +127,9 @@ class _Builder:
                 tail = (runs[i].text[m.end():] + "".join(r.text for r in runs[i + 1:])).strip()
                 if not (1 <= len(tail) <= 8 and " " not in tail):
                     return False
-                runs[i] = Run(runs[i].text[:m.start()] + "\t" + runs[i].text[m.end():], runs[i].props)
+                props = next((r.props for r in reversed(runs[i:]) if r.text.strip()), runs[i].props)
+                runs[i:] = [Run(runs[i].text[:m.start()] + "\t", runs[i].props),
+                            Run("{PAGEREF}", replace(props, field="PAGEREF", field_text=tail))]
                 return True
         return False
 

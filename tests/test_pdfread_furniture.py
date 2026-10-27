@@ -140,6 +140,18 @@ def test_rules_that_are_not_footnote_separators():
     assert collect_notes(indented, set(), 72.0, 12.0) == ({}, set())
 
 
+def test_a_note_long_enough_to_push_its_rule_up_the_page_is_still_a_note():
+    """A note that fills most of a page puts its rule above the usual zone; it is still taken when
+    the line under it starts with the next note's raised number."""
+    pages = [page(0, [L("Body", 300), note(1, "Short note", 702)], segs=[Seg(72, 690, 216, 690)]),
+             page(1, [L("Body ends.", 100, 1), note(2, "A long sample clause", 290, 1),
+                      L("that runs on down the page.", 302, 1, size=9.0)], segs=[Seg(72, 275, 216, 275)])]
+    notes, _ = collect_notes(pages, set(), 72.0, 12.0)
+    assert [ln.text for ln in notes[2]] == ["A long sample clause", "that runs on down the page."]
+    skipped = [page(0, [L("Body", 100), note(5, "Not the next number", 290)], segs=[Seg(72, 275, 216, 275)])]
+    assert collect_notes(skipped, set(), 72.0, 12.0) == ({}, set())
+
+
 def test_furniture_below_the_notes_is_ignored_when_already_skipped():
     pages = [page(0, [L("Body", 300), note(1, "Note", 702), L("Page 1", 760)], segs=[Seg(72, 690, 216, 690)])]
     notes, taken = collect_notes(pages, {(0, 2)}, 72.0, 12.0)

@@ -110,19 +110,28 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     return found
 
 
-def _separator(pg: PageLines, pi: int, skip: set, left: float, body_size: float) -> tuple[float, bool] | None:
+def _separator(pg: PageLines, pi: int, skip: set, left: float, body_size: float,
+               last: int | None = None) -> tuple[float, bool] | None:
+    """(y, continuation) of the page's footnote rule. A rule above NOTE_ZONE_TOP is taken only when
+    the line under it starts with the next note's raised number: a note long enough to fill most of
+    a page (a sample clause set out in a note) pushes its rule that high."""
     rules = sorted((s for s in pg.segs if s.horizontal), key=lambda s: s.y0)
     for s in rules:
         rel = s.length / pg.width
-        if s.y0 < NOTE_ZONE_TOP * pg.height or rel < SEP_MIN or abs(s.x0 - left) > body_size:
+        if rel < SEP_MIN or abs(s.x0 - left) > body_size:
             continue
         if any(g.x0 - TOL <= s.x0 and s.x1 <= g.x1 + TOL and g.y0 - TOL <= s.y0 <= g.y1 + TOL for g in pg.grids):
             continue
         if any(g.y1 > s.y0 for g in pg.grids):
             continue
         below = [ln for li, ln in enumerate(pg.lines) if (pi, li) not in skip and ln.y > s.y0]
-        if below and all(ln.cell is None and ln.size < SMALL * body_size for ln in below):
-            return s.y0, rel > SEP_MAX
+        if not below or not all(ln.cell is None and ln.size < SMALL * body_size for ln in below):
+            continue
+        if s.y0 < NOTE_ZONE_TOP * pg.height:
+            first = below[0].spans[0]
+            if not (last is not None and first.sup and first.text.strip() == str(last + 1)):
+                continue
+        return s.y0, rel > SEP_MAX
     return None
 
 
@@ -153,7 +162,7 @@ def collect_notes(pages: list[PageLines], skip: set, left: float, body_size: flo
     taken: set[tuple[int, int]] = set()
     last: int | None = None
     for pi, pg in enumerate(pages):
-        sep = _separator(pg, pi, skip, left, body_size)
+        sep = _separator(pg, pi, skip, left, body_size, last)
         if sep is None:
             continue
         y, _continuation = sep

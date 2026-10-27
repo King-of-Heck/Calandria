@@ -67,3 +67,12 @@ def test_a_line_ends_where_its_ink_ends_not_after_trailing_spaces():
     assert (ln.x0, ln.x1) == (72, 154)
     (ln,) = build_lines([R("no ink end given", 72, 150)])
     assert ln.x1 == 150
+
+
+def test_a_raised_number_after_a_larger_glyph_is_a_superscript_even_when_it_is_wider():
+    """A placeholder bullet with a footnote mark on it: the 6.5 pt digits cover more width than the
+    10 pt bullet, but they are the mark, raised over the bullet's baseline, not the line's text."""
+    (ln,) = build_lines([R("", 113.7, 118.2, y=164.4, size=10, font="Symbol"),
+                         R("97", 118.2, 125.4, y=160.9, size=6.5)])
+    assert [(s.text, s.sup) for s in ln.spans] == [("", False), ("97", True)]
+    assert (ln.y, ln.size) == (164.4, 10)

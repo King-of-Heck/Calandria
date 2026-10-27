@@ -42,8 +42,22 @@ def _dominant(row: list[TextRun]) -> tuple[float, float]:
     return ys[len(ys) // 2], size
 
 
+def _raised(row: list[TextRun]) -> set[int]:
+    """ids of the runs that are superscripts over the row's largest text: smaller and raised above
+    its baseline. Measured against the largest size, not the one covering most width, so a footnote
+    mark wider than the glyph it sits on (a 6.5 pt "97" on a 10 pt placeholder bullet) is still one."""
+    inked = [r for r in row if r.text.strip()]
+    if not inked:
+        return set()
+    top = max(_half(r.size) for r in inked)
+    ys = sorted(r.y for r in inked if _half(r.size) == top)
+    base = ys[len(ys) // 2]
+    return {id(r) for r in inked if _half(r.size) < SUP_SIZE * top and r.y < base - SUP_RISE * top}
+
+
 def _line(row: list[TextRun], page: int, cell) -> Line:
-    y, size = _dominant(row)
+    raised = _raised(row)
+    y, size = _dominant([r for r in row if id(r) not in raised] or row)
     row = sorted(row, key=lambda r: r.x0)
     spans: list[Span] = []
     prev: TextRun | None = None
@@ -57,7 +71,7 @@ def _line(row: list[TextRun], page: int, cell) -> Line:
                 text = "\t" + text.lstrip()
             elif gap > SPACE_GAP * size and not spaced:
                 text = " " + text
-        sup = _half(r.size) < SUP_SIZE * size and r.y < y - SUP_RISE * size
+        sup = id(r) in raised or (_half(r.size) < SUP_SIZE * size and r.y < y - SUP_RISE * size)
         span = Span(text, r.font, _half(r.size), sup)
         if spans and (spans[-1].font, spans[-1].size, spans[-1].sup) == (span.font, span.size, span.sup):
             spans[-1] = replace(spans[-1], text=spans[-1].text + text)

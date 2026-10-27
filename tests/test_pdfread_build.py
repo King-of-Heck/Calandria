@@ -144,9 +144,23 @@ def test_a_dot_leader_before_a_page_number_becomes_a_right_tab_with_a_dot_leader
     toc = [Span("1.1 Definitions ", "Arial", 12.0), Span("....................................... 2", "Arial", 12.0)]
     blank = "Signed by ......................................................"
     first, second = build_document([page(0, [L("", 100, spans=toc), L(blank, 160)])], set(), {}, 1, ()).blocks
-    assert "".join(r.text for r in first.runs) == "1.1 Definitions\t2"
+    assert "".join(r.text for r in first.runs) == "1.1 Definitions\t{PAGEREF}" and first.runs[-1].props.field_text == "2"
     assert [(t.pos_pt, t.kind, t.leader) for t in first.props.tabs] == [(468.0, "right", "dot")]
     assert second.text == blank and second.props.tabs == ()                 # no page number after it: left alone
+
+
+def test_a_contents_lines_page_number_is_a_page_field_that_never_counts_as_a_change():
+    """The page numbers in a table of contents follow the pagination, so an edit anywhere earlier
+    moves them all; like Word's own page fields they are drawn as printed but not compared."""
+    from calandria.diff.compare import compare
+
+    def toc(n):
+        return build_document([page(0, [L("1.6 Conflict ........................................ " + n, 100)])],
+                              set(), {}, 1, ())
+    (p,) = toc("9").blocks
+    assert [r.text for r in p.runs] == ["1.6 Conflict\t", "{PAGEREF}"]
+    assert (p.runs[-1].props.field, p.runs[-1].props.field_text) == ("PAGEREF", "9")
+    assert compare(toc("9"), toc("8")).summary["total"] == 0
 
 
 def test_a_ruled_grid_becomes_a_table_between_paragraphs_with_merged_cells():
@@ -218,6 +232,18 @@ def test_a_superscript_number_with_a_note_becomes_a_reference_and_others_stay_te
     ref = NoteRef("footnote", 1)
     assert [r.props.note for r in p.runs].count(ref) == 1 and "nd" in p.text
     assert doc.footnotes[1][0].text == "See clause 4." and doc.note_numbers == {ref: 1}
+
+
+def test_two_marks_side_by_side_are_two_references():
+    """Marks drawn one after the other ("142" then "143") read as one raised "142143"."""
+    spans = [Span("SUBMITTAL REQUIREMENTS", "Arial", 12.0), Span("142143", "Arial", 8.0, True)]
+    notes = {n: [L(f"Note {n}.", 702 + n - 142, size=9.0, x1=160)] for n in (142, 143)}
+    (p,) = build_document([page(0, [L("", 100, spans=spans)])], set(), notes, 1, ()).blocks
+    assert [r.props.note for r in p.runs if r.props.note] == [NoteRef("footnote", 142), NoteRef("footnote", 143)]
+    assert p.text == "SUBMITTAL REQUIREMENTS"
+    q, _orphan_note = build_document([page(0, [L("", 100, spans=[Span("Clause", "Arial", 12.0), Span("1213", "Arial", 8.0, True)])])],
+                          set(), {5: [L("Note.", 702, size=9.0, x1=160)]}, 1, ()).blocks
+    assert q.text == "Clause1213"                         # not notes of this document: left as text
 
 
 def test_a_note_nothing_refers_to_is_kept_as_body_text_at_the_end():

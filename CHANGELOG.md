@@ -1,5 +1,12 @@
 # Calandria changelog
 
+## v2.11.2 — Same count both ways (2026-10-27)
+
+- Swapping the two documents no longer changes the count: a comma or a dot between two pieces of
+  one edit (", where applicable" typed against "6.2", a date filled in around its comma) is one
+  change, not two, whichever document is the original. A full stop followed by a space still
+  separates two changes.
+
 ## v2.11.1 — PDF table rows over a page (2026-10-27)
 
 - A table row that breaks across a page in a PDF is read as one row when some of its cells ended

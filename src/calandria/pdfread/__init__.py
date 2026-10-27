@@ -1,6 +1,7 @@
 """Read a text PDF into the Document the rest of Calandria compares, lays out and draws.
 
-    extract (pypdf: file structure only) -> grids -> lines -> furniture, footnotes -> paragraphs -> Document
+    extract (pypdf: file structure only) -> grids -> lines -> borderless tables -> furniture, footnotes
+        -> paragraphs -> Document
 
 Structure is inferred from geometry alone; see each module for its rules. A compared pair is read
 in two steps: `read_pdf` each side up to its lines (the slow part, cached by the app), then `finish`
@@ -11,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from ..model import Document
+from .borderless import find_borderless
 from .build import body_metrics, build_document, pair_style
 from .extract import NO_TEXT, extract_pages, unreadable
 from .furniture import collect_notes, find_furniture
@@ -21,7 +23,8 @@ from .types import PageData, PageLines, PdfRefused
 
 def page_lines(index: int, pd: PageData, pos: int) -> PageLines:
     """One page's lines, each run first bucketed by the grid cell it sits in (or the body), so a
-    text line never straddles two cells. `pos` is the page's position among the pages read."""
+    text line never straddles two cells; body lines laid out as a borderless table become its
+    cells. `pos` is the page's position among the pages read."""
     grids = find_grids(pd.segs)
     buckets: dict = {}
     for r in pd.runs:
@@ -33,7 +36,10 @@ def page_lines(index: int, pd: PageData, pos: int) -> PageLines:
                 key = (gi, ci)
                 break
         buckets.setdefault(key, []).append(r)
-    lines = [ln for key, runs in buckets.items() for ln in build_lines(runs, page=pos, cell=key)]
+    lines = [ln for key, runs in buckets.items() if key is not None for ln in build_lines(runs, page=pos, cell=key)]
+    borderless, body = find_borderless(build_lines(buckets.get(None, []), page=pos), first=len(grids))
+    grids += borderless              # after the ruled grids, whose cell lines already point at them
+    lines += body
     lines.sort(key=lambda ln: (ln.y, ln.x0))
     return PageLines(index, pd.width, pd.height, lines, grids, pd.segs)
 

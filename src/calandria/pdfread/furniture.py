@@ -67,6 +67,27 @@ def _note_text(pg: PageLines) -> set[int]:
     return out
 
 
+def _running(pages: list[PageLines], cluster: list[tuple[float, int, int]]) -> list[tuple[int, int]]:
+    """The (page, line)s of a cluster (one signature at one height) that are a running line: words
+    repeated exactly on another page, or words whose one changed number moves with the page ("Schedule
+    3 - Page 4" two pages after "Page 2"). Numbered titles that share a signature ("SCHEDULE 2.2(b)",
+    "SCHEDULE 2.9(b)": each schedule starts a page under its own) are neither."""
+    texts = {(pi, li): collapse_ws(pages[pi].lines[li].text) for _h, pi, li in cluster}
+    repeats = Counter(texts.values())
+    numbers = {k: [int(d) for d in _DIGITS.findall(t)] for k, t in texts.items()}
+    out = []
+    for k, t in texts.items():
+        if repeats[t] >= 2:
+            out.append(k)
+            continue
+        for o in texts:
+            moved = [b - a for a, b in zip(numbers[k], numbers[o]) if a != b]
+            if o != k and len(numbers[o]) == len(numbers[k]) and moved == [pages[o[0]].index - pages[k[0]].index]:
+                out.append(k)
+                break
+    return out
+
+
 def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     n = len(pages)
     # Two pages are enough to repeat against; only a single page has nothing to repeat against.
@@ -104,8 +125,9 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
             if it is not None and it[0] - cluster[-1][0] <= SAME_HEIGHT:
                 cluster.append(it)
                 continue
-            if len({pi for _h, pi, _li in cluster}) >= need:
-                found.update((pi, li) for _h, pi, li in cluster)
+            running = _running(pages, cluster)
+            if len({pi for pi, _li in running}) >= need:
+                found.update(running)
             cluster = [it] if it is not None else []
     return found
 

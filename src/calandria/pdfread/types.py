@@ -71,6 +71,7 @@ class Line:
     spans: list[Span]
     cell: tuple | None = None    # (grid index on the page, cell index in that grid), or None = body
     ends_spaced: bool = False    # the PDF drew a space after the line's last word
+    cols: tuple = ()             # (x0, x1) of each tab-separated piece, when a tab splits the line
 
     @property
     def text(self) -> str:
@@ -83,5 +84,5 @@ class PageLines:
     width: float
     height: float
     lines: list[Line]     # every line of the page, body and cells, sorted by (y, x0)
-    grids: list           # grid.Grid, in top-to-bottom order
+    grids: list           # grid.Grid: the ruled ones top to bottom, then the borderless ones
     segs: list[Seg]

@@ -66,6 +66,8 @@ def _line(row: list[TextRun], page: int, cell, space_gap: float = SPACE_GAP) -> 
     row = sorted(row, key=lambda r: r.x0)
     spans: list[Span] = []
     prev: TextRun | None = None
+    cols: list[list[float]] = []      # [x0, x1] of the ink of each piece between tabs
+    tabbed = False
     for r in row:
         text = r.text
         if prev is not None:
@@ -74,8 +76,15 @@ def _line(row: list[TextRun], page: int, cell, space_gap: float = SPACE_GAP) -> 
             if gap > TAB_GAP * size:
                 spans[-1] = replace(spans[-1], text=spans[-1].text.rstrip())
                 text = "\t" + text.lstrip()
+                tabbed = True
             elif gap > space_gap * size and not spaced:
                 text = " " + text
+        if r.text.strip():
+            if tabbed or not cols:
+                cols.append([r.x0, r.ink_end])
+            else:
+                cols[-1][1] = r.ink_end
+            tabbed = False
         sup = id(r) in raised or (_half(r.size) < SUP_SIZE * size and r.y < y - SUP_RISE * size)
         span = Span(text, r.font, _half(r.size), sup)
         if spans and (spans[-1].font, spans[-1].size, spans[-1].sup) == (span.font, span.size, span.sup):
@@ -89,7 +98,11 @@ def _line(row: list[TextRun], page: int, cell, space_gap: float = SPACE_GAP) -> 
     # The right end is the ink's: Word draws the spaces after a sentence's full stop, which would
     # put a paragraph's last line past the margin and make a justified line look ragged.
     ends_spaced = row[-1].text[-1:].isspace()     # the PDF drew a space after the last word
-    return Line(page, inked[0].x0, inked[-1].ink_end, y, size, [s for s in spans if s.text], cell, ends_spaced)
+    spans = [s for s in spans if s.text]
+    # Only when every tab in the text is one of the gaps between pieces (a blank run can carry one).
+    tabs = "".join(s.text for s in spans).count("\t")
+    pieces = tuple((a, b) for a, b in cols) if len(cols) > 1 and tabs == len(cols) - 1 else ()
+    return Line(page, inked[0].x0, inked[-1].ink_end, y, size, spans, cell, ends_spaced, pieces)
 
 
 def build_lines(runs: list[TextRun], page: int = 0, cell: tuple | None = None) -> list[Line]:

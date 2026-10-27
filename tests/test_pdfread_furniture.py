@@ -187,6 +187,18 @@ def test_a_numbered_body_line_at_the_page_top_is_not_furniture():
                                    + [f"Page {i} of 5" for i in range(1, 6)])
 
 
+def test_numbered_titles_at_the_page_top_are_not_a_header_unless_the_number_follows_the_page():
+    """A 198-page contract starts each schedule on a new page under its title: 'SCHEDULE 2.2(b)',
+    'SCHEDULE 2.9(b)' and three more blank to one signature at one height, so they were stripped as
+    a running header. Different words whose numbers do not move with the page are titles."""
+    titles = {1: "SCHEDULE 2.2(b)", 4: "SCHEDULE 2.9(b)", 8: "SCHEDULE 2.13(b)", 11: "SCHEDULE 7.2(b)"}
+    pages = doc(12, extra=lambda i: [L(titles[i], 72, i)] if i in titles else [])
+    assert not [t for t in texts(pages, find_furniture(pages)) if t.startswith("SCHEDULE")]
+    running = doc(6, extra=lambda i: [L(f"Agreement {i + 11}", 72, i)])
+    assert [t for t in texts(running, find_furniture(running)) if t.startswith("Agreement")] == [
+        f"Agreement {n}" for n in range(11, 17)]
+
+
 def test_one_mid_page_copy_does_not_keep_a_running_header_in_the_body():
     """A header stripped on no page at all because the cover page repeats its words once in the
     text is worse than the stray copy it was guarding against."""

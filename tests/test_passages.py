@@ -1,5 +1,6 @@
 """v2.5.0: a numbered change is a passage (spec section 14): inserted / deleted runs formed per
-side, bridged by whitespace-only equal text and by the other side's segments, plus one numbering
+side, bridged by equal text with no letter or digit that ends no sentence and by the other side's
+segments, plus one numbering
 passage per renumbered marker; numbered in reading order; the three counts add up to the total."""
 import json
 from pathlib import Path
@@ -47,6 +48,27 @@ def test_the_other_sides_segment_does_not_break_a_passage():
 def test_visible_equal_text_ends_both_passages():
     r = _row(("ins", "a"), ("del", "x"), ("eq", " and "), ("ins", "b"), ("del", "y"))
     assert _cats(row_passages(r, 0, 1, True)) == [(1, "insertion"), (2, "deletion"), (3, "insertion"), (4, "deletion")]
+
+
+def test_punctuation_between_two_pieces_of_one_edit_does_not_break_a_passage():
+    """", where applicable" glued to "6.2." (EPC): the word diff matches the original's "." with
+    either dot of the revised text, depending on which side is the original. Counted as a break,
+    the pair read 237 one way and 236 the other."""
+    forward = _row(("eq", "Section"), ("ins", ","), ("eq", " "), ("del", "6.2"), ("ins", "where applicable6"),
+                   ("eq", "."), ("ins", "2."), ("eq", " [12 months]"))
+    swapped = _row(("eq", "Section"), ("del", ","), ("eq", " "), ("del", "where applicable6.2"), ("ins", "6.2"),
+                   ("eq", "."), ("eq", " [12 months]"))
+    assert _cats(row_passages(forward, 0, 1, True)) == [(1, "insertion"), (2, "deletion")]
+    assert _cats(row_passages(swapped, 0, 1, True)) == [(1, "deletion"), (2, "insertion")]
+    comma = _row(("del", "[ ]"), ("ins", "August 18"), ("eq", ", "), ("ins", "2026, "), ("eq", "between"))
+    assert _cats(row_passages(comma, 0, 1, True)) == [(1, "deletion"), (2, "insertion")]
+
+
+def test_a_full_stop_and_a_space_still_break_a_passage():
+    r = _row(("del", "levels"), ("ins", "impact"), ("eq", "."), ("ins", " Emergency changes may be made."))
+    assert _cats(row_passages(r, 0, 1, True)) == [(1, "deletion"), (2, "insertion"), (3, "insertion")]
+    r = _row(("ins", "one"), ("eq", ". "), ("ins", "Two"))
+    assert _cats(row_passages(r, 0, 1, True)) == [(1, "insertion"), (2, "insertion")]
 
 
 def test_a_replacement_numbers_the_deletion_then_the_insertion():

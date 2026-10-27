@@ -6,12 +6,16 @@ passage is one numbered change inside it (spec section 14).
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from ..model import Document
 from .fmt import FmtRange
 from .inline import Seg
 from .units import Unit
+
+_WORD = re.compile(r"[^\W_]")                           # a letter or digit
+_SENTENCE_END = re.compile(r"[.!?][\"'’”)\]]*\s")       # a full stop and the space after it
 
 # insertions / deletions / numbering_changes count passages and add up to total; content,
 # punctuation, numbering, formatting, moves, splits, merges keep the reference's per-row meaning
@@ -56,9 +60,13 @@ class Row:
 def row_passages(row: Row, row_index: int, first: int, count_numbering: bool) -> list[Passage]:
     """Numbers the row's passages from `first` and stamps them on the row and its segments
     (spec 14.1, 14.2). The renumbered marker comes first. Then, per side: an inserted passage is
-    a maximal stretch of `ins` segments broken only by an equal segment holding visible text;
-    whitespace-only equal text and `del` segments in between do not break it. Deleted passages
-    likewise. A replacement therefore numbers its deletion before its insertion."""
+    a maximal stretch of `ins` segments broken only by an equal segment holding a letter or digit,
+    or ending a sentence (a full stop and a space); `del` segments and other equal text in between
+    (spaces, a comma, a dot inside a number) do not break it. Deleted passages likewise. A
+    replacement therefore numbers its deletion before its insertion. Punctuation does not break a
+    passage because the word diff may match a lone "," or "." on either side of an edit, and which
+    one it picks depends on which document is the original: counted as a break, swapping the two
+    documents changed the count."""
     out: list[Passage] = []
     n = first - 1
     row.cids = []
@@ -70,10 +78,12 @@ def row_passages(row: Row, row_index: int, first: int, count_numbering: bool) ->
         out.append(Passage(n, "numbering", row_index))
     open_ins: int | None = None
     open_del: int | None = None
-    for s in row.segments:
+    segs = row.segments
+    for k, s in enumerate(segs):
         if s.m == "eq":
             s.cid = None
-            if s.t.strip():
+            after = s.t + (segs[k + 1].t[:1] if k + 1 < len(segs) else " ")
+            if _WORD.search(s.t) or _SENTENCE_END.search(after):
                 open_ins = open_del = None
             continue
         if s.m == "ins":

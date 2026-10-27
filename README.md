@@ -5,7 +5,7 @@ Successor to SorkWhare Compare. Runs from a single downloaded folder
 and produces a paged on-screen redline and a PDF from one layout engine. Documents
 never leave the machine.
 
-Status: v2.5.0 (see `CHANGELOG.md`).
+Status: v2.11.0 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
@@ -100,7 +100,7 @@ page count and that its text reads back.
 
 A pair of text PDFs — the ones a "Save As PDF" from Word produces — can be dropped and compared
 the same way a pair of `.docx` files is; the two files of a pair must be the same kind, so a
-`.docx` cannot yet be compared with a PDF. Reading a PDF re-extracts its text, ruled tables and
+`.docx` cannot yet be compared with a PDF. Reading a PDF re-extracts its text, tables and
 footnotes from the printed pages rather than from any document structure, so the result is
 approximate and comes with limits worth knowing before relying on it:
 
@@ -111,8 +111,10 @@ approximate and comes with limits worth knowing before relying on it:
   occasionally be mistaken for a running header and left out too.
 - Clause and list numbering is plain text in a PDF, not a generated field, so inserting a clause
   renumbers what follows and every renumbered marker shows as its own change.
-- Only tables with drawn borders are read as tables; a borderless table is read as ordinary lines,
-  so an added row may show as one changed line rather than an inserted row. A table row split
+- A table without borders is read as a table when its columns line up on every row (one line
+  per row, or wrapped only after the first column); one with an empty cell, a right-aligned
+  column or a wrapped first column is read as ordinary lines, so an added row may show as one
+  changed line rather than an inserted row. A table row split
   across a page break is read as two rows, so a row can show as changed if the two PDFs paginate
   differently.
 - Footnotes are recognised only when they print smaller than the body text; footnotes at body

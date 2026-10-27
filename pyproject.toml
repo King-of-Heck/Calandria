@@ -1,6 +1,6 @@
 [project]
 name = "calandria"
-version = "2.10.6"
+version = "2.11.0"
 description = "Calandria — offline Word (.docx) and PDF redline / compare tool with a paged viewer and PDF output"
 readme = "README.md"
 authors = [

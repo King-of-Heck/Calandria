@@ -1,5 +1,13 @@
 # Calandria changelog
 
+## v2.11.0 — PDF borderless tables (2026-10-27)
+
+- A table drawn without borders in a PDF (a list of schedules, an index of forms) is read as a
+  table when its columns line up row after row, so an edited entry shows inside its row, as in
+  Word, instead of joining the entries around it into one paragraph.
+- Numbered titles that start pages ("SCHEDULE 2.2(b)", "SCHEDULE 2.9(b)") are no longer mistaken
+  for a running header and left out of a PDF.
+
 ## v2.10.6 — PDFs exported from Word (2026-10-27)
 
 - PDFs made with Word's Export to PDF are read as well as those made with Save As PDF: words are no

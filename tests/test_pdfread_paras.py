@@ -27,6 +27,23 @@ def test_full_lines_at_the_prevailing_pitch_are_one_paragraph():
     assert (p.align, p.ind_left, p.ind_first, p.ind_hanging) == ("justify", 0.0, 0.0, 0.0)
 
 
+def test_a_line_broken_mid_sentence_carries_on_but_a_short_line_ending_a_sentence_does_not():
+    """A manual line break leaves room on the line, like a paragraph's last line; the sentence
+    carrying on in lowercase at the line pitch says it is one paragraph (Word joins it so)."""
+    party = [L("[X], a [corporation] existing under the laws of [Ontario]", 100, x0=144, x1=406),
+             L("(the “Contractor”).", 113.8, x0=144, x1=232)]
+    assert len(build_paragraphs(party, LEFT, RIGHT, 1.15, no_wrap=False)) == 1
+    opg = [L("ONTARIO POWER GENERATION INC., a corporation", 100, x0=144, x1=387),
+           L("existing under the laws of Ontario (“OPG”),", 113.8, x0=144, x1=334)]
+    assert len(build_paragraphs(opg, LEFT, RIGHT, 1.15, no_wrap=False)) == 1
+    rows = [L("Schedule 2.5\tSafety", 100, x1=237), L("Schedule 2.6\tEnvironment", 113.8, x1=265)]
+    assert len(build_paragraphs(rows, LEFT, RIGHT, 1.15, no_wrap=False)) == 2
+    signed = [L("By:", 100, x0=300, x1=313), L("Name:", 113.8, x0=335, x1=360)]
+    assert len(build_paragraphs(signed, LEFT, RIGHT, 1.15, no_wrap=False)) == 2
+    ends = [L("The Supplier shall deliver the Goods.", 100, x1=300), L("the next clause starts lowercase", 113.8, x1=330)]
+    assert len(build_paragraphs(ends, LEFT, RIGHT, 1.15, no_wrap=False)) == 2
+
+
 def test_a_wider_gap_starts_a_new_paragraph_and_gives_space_after():
     a, b = build_paragraphs([L(FULL, 100), L(FULL, 113.8), L(FULL, 139.6), L(FULL, 153.4)], LEFT, RIGHT, 1.15, no_wrap=True)
     assert len(a.lines) == 2 and len(b.lines) == 2

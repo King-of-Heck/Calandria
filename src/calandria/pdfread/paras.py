@@ -127,6 +127,17 @@ def _edge(cur: list[Line], nxt: Line, right: float, tol: float) -> float:
     return right
 
 
+def _carries_on(prev: Line, nxt: Line) -> bool:
+    """Whether the next line, under one that stopped short at the line pitch, carries the same
+    sentence on: the short line ends no sentence and the next starts lowercase, or with "(" then
+    lowercase, and is no list item. That short line was a manual line break (a party block's
+    "a corporation / existing under the laws of ..."), not the end of a paragraph."""
+    if SENTENCE_END.search(prev.text.strip()) or MARKER.match(nxt.text):
+        return False
+    head = nxt.text.lstrip().lstrip("(")
+    return bool(head) and head[0].islower()
+
+
 def _ended_short(cur: list[Line], nxt: Line, right: float, tol: float) -> bool:
     words = nxt.text.split()
     if not words:
@@ -157,7 +168,7 @@ def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float, no_wrap: boo
     limit = min(pitch * GAP, LINE_MAX) if no_wrap else pitch * GAP
     if same_page and (nxt.y - prev.y) / size > limit:
         return True
-    if _ended_short(cur, nxt, right, tol):
+    if _ended_short(cur, nxt, right, tol) and not (same_page and _carries_on(prev, nxt)):
         return True
     if len(cur) >= 2 and abs(nxt.x0 - cur[1].x0) > tol:
         return True

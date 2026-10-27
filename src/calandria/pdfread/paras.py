@@ -161,6 +161,10 @@ def _breaks(cur: list[Line], nxt: Line, right: float, pitch: float, no_wrap: boo
     # that is not is a heading, not the paragraph carried on.
     if not same_page and right - nxt.x1 > EDGE * nxt.size and _all_bold(nxt) and not _all_bold(prev):
         return True
+    # Nor to show a list item: a line starting with a marker after one that finished its sentence
+    # ("... including:" / "(A) all necessary ...") starts one.
+    if not same_page and SENTENCE_END.search(prev.text.strip()) and MARKER.match(nxt.text):
+        return True
     if TOC_END.search(prev.text.rstrip()):
         return True
     if abs(nxt.size - prev.size) > SIZE_CHANGE * size:
@@ -186,8 +190,8 @@ def _join(lines: list[Line]) -> list[Span]:
             last = out[-1].text
             if last.endswith("­"):
                 out[-1] = replace(out[-1], text=last[:-1])
-            elif last.endswith("-") and len(last) >= 2 and last[-2].isalpha():
-                pass
+            elif last.endswith("-") and len(last) >= 2 and last[-2].isalpha() and not lines[i - 1].ends_spaced:
+                pass                      # a hyphenated word broken at its hyphen ("non-" / "compete")
             elif not last[-1:].isspace():
                 out[-1] = replace(out[-1], text=last + " ")
         for s in spans:

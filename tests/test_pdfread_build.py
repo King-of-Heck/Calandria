@@ -32,6 +32,7 @@ def lattice(xs, ys):
     ("Verdana,BoldItalic", ("Verdana", True, True)),
     ("BCDFEE+Cambria", ("Cambria", False, False)),
     ("Wingdings-Regular", ("Wingdings", False, False)),
+    ("BCDFEE+Wingdings2", ("Wingdings 2", False, False)),      # Word's export; its Save As writes "Wingdings 2"
     ("SegoeUI-Semibold", ("Segoe UI Semibold", False, False)),
 ])
 def test_split_font(name, want):

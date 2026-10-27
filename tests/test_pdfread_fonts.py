@@ -108,3 +108,19 @@ def test_a_bad_widths_entry_still_leaves_the_character_map_loaded():
     f = load_font(res)
     assert f.to_unicode[1] == "H"
     assert f.widths == {}                     # the bad entry left the width table empty, not the font broken
+
+
+def test_a_symbol_font_reads_the_same_whether_or_not_its_pdf_maps_it_to_unicode():
+    """Word's Save As PDF maps the Symbol font's bullet to the private code U+F0B7 (or gives no map);
+    its export embeds SymbolMT mapped to a real bullet, U+2022. All read as the private code, the
+    form a .docx stores and the Symbol font draws, so one document saved both ways compares the same."""
+    PUA, BULLET = chr(0xF0B7), chr(0x2022)
+
+    def text(font, raw):
+        return "".join(t for _c, t, _w in font.decode(raw))
+    assert text(PdfFont("Symbol", to_unicode={0xB7: PUA}), bytes([0xB7])) == PUA
+    assert text(PdfFont("BCDOEE+SymbolMT", to_unicode={0xB7: BULLET}), bytes([0xB7])) == PUA
+    assert text(PdfFont("Symbol"), bytes([0xB7])) == PUA
+    assert text(PdfFont("Symbol", nbytes=2, codec=None, to_unicode={0x78: PUA}), bytes([0, 0x78])) == PUA
+    assert text(PdfFont("Wingdings 2", to_unicode={0xB7: BULLET}), bytes([0xB7])) == BULLET   # not Symbol: as mapped
+    assert text(PdfFont("Symbol", to_unicode={0x41: "A"}), b"A") == "A"

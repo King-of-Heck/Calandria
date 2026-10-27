@@ -70,6 +70,7 @@ class Line:
     size: float           # the dominant size
     spans: list[Span]
     cell: tuple | None = None    # (grid index on the page, cell index in that grid), or None = body
+    ends_spaced: bool = False    # the PDF drew a space after the line's last word
 
     @property
     def text(self) -> str:

@@ -14,6 +14,26 @@ _BFCHAR = re.compile(rb"beginbfchar(.*?)endbfchar", re.S)
 _BFRANGE = re.compile(rb"beginbfrange(.*?)endbfrange", re.S)
 _RANGE_ITEM = re.compile(rb"<([0-9A-Fa-f\s]+)>\s*<([0-9A-Fa-f\s]+)>\s*(\[[^\]]*\]|<[0-9A-Fa-f\s]*>)", re.S)
 _BASE = {"/WinAnsiEncoding": "cp1252", "/MacRomanEncoding": "mac_roman"}
+# The Adobe Symbol encoding, codes 0x20-0xFF ("\0" = no character). Word's Save As PDF maps the Symbol
+# font to private codes U+F020-U+F0FF (or leaves it unmapped); its export maps it to real characters.
+# Both are read back as the private code (the bullet as U+F0B7), which is how a .docx stores a symbol
+# and the only form the Symbol font has glyphs for, so one document reads the same however it was saved.
+_SYMBOL = (
+    " !∀#∃%&∋()∗+,−./0123456789:;<=>?≅ΑΒΧ∆"
+    "ΕΦΓΗΙϑΚΛΜΝΟΠΘΡΣ"
+    "ΤΥςΩΞΨΖ[∴]⊥_αβχδ"
+    "εφγηιϕκλμνοπθρσ"
+    "τυϖωξψζ{|}∼\u0000\u0000\u0000\u0000\u0000\u0000"
+    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000€ϒ′"
+    "≤∕∞ƒ♣♦♥♠↔←↑→↓°±"
+    "″≥×∝∂•÷≠≡≈…↵ℵ"
+    "ℑℜ℘⊗⊕∅∩∪⊃⊇⊄⊂⊆∈∉"
+    "∠∇∏√⋅¬∧∨⇔⇐⇑⇒"
+    "⇓◊〈∑"
+    "ð〉∫⌠⌡"
+    "ÿ"
+)
 
 
 def _obj(x):
@@ -81,8 +101,20 @@ class PdfFont:
             out.append((code, self._text(code), self.widths.get(code, self.default_width)))
         return out
 
+    @property
+    def symbol(self) -> bool:
+        """The Symbol font (any subset or PostScript name of it), whose codes have one standard reading."""
+        return "symbol" in self.name.split("+")[-1].lower()
+
     def _text(self, code: int) -> str:
         t = self.to_unicode.get(code)
+        if self.symbol:
+            # The font's private code, as Word stores a symbol and as the Symbol font draws it: from a
+            # real character in the map, or from an unmapped one-byte code. A private code stays.
+            if t is not None and len(t) == 1 and t != "\0" and t in _SYMBOL and not 0x20 <= ord(t) < 0x7F:
+                return chr(0xF020 + _SYMBOL.index(t))
+            if t is None and self.nbytes == 1 and 0x20 <= code <= 0xFF:
+                return chr(0xF000 + code)
         if t is not None:
             return t
         if self.nbytes != 1:

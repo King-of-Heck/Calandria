@@ -11,6 +11,11 @@ SAME_LINE = 0.45      # of the larger size: baselines this close are one line
 SUP_SIZE = 0.85       # a superscript is smaller than this share of the line's size ...
 SUP_RISE = 0.15       # ... and raised by more than this share of it
 SPACE_GAP = 0.12      # a word space is 0.22 em in Calibri, 0.25 in Times, 0.28 in Arial; kerning moves far less
+# DRAWN_SPACE_GAP: where the text draws its word spaces as characters, a gap must be this wide to be
+# a space it left out. Word's ExportAsFixedFormat draws every letter on its own with adjustments of up
+# to 0.21 em between the letters of a word (measured over a 198-page contract: 3,500 gaps at 0.11,
+# a tail to 0.21), and its undrawn word gaps start at 0.36; its Save As PDF keeps them under 0.08.
+DRAWN_SPACE_GAP = 0.3
 TAB_GAP = 2.0
 SAME_SPOT = 0.05      # of the font size: the same text this close to an earlier run is that run drawn again (fake bold)
 
@@ -55,7 +60,7 @@ def _raised(row: list[TextRun]) -> set[int]:
     return {id(r) for r in inked if _half(r.size) < SUP_SIZE * top and r.y < base - SUP_RISE * top}
 
 
-def _line(row: list[TextRun], page: int, cell) -> Line:
+def _line(row: list[TextRun], page: int, cell, space_gap: float = SPACE_GAP) -> Line:
     raised = _raised(row)
     y, size = _dominant([r for r in row if id(r) not in raised] or row)
     row = sorted(row, key=lambda r: r.x0)
@@ -69,7 +74,7 @@ def _line(row: list[TextRun], page: int, cell) -> Line:
             if gap > TAB_GAP * size:
                 spans[-1] = replace(spans[-1], text=spans[-1].text.rstrip())
                 text = "\t" + text.lstrip()
-            elif gap > SPACE_GAP * size and not spaced:
+            elif gap > space_gap * size and not spaced:
                 text = " " + text
         sup = id(r) in raised or (_half(r.size) < SUP_SIZE * size and r.y < y - SUP_RISE * size)
         span = Span(text, r.font, _half(r.size), sup)
@@ -83,7 +88,8 @@ def _line(row: list[TextRun], page: int, cell) -> Line:
     inked = [r for r in row if r.text.strip()]
     # The right end is the ink's: Word draws the spaces after a sentence's full stop, which would
     # put a paragraph's last line past the margin and make a justified line look ragged.
-    return Line(page, inked[0].x0, inked[-1].ink_end, y, size, [s for s in spans if s.text], cell)
+    ends_spaced = row[-1].text[-1:].isspace()     # the PDF drew a space after the last word
+    return Line(page, inked[0].x0, inked[-1].ink_end, y, size, [s for s in spans if s.text], cell, ends_spaced)
 
 
 def build_lines(runs: list[TextRun], page: int = 0, cell: tuple | None = None) -> list[Line]:
@@ -96,5 +102,8 @@ def build_lines(runs: list[TextRun], page: int = 0, cell: tuple | None = None) -
                 break
         else:
             rows.append([r])
-    lines = [_line(row, page, cell) for row in rows if any(t.text.strip() for t in row)]
+    # The text draws its spaces when any run of it holds one between characters or on its own.
+    drawn = any(" " in r.text.strip() or (r.text and not r.text.strip()) for r in runs)
+    gap = DRAWN_SPACE_GAP if drawn else SPACE_GAP
+    lines = [_line(row, page, cell, gap) for row in rows if any(t.text.strip() for t in row)]
     return sorted(lines, key=lambda ln: (ln.y, ln.x0))

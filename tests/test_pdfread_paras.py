@@ -273,3 +273,24 @@ def test_a_toc_line_ending_in_a_leader_and_page_number_ends_its_paragraph_across
     nxt = "SECTION 3 - OPG'S OBLIGATIONS ................................................. 30"
     paras = build_paragraphs([L(toc, 700), L(nxt, 72, page=1)], LEFT, RIGHT, 1.15, no_wrap=False)
     assert texts(paras) == [toc, nxt]
+
+
+def test_a_hyphen_with_a_space_drawn_after_it_keeps_the_space_at_a_line_break():
+    """'at least A- or a Standard' wrapped after 'A- ': the hyphen ends a word, not a split word,
+    and the PDF drew the space after it."""
+    first = Line(0, LEFT, RIGHT, 100, 12.0, [Span("with AM Best ratings of at least A-", "Arial", 12.0)], ends_spaced=True)
+    (p,) = build_paragraphs([first, L("or a Standard & Poor's rating which carries on to the edge", 113.8)],
+                            LEFT, RIGHT, 1.15, no_wrap=False)
+    assert "A- or a Standard" in texts([p])[0]
+
+
+def test_a_list_item_at_the_top_of_a_page_after_a_finished_sentence_starts_a_paragraph():
+    """A page break hides the gap that shows a new paragraph; a marker after "including:" is one."""
+    lines = [L("(8)\tsubject to Section 2.1(d), Contractor has examined and has satisfied itself in", 600, x0=144),
+             L("respect of all matters respecting the Work, Goods, the Site and Project, including:", 612, x0=180),
+             L("(A) all necessary information respecting the risks, contingencies and other", 81, x0=180, page=1),
+             L("circumstances which may affect the Submittal Schedule, the Progress", 92.4, x0=216, page=1)]
+    assert [len(p.lines) for p in build_paragraphs(lines, LEFT, RIGHT, 1.15, no_wrap=False)] == [2, 2]
+    carried = [L("respect of all matters respecting the Work, Goods, the Site and Project, under Section", 612, x0=180),
+               L("2.1 of this Agreement which carries the sentence on over the page break here", 81, x0=180, page=1)]
+    assert len(build_paragraphs(carried, LEFT, RIGHT, 1.15, no_wrap=False)) == 1

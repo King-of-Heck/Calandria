@@ -76,3 +76,25 @@ def test_a_raised_number_after_a_larger_glyph_is_a_superscript_even_when_it_is_w
                          R("97", 118.2, 125.4, y=160.9, size=6.5)])
     assert [(s.text, s.sup) for s in ln.spans] == [("", False), ("97", True)]
     assert (ln.y, ln.size) == (164.4, 10)
+
+
+def test_letters_drawn_one_by_one_with_their_spaces_drawn_get_no_spaces_from_small_gaps():
+    """Word's export can draw every letter on its own with small adjustments between letters (up
+    to about 0.21 em); it then draws each word space as a character, so a gap that small is not a
+    space. 'Indem' 'nifying' was read with a space where 'm' ends 0.13 em before 'n'."""
+    letters = [("t", 72.0, 74.7), ("h", 74.7, 80.1), ("e", 80.1, 85.5), (" ", 85.5, 88.2), ("I", 89.9, 92.6),
+               ("n", 92.6, 98.0), ("d", 98.0, 103.4), ("e", 103.4, 108.8), ("m", 108.8, 116.9), ("n", 118.2, 123.6),
+               ("i", 123.6, 125.8), ("f", 125.8, 128.5), ("y", 129.5, 134.4), ("i", 134.4, 136.6), ("n", 136.6, 142.0),
+               ("g", 142.0, 147.4)]
+    (ln,) = build_lines([R(t, x0, x1, size=9.75) for t, x0, x1 in letters])
+    assert ln.text == "the Indemnifying"
+    (gap,) = build_lines([R("the", 72, 85.5, size=9.75), R(" ", 85.5, 88.2, size=9.75), R("Goods", 89, 115, size=9.75),
+                          R("Buyer", 119, 145, size=9.75)])
+    assert gap.text == "the Goods Buyer"              # a word gap with no space drawn is still a space
+
+
+def test_a_line_knows_whether_its_last_drawn_text_was_a_space():
+    (ln,) = build_lines([R("at least A-", 72, 120), R(" ", 120, 123)])
+    assert ln.text == "at least A-" and ln.ends_spaced
+    (ln,) = build_lines([R("a non-", 72, 100)])
+    assert not ln.ends_spaced

@@ -127,8 +127,9 @@ approximate and comes with limits worth knowing before relying on it:
   split one paragraph into two or join two into one, which shows up as changed text.
 - Wrapped text set at one-and-a-half or double line spacing is the least-tested case in this
   release and may report more differences than it should.
-- The reader has been measured only against PDFs saved from Word (Save As PDF); a PDF from a
-  scanner, a phone, "Print to PDF", or another program's export is outside what has been tested.
+- The reader has been measured only against PDFs saved from Word (Save As PDF and Export to PDF);
+  a PDF from a scanner, a phone, "Print to PDF", or another program's export is outside what has
+  been tested.
 - The redline itself is re-laid-out text: fonts, spacing and page breaks are approximate, and the
   pages do not look like the source PDFs.
 

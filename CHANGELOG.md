@@ -1,5 +1,15 @@
 # Calandria changelog
 
+## v2.10.6 — PDFs exported from Word (2026-10-27)
+
+- PDFs made with Word's Export to PDF are read as well as those made with Save As PDF: words are no
+  longer split by the small spacing that export puts between letters, and the "[•]" placeholders
+  and Symbol characters read and draw the same from either, so one document saved both ways
+  compares as the same.
+- A hyphen followed by a space at the end of a line ("A- or") keeps its space.
+- A list item at the top of a page after a sentence that ends on the page before ("including:")
+  starts its own paragraph.
+
 ## v2.10.5 — PDF line breaks (2026-10-27)
 
 - A line broken by hand in the middle of a sentence in a PDF (such as "a corporation" / "existing

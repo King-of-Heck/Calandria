@@ -1,5 +1,11 @@
 # Calandria changelog
 
+## v2.10.5 — PDF line breaks (2026-10-27)
+
+- A line broken by hand in the middle of a sentence in a PDF (such as "a corporation" / "existing
+  under the laws of ...") is read as one paragraph, as in Word, so a block wrapped differently on
+  the other side no longer shows as changed.
+
 ## v2.10.4 — PDF footnotes and contents (2026-10-26)
 
 - Footnote numbers in a PDF are recognised in more places, so renumbered footnotes no longer show

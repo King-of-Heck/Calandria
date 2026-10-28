@@ -40,6 +40,13 @@ def _in_band(pg: PageLines, ln: Line) -> bool:
     return ln.y < top or ln.y > bottom
 
 
+def _height(pg: PageLines, ln: Line) -> float:
+    """Where a band line sits, in points from its own edge of the page (negative from the bottom):
+    Word sets a header a fixed distance below the top edge and a footer a fixed distance above the
+    bottom one, so a landscape page's footer is at a different share of the page height."""
+    return ln.y if ln.y < pg.height / 2 else ln.y - pg.height
+
+
 def _outer_half(pg: PageLines, ln: Line) -> bool:
     """The half of the band nearer the page edge, where a page number actually sits. The inner
     half reaches into the text area, so a line there needs the same repetition as any other
@@ -103,9 +110,15 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
     # words are body text: a signature is body text only where it is mostly body text.
     mid: Counter = Counter()
     banded: Counter = Counter()
+    once: Counter = Counter()
     for pg in pages:
         for ln in pg.lines:
             (banded if _in_band(pg, ln) else mid)[_signature(ln.text)] += 1
+            if _in_band(pg, ln):
+                once[collapse_ws(ln.text)] += 1
+    # Body text in the band: words found once (a header repeats), as at the top of a page whose
+    # text starts at the top margin. Word never sets body text at a header's height.
+    opening: list[tuple[float, int]] = []
     for pi, pg in enumerate(pages):
         notes = _note_text(pg)
         for li, ln in enumerate(pg.lines):
@@ -115,21 +128,35 @@ def find_furniture(pages: list[PageLines]) -> set[tuple[int, int]]:
             if sig == "#" and _outer_half(pg, ln):
                 found.add((pi, li))
             elif sig and mid[sig] <= banded[sig]:
-                seen.setdefault(sig, []).append((ln.y / pg.height, pi, li))
+                seen.setdefault(sig, []).append((_height(pg, ln), pi, li))
+            if sig != "#" and once[collapse_ws(ln.text)] == 1:
+                opening.append((_height(pg, ln), pi))
     if need is None:
         return found
     for items in seen.values():
         items.sort()
         cluster = [items[0]]
         for it in items[1:] + [None]:
-            if it is not None and it[0] - cluster[-1][0] <= SAME_HEIGHT:
+            if it is not None and it[0] - cluster[-1][0] <= SAME_HEIGHT * pages[it[1]].height:
                 cluster.append(it)
                 continue
             running = _running(pages, cluster)
-            if len({pi for pi, _li in running}) >= need:
+            on = {pi for pi, _li in running}
+            if len(on) >= need and not _body_height(pages, cluster, on, opening, need):
                 found.update(running)
             cluster = [it] if it is not None else []
     return found
+
+
+def _body_height(pages: list[PageLines], cluster: list[tuple[float, int, int]], on: set[int],
+                 opening: list[tuple[float, int]], need: int) -> bool:
+    """Is the cluster's height where the body starts? More pages than the cluster's own hold a
+    one-off line there ('SCHEDULE 8.1' over each alternative version of a schedule, at the height
+    of every other page's first line of text): then the repeats are titles, not a header."""
+    tol = SAME_HEIGHT * max(pg.height for pg in pages)
+    lo, hi = cluster[0][0] - tol, cluster[-1][0] + tol
+    others = {pi for h, pi in opening if lo <= h <= hi and pi not in on}
+    return len(others) >= need and len(others) > len(on)
 
 
 def _separator(pg: PageLines, pi: int, skip: set, left: float, body_size: float,

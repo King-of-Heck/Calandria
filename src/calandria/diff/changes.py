@@ -57,6 +57,16 @@ class Row:
     num_cid: int | None = None      # the numbering passage (a renumbered marker), when counted
 
 
+def _shown(unit: Unit, a: int, b: int) -> str:
+    """unit.text[a:b] with each PAGEREF token it wholly holds replaced by the number Word printed.
+    PAGE and NUMPAGES keep their token: their value is the page's, not the paragraph's."""
+    text = unit.text[a:b]
+    for sp in reversed(unit.fmt_spans):
+        if sp.field == "PAGEREF" and sp.field_text and a <= sp.s and sp.e <= b:
+            text = text[:sp.s - a] + sp.field_text + text[sp.e - a:]
+    return text
+
+
 def row_passages(row: Row, row_index: int, first: int, count_numbering: bool) -> list[Passage]:
     """Numbers the row's passages from `first` and stamps them on the row and its segments
     (spec 14.1, 14.2). The renumbered marker comes first. Then, per side: an inserted passage is
@@ -123,6 +133,32 @@ class Comparison:
     def unit_for(self, row: Row) -> Unit:
         return self.b_units[row.ni] if row.ni is not None else self.a_units[row.oi]
 
+    def _segment_dicts(self, r: Row) -> list[dict]:
+        """The row's segments as the viewer shows them: a contents line's {PAGEREF} token becomes
+        the page number that side prints. The diff compared the token, so a shared segment may
+        print a different number on each side; then "o" holds the original's text."""
+        ou = self.a_units[r.oi] if r.oi is not None else None
+        ru = self.b_units[r.ni] if r.ni is not None else None
+        oa = ob = 0
+        out = []
+        for s in r.segments:
+            d = {"m": s.m, "t": s.t, "b": s.b, "cid": s.cid}
+            n = len(s.t)
+            if s.m == "del":
+                d["t"] = _shown(ou, oa, oa + n)
+                oa += n
+            elif s.m == "ins":
+                d["t"] = _shown(ru, ob, ob + n)
+                ob += n
+            else:
+                d["t"] = _shown(ru or ou, ob if ru else oa, (ob if ru else oa) + n)
+                if ou is not None and ru is not None and (o := _shown(ou, oa, oa + n)) != d["t"]:
+                    d["o"] = o
+                oa += n
+                ob += n
+            out.append(d)
+        return out
+
     def _row_dict(self, r: Row) -> dict:
         u = self.unit_for(r)
         loc = u.loc.as_dict() if u.loc else None
@@ -133,7 +169,7 @@ class Comparison:
             "part": u.part,
             "num_changed": r.num_changed, "fmt_changed": r.fmt_changed,
             "fmt_descs": [x.desc for x in r.fmt_ranges],
-            "segments": [{"m": s.m, "t": s.t, "b": s.b, "cid": s.cid} for s in r.segments],
+            "segments": self._segment_dicts(r),
         }
 
     def _comment_dict(self, c) -> dict:

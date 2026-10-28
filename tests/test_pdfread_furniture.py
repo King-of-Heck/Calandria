@@ -234,3 +234,26 @@ def test_the_same_footnote_under_several_signature_pages_is_a_note_not_furniture
         return [L("", 700, i, size=9.0, spans=mark), L("leave it blank.", 710, i, x0=90, size=9.0)]
     pages = doc(5, note)
     assert texts(pages, find_furniture(pages)) == ["Acme Supply Agreement"] + [f"Page {i} of 5" for i in range(1, 6)]
+
+
+def test_a_title_repeated_where_the_body_starts_is_not_a_header():
+    """A 198-page contract gives a schedule several alternative versions, each under the same
+    title ('SCHEDULE 8.1' over the fixed price, the target cost, the GMAX ... versions): an exact
+    repeat in the top band, so it was stripped as a header. It sits where the body starts on the
+    other pages, and Word never sets body text at a header's height (the header is above the top
+    margin), so a line there is a title."""
+    titles = {1: "SCHEDULE 2.5", 4: "SCHEDULE 2.5", 7: "SCHEDULE 8.1", 9: "SCHEDULE 8.1"}
+    words = "alpha bravo charlie delta echo foxtrot golf hotel india juliet".split()
+    pages = doc(10, extra=lambda i: [L(titles.get(i, f"The {words[i]} clause goes on"), 82, i)])
+    found = texts(pages, find_furniture(pages))
+    assert not [t for t in found if t.startswith(("SCHEDULE", "The "))]
+    assert "Acme Supply Agreement" in found
+
+
+def test_a_landscape_pages_footer_is_furniture_with_the_portrait_ones():
+    """Word sets a footer a fixed distance above the bottom edge, so on a landscape page it is at
+    a different share of the page height than on the portrait pages around it."""
+    pages = [page(i, [L("Body text", 300, i), L("Acme Supply Agreement", H - 49, i)]) for i in range(5)]
+    pages[2] = PageLines(2, H, 612.0, [L("Wide table", 300, 2), L("Acme Supply Agreement", 612.0 - 49, 2)], [], [])
+    found = find_furniture(pages)
+    assert sum(1 for p, i in found if pages[p].lines[i].text == "Acme Supply Agreement") == 5

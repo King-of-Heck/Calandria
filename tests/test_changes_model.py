@@ -33,3 +33,21 @@ def test_to_dict_is_json_serializable_and_complete():
 def test_empty_documents():
     c = compare(_doc(P("")), _doc(P("")))
     assert c.rows == [] and c.summary["total"] == 0 and c.to_dict()["changes"] == []
+
+
+def _toc(title, page):
+    from calandria.model import Document, Paragraph, ParaProps, Run, RunProps, Section
+    return Document(blocks=[Paragraph([Run(title + "\t", RunProps()),
+                                       Run("{PAGEREF}", RunProps(field="PAGEREF", field_text=page))],
+                                      ParaProps())], sections=[Section()])
+
+
+def test_a_contents_line_shows_its_page_numbers_not_the_token():
+    # the page number is compared as its token (an edit that moves pages changes no contents
+    # line) but the change list and Copy show the number each side prints
+    c = compare(_toc("1.1 Definitions", "7"), _toc("1.1 Defined terms", "9"))
+    segs = c.to_dict()["changes"][0]["segments"]
+    assert "".join(s["t"] for s in segs if s["m"] != "del") == "1.1 Defined terms 9"
+    assert "".join(s.get("o", s["t"]) for s in segs if s["m"] != "ins") == "1.1 Definitions 7"
+    assert all("o" not in s for s in c.to_dict()["changes"][0]["segments"] if s["m"] != "eq")
+    assert c.rows[0].segments[-1].t.endswith("{PAGEREF}")          # the compared text keeps the token

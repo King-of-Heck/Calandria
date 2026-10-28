@@ -328,6 +328,14 @@ def test_text_of_joins_one_side_of_the_rows():
     assert out == '["1. aa cc\\nnew para\\nb) same","1. aa bb\\ngone\\na) same"]'
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_text_of_the_original_takes_a_shared_segments_own_text():
+    # a contents line's page number: shared as compared, printed differently on each side
+    rows = "[{oi:0,ni:0,marker:'',old_marker:null,num_changed:false,segments:[{m:'eq',t:'Scope 9',o:'Scope 7'}]}]"
+    out = _node("copy.js", f"const r = {rows}; console.log(JSON.stringify([m.textOf(r, 'modified'), m.textOf(r, 'original')]));")
+    assert out == '["Scope 9","Scope 7"]'
+
+
 def test_gutter_numerals_get_a_floor_on_screen():
     body = _function_body(_read("app.js"), "applyZoom")
     assert "text.gutter" in body and "GUTTER_MIN_PX" in body

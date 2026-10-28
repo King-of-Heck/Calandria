@@ -4,6 +4,7 @@ structure (cross-references, filters, decryption, tokenizing); the reading is ou
 from __future__ import annotations
 
 import io
+from datetime import datetime, timezone
 
 from .content import base_matrix, interpret
 from .pdffonts import PdfFont, load_font
@@ -69,11 +70,27 @@ def _reader(data: bytes):
 
 
 def page_count(data: bytes) -> int:
+    return page_count_and_date(data)[0]
+
+
+def page_count_and_date(data: bytes) -> tuple[int, datetime | None]:
+    """The page count, and when the PDF was last saved (its ModDate, else its CreationDate; a date
+    without a time zone is taken as UTC); None when it says neither."""
     reader = _reader(data)
     try:
-        return len(reader.pages)
+        pages = len(reader.pages)
     except Exception as e:
         raise _refusal(e) from None
+    when = None
+    try:
+        meta = reader.metadata
+        if meta is not None:
+            when = meta.modification_date or meta.creation_date
+    except Exception:
+        when = None                                # a malformed date string is no date
+    if when is not None and when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return pages, when
 
 
 def _page(reader, page, font_cache: dict) -> PageData:

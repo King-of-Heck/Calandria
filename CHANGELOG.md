@@ -1,5 +1,14 @@
 # Delta changelog
 
+## v2.12.5 — Newer document as Modified (2026-10-28)
+
+- Two documents dropped together are put in order by when each was last saved, the newer one as
+  Modified: the date Word or the PDF maker wrote inside the file, or the file's own date when there
+  is none. Before, they took the order of the drop. A file dropped onto a card still goes there, a
+  drop still waits for Compare, and Swap still exchanges the sides.
+- The README explains how to Unblock the downloaded zip when Windows Smart App Control blocks
+  `Delta.cmd`.
+
 ## v2.12.4 — Version shown (2026-10-28)
 
 - The window shows the Delta version in the bottom right corner of its status bar.

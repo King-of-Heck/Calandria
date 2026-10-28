@@ -153,7 +153,9 @@ as for `.docx`.
 `python -m delta serve` (or a double-click on `Delta.cmd`) starts a local server on
 127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original
 `.docx` on the "Original" card and the modified one on "Modified" (or click a card to choose, or
-drop both files anywhere), then press Compare; Swap exchanges the sides. The pages shown are the
+drop both files anywhere), then press Compare; Swap exchanges the sides. Two files dropped together
+are put in order by when each was last saved: the date Word or the PDF maker wrote inside the file,
+or the file's own date when there is none, the newer one as Modified. The pages shown are the
 same drawing the PDF gets — the server draws every page as SVG from the page model, so the screen
 and the PDF never disagree. The toolbar has the change navigation (First / Prev / Next / Last, a
 go-to box, "Change X of Y"; keys `n` / `p`, `j` / `k`, the arrows, `Home`, `End`, and `?` for

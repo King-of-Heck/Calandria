@@ -5,6 +5,7 @@ import io
 import posixpath
 import re
 import zipfile
+from datetime import datetime, timezone
 from lxml import etree
 
 from .ns import PKG_RELS, W
@@ -29,6 +30,23 @@ def _ensure_w_namespace(data: bytes) -> bytes:
         return data
     end = m.end()
     return data[:end] + _XMLNS_W + data[end:]
+
+
+_DCTERMS = "http://purl.org/dc/terms/"
+
+
+def saved_date(pkg: "Package") -> datetime | None:
+    """When the document was last saved, from its core properties (dcterms:modified, which Word
+    writes in UTC); None when the document does not say."""
+    root = pkg.xml("docProps/core.xml")
+    el = root.find(f"{{{_DCTERMS}}}modified") if root is not None else None
+    try:
+        when = datetime.fromisoformat((el.text or "").strip()) if el is not None else None
+    except ValueError:
+        return None
+    if when is None or when.year < 1980:          # an unset date ("1601-01-01" from some tools) says nothing
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
 class Package:

@@ -22,8 +22,9 @@ read: a loopback server is reachable from every page the browser has open.
   GET  /api/pdf?render_set=NAME&change_bars=0|1&report=first|last|none&changed_only=0|1
                               -> application/pdf as an attachment
   POST /api/inspect           {"name", "data" (base64 .docx or PDF)} -> {"name", "kind", "tracked",
-                              "pages"}: a Word document's tracked changes (read as accepted, "pages"
-                              null) or a PDF's page count ("tracked" null, its text not read here);
+                              "pages", "saved"}: a Word document's tracked changes (read as accepted,
+                              "pages" null) or a PDF's page count ("tracked" null, its text not read
+                              here); "saved" is when it was last saved (ISO 8601 UTC) or null;
                               touches no session state
   GET  /api/progress          {} when idle, else {"name", "page", "pages"}: how far the PDF being
                               read by a compare in flight has got; never takes the session lock

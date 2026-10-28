@@ -1,6 +1,7 @@
 // The two source cards (empty state) that become the compact source strip in the toolbar once
 // a comparison exists: pick by click, drop one file onto a card, drop two onto anything, remove,
-// swap, and the one Compare button. Both `.docx` and `.pdf` are accepted. The rule for Compare:
+// swap, and the one Compare button. Two files dropped together are ordered by when each was last
+// saved (the document's own date, else the file's), the newer one as the modified. Both `.docx` and `.pdf` are accepted. The rule for Compare:
 // enabled when both slots hold files and they are not exactly the pair of the current comparison.
 // Every fill waits for Compare, a two-file drop included (v2.4.4: a drop never compares by
 // itself). Swap re-runs at once when a comparison exists, because the sides only make sense
@@ -15,14 +16,14 @@ const IDS = { a: { card: "cardA", input: "fileA", name: "nameA", clear: "clearA"
 let handlers = { compare: () => {}, swap: () => {} };
 
 // What /api/inspect said about each slot's current file: null until it answers (or when it could
-// not), then {kind, tracked, pages}. Compare never waits for it.
+// not), then {kind, tracked, pages, saved}. Compare never waits for it.
 const info = { a: null, b: null };
 
 async function inspect(slot, file) {
   try {
     const d = await api("/api/inspect", { name: file.name, data: await readBase64(file) });
     if (state.files[slot] !== file) return;       // the slot moved on (cleared, replaced or swapped)
-    info[slot] = { kind: d.kind, tracked: d.tracked, pages: d.pages };
+    info[slot] = { kind: d.kind, tracked: d.tracked, pages: d.pages, saved: d.saved };
   } catch (e) {
     if (state.files[slot] !== file) return;
     info[slot] = null;                             // Compare reports a bad file itself
@@ -89,7 +90,7 @@ function takeDrop(list, slot) {
   if (state.closed || state.busy) return;    // no drop while a request is in flight: a second compare could finish first
   const files = accepted(list);
   if (!files.length) return;
-  if (files.length >= 2) { setFile("a", files[0]); setFile("b", files[1]); }
+  if (files.length >= 2) newerAsModified(files[0], files[1], setFile("a", files[0]), setFile("b", files[1]));
   else if (slot) setFile(slot, files[0]);
   else setFile(state.files.a ? "b" : "a", files[0]);
 }
@@ -98,7 +99,25 @@ function setFile(slot, file) {
   state.files[slot] = file;
   info[slot] = null;
   refreshSources();
-  if (file) inspect(slot, file);
+  return file ? inspect(slot, file) : Promise.resolve();
+}
+
+// When a file was last saved: the date inside it, else the file's own date (a copy downloaded or
+// saved from an email gets a new one, so the document's date is the better witness).
+function savedAt(file, i) {
+  const t = i && i.saved ? Date.parse(i.saved) : NaN;
+  return Number.isNaN(t) ? file.lastModified : t;
+}
+
+// A two-file drop lands in drop order, then once both are inspected the older one goes to the
+// original: drop order is only the order Explorer listed the selection in. Nothing compares.
+async function newerAsModified(a, b, ...inspected) {
+  await Promise.all(inspected);
+  if (state.closed || state.files.a !== a || state.files.b !== b) return;   // moved on meanwhile
+  if (savedAt(a, info.a) <= savedAt(b, info.b)) return;
+  [state.files.a, state.files.b] = [b, a];
+  [info.a, info.b] = [info.b, info.a];
+  refreshSources();
 }
 
 function swap() {

@@ -10,13 +10,14 @@ import sys
 import threading
 import time
 import traceback
+from datetime import timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from urllib.parse import parse_qs, quote, urlsplit
 
 from .. import __version__
-from ..docx.package import Package
+from ..docx.package import Package, saved_date
 from ..docx.revisions import count_revisions
 from ..reader import kind_of
 from .session import BadRequest, NoComparison, Session, check_render, parse_options, parse_sides
@@ -50,6 +51,11 @@ def _static_bytes(name: str) -> bytes | None:
         return None
     data = path.read_bytes()
     return data.replace(b"{{version}}", __version__.encode()) if name == "index.html" else data
+
+
+def _iso(when) -> str | None:
+    """A saved date as ISO 8601 in UTC ("2026-10-28T21:33:00Z"), or None."""
+    return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if when is not None else None
 
 
 def _flag(query: dict, key: str, default: bool) -> bool:
@@ -313,26 +319,27 @@ class Handler(BaseHTTPRequestHandler):
 
     def _api_inspect(self, session, query):
         """One dropped file for the source card: a Word document's tracked-revision count, or a
-        PDF's page count (its text is not read here). Touches no session state."""
+        PDF's page count (its text is not read here), and when it was last saved (ISO 8601 UTC, or
+        null), which orders a two-file drop. Touches no session state."""
         body = self._body()
         if not isinstance(body.get("name"), str):
             raise _Bad(400, "a file (name, data) is required")
         name, data = _file({"file": body}, "file")
         if kind_of(data) == "pdf":
-            from ..pdfread.extract import page_count
+            from ..pdfread.extract import page_count_and_date
             from ..pdfread.types import PdfRefused
             try:
-                pages = page_count(data)
+                pages, saved = page_count_and_date(data)
             except PdfRefused as e:
                 raise _Bad(400, f"{name}: {e}") from None
-            self._json({"name": name, "kind": "pdf", "tracked": None, "pages": pages})
+            self._json({"name": name, "kind": "pdf", "tracked": None, "pages": pages, "saved": _iso(saved)})
             return
         try:
             with Package.open(data) as pkg:
-                tracked = count_revisions(pkg)
+                tracked, saved = count_revisions(pkg), saved_date(pkg)
         except Exception as e:
             raise _Bad(400, f"{name}: not a Word document ({type(e).__name__})") from None
-        self._json({"name": name, "kind": "docx", "tracked": tracked, "pages": None})
+        self._json({"name": name, "kind": "docx", "tracked": tracked, "pages": None, "saved": _iso(saved)})
 
     def _api_progress(self, session, query):
         """How far the PDF being read has got. Deliberately NOT under the session lock: the

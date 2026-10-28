@@ -718,16 +718,40 @@ INS_RUN = '<w:ins w:id="1" w:author="A"><w:r><w:t>new</w:t></w:r></w:ins>'
 def test_inspect_counts_one_file_without_touching_the_session(srv):
     body = {"name": "draft.docx", "data": _b64(_docx("<w:p>" + INS_RUN + "</w:p>" + P("x")))}
     assert _json(srv.url + "api/inspect", "POST", body) == (
-        200, {"name": "draft.docx", "kind": "docx", "tracked": 1, "pages": None})
+        200, {"name": "draft.docx", "kind": "docx", "tracked": 1, "pages": None, "saved": None})
     assert _json(srv.url + "api/inspect", "POST", {"name": "c.docx", "data": _b64(_docx(P("x")))})[1]["tracked"] == 0
     assert _json(srv.url + "api/state")[1]["loaded"] is False
 
 
 def test_inspect_counts_a_pdfs_pages_without_reading_its_text(srv):
     data = make_pdf([[("text", 72, 100, 12, "one")], [("text", 72, 100, 12, "two")]])
-    assert _json(srv.url + "api/inspect", "POST", {"name": "deal.pdf", "data": _b64(data)}) == (
-        200, {"name": "deal.pdf", "kind": "pdf", "tracked": None, "pages": 2})
+    status, d = _json(srv.url + "api/inspect", "POST", {"name": "deal.pdf", "data": _b64(data)})
+    assert status == 200 and {k: v for k, v in d.items() if k != "saved"} == {
+        "name": "deal.pdf", "kind": "pdf", "tracked": None, "pages": 2}
     assert _json(srv.url + "api/state")[1]["loaded"] is False
+
+
+CORE = ('<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+        'xmlns:dcterms="http://purl.org/dc/terms/"><dcterms:modified>{}</dcterms:modified></cp:coreProperties>')
+
+
+def test_inspect_gives_when_a_file_was_last_saved(srv):
+    def docx(modified):
+        return make_docx({"word/document.xml": DOC(P("x")), "word/styles.xml": STY,
+                          "docProps/core.xml": CORE.format(modified)})
+    def saved(name, data):
+        return _json(srv.url + "api/inspect", "POST", {"name": name, "data": _b64(data)})[1]["saved"]
+    assert saved("new.docx", docx("2026-10-28T17:33:00Z")) == "2026-10-28T17:33:00Z"
+    assert saved("tz.docx", docx("2026-10-28T13:33:00-04:00")) == "2026-10-28T17:33:00Z"
+    assert saved("unset.docx", docx("1601-01-01T00:00:00Z")) is None
+    assert saved("junk.docx", docx("yesterday")) is None
+    import io
+    from pypdf import PdfReader, PdfWriter
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(make_pdf([[("text", 72, 100, 12, "x")]]))))
+    w.add_metadata({"/ModDate": "D:20261028133300-04'00'", "/CreationDate": "D:20250101000000Z"})
+    out = io.BytesIO()
+    w.write(out)
+    assert saved("deal.pdf", out.getvalue()) == "2026-10-28T17:33:00Z"
 
 
 def test_inspect_gives_a_protected_pdfs_reason(srv):

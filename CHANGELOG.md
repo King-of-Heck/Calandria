@@ -1,5 +1,15 @@
 # Calandria changelog
 
+## v2.11.3 — PDF titles and contents page numbers (2026-10-28)
+
+- Comparing PDFs, a changed contents line shows its page number in the list of changes and in
+  Copy, where it showed "{PAGEREF}". The page number is still not compared.
+- A schedule title that opens each alternative version of a schedule at the top of a page
+  ("SCHEDULE 8.1" over the fixed price, target cost ... versions) is kept in the comparison; it
+  was taken out as if it were a page header.
+- The footer of a landscape page is left out with the footers of the portrait pages, instead of
+  being read as text.
+
 ## v2.11.2 — Same count both ways (2026-10-27)
 
 - Swapping the two documents no longer changes the count: a comma or a dot between two pieces of

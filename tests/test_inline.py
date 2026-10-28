@@ -61,8 +61,8 @@ def test_bold_flip_inside_one_phrase_is_one_run():
     # B3: the inserted phrase "bold " is two segments (bold flips on the trailing space) but ONE
     # ins-run; with a single del-run the collapse must not trigger.
     segs = inline_segs("the quick fox", "the slow bold fox", [], [[9, 13]])
-    assert segs == [Seg("eq", "the "), Seg("del", "quick"), Seg("ins", "slow"), Seg("eq", " "),
-                    Seg("ins", "bold", True), Seg("ins", " "), Seg("eq", "fox")]
+    assert segs == [Seg("eq", "the "), Seg("del", "quick"), Seg("ins", "slow "),
+                    Seg("ins", "bold", True), Seg("eq", " fox")]
 
 
 def test_equal_tokens_take_revised_text_and_original_bold():
@@ -87,3 +87,73 @@ def test_safe_inline_falls_back_above_token_cap():
     segs = safe_inline(long, other, [], [])
     assert _flat(segs) == [("del", long), ("ins", other)]
     assert _flat(safe_inline("a b", "a c", [], [])) == [("eq", "a "), ("del", "b"), ("ins", "c")]
+
+
+def _shape(segs, flip=False):
+    """Equal text and change runs as (old, new), so a swapped comparison can be compared as is."""
+    out = []
+    for m, t in _flat(segs):
+        if m == "eq":
+            out.append(("eq", t))
+            continue
+        if not out or out[-1][0] != "chg":
+            out.append(("chg", "", ""))
+        _, d, i = out[-1]
+        if (m == "del") != flip:
+            d += t
+        else:
+            i += t
+        out[-1] = ("chg", d, i)
+    return out
+
+
+BENCH_A1 = ("will provide preventive maintenance, emergency response, remote monitoring, and quarterly "
+            "performance reporting for the solar generation facilities identified in Schedule A.")
+BENCH_B1 = ("will provide preventive maintenance, emergency response, remote monitoring, monthly "
+            "performance reporting, and annual reliability planning for the solar generation "
+            "facilities identified in Schedule A.")
+BENCH_A2 = "must state any resulting adjustment to price, schedule, or service levels."
+BENCH_B2 = ("must identify any expected price, schedule, staffing, or service-level impact before "
+            "commencing changed work. Emergency changes necessary to protect personnel or equipment "
+            "may be implemented immediately, with written confirmation within two business days.")
+
+
+def test_longer_shared_words_win_over_a_connective_both_ways():
+    # Keeping "performance reporting" beats keeping a lone "and" plus spaces, whichever side is old.
+    fwd = _shape(inline_segs(BENCH_A1, BENCH_B1, [], []))
+    assert ("eq", " performance reporting") in fwd
+    assert fwd == _shape(inline_segs(BENCH_B1, BENCH_A1, [], []), flip=True)
+
+
+def test_added_sentence_joins_the_change_before_it_both_ways():
+    # The final full stop matches the final full stop, so the new sentence is not a change of its own.
+    fwd = _shape(inline_segs(BENCH_A2, BENCH_B2, [], []))
+    assert fwd[-1] == ("eq", ".")
+    assert fwd[-2] == ("chg", "levels", "impact before commencing changed work. Emergency changes "
+                       "necessary to protect personnel or equipment may be implemented immediately, "
+                       "with written confirmation within two business days")
+    assert fwd == _shape(inline_segs(BENCH_B2, BENCH_A2, [], []), flip=True)
+
+
+def test_swapping_the_documents_mirrors_the_word_diff():
+    import random
+    rnd = random.Random(7)
+    vocab = ["the", "and", "of", "price", "schedule", "service", "levels", ",", ".", "Provider",
+             "change", "order", "a", "monthly", "quarterly"]
+    def para():
+        toks = [rnd.choice(vocab) for _ in range(rnd.randint(0, 14))]
+        return "".join(t if t in ",." else " " + t for t in toks).strip()
+    for _ in range(400):
+        a, b = para(), para()
+        assert _shape(inline_segs(a, b, [], [])) == _shape(inline_segs(b, a, [], []), flip=True), (a, b)
+
+
+def test_an_added_sentence_ends_on_its_own_full_stop_both_ways():
+    a = "Notice is due after the first anniversary."
+    b = "Notice is due after the first anniversary. The Customer may also terminate within 15 days."
+    assert _flat(inline_segs(a, b, [], [])) == [
+        ("eq", a), ("ins", " The Customer may also terminate within 15 days.")]
+    assert _flat(inline_segs(b, a, [], [])) == [
+        ("eq", a), ("del", " The Customer may also terminate within 15 days.")]
+    # Nothing to slide onto: left as aligned.
+    assert _flat(inline_segs("a b.", "a x b.", [], [])) == [("eq", "a "), ("ins", "x "), ("eq", "b.")]

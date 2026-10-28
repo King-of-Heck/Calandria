@@ -1,5 +1,17 @@
 # Delta changelog
 
+## v2.12.1 — Word matching (2026-10-28)
+
+- Within a changed paragraph, the comparison keeps longer shared words as unchanged text in
+  preference to a lone "and" or a space, so a rewritten phrase reads as one change
+  ("[design, procure, construct, commission and complete]") instead of pieces around the shared
+  words.
+- Swapping the two documents gives the same changes, mirrored, in every paragraph; before, two
+  edits close together could be split differently depending on which document was the original.
+- An added or removed sentence ends on its own full stop: "anniversary.[ The Customer may also
+  terminate ... days.]".
+- Comparing is faster on long documents.
+
 ## v2.12.0 — Calandria is now Delta (2026-10-28)
 
 - The app is renamed Delta. Double-click `Delta.cmd` (or the `Delta` shortcut it writes beside

@@ -2,7 +2,7 @@
  "bench": {
   "a": 2,
   "b": 3,
-  "digest": "3abf881128ff0ae2",
+  "digest": "8cce632040c356e2",
   "redline": 3
  },
  "big200": {
@@ -98,7 +98,7 @@
  "gen-schedule": {
   "a": 1,
   "b": 1,
-  "digest": "b0bcb4a699fae5d8",
+  "digest": "9645a4a39d6bc9f2",
   "redline": 1
  },
  "gen-table": {

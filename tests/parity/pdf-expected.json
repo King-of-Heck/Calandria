@@ -34,7 +34,7 @@
   "variant": "save",
   "field": "insertions",
   "reason": "header and footer text is not compared for PDFs, so the VERSION A/B edit in the running header is absent from the PDF comparison",
-  "pdf": 64
+  "pdf": 61
  },
  {
   "alias": "bench",
@@ -49,7 +49,7 @@
   "field": "ins_text",
   "reason": "header and footer text is not compared for PDFs, so the VERSION A/B edit in the running header is absent from the PDF comparison",
   "kind": "subset-of-word",
-  "pdf_sha256": "c5ee012c3b473506dbbdc29ab916d2382444f369f1d018616a93b47c3037fe39"
+  "pdf_sha256": "382edc3dac9d89bb5b3211ce2365dc845b68e40bc0458933888acf73336219a8"
  },
  {
   "alias": "bench",
@@ -57,7 +57,7 @@
   "field": "del_text",
   "reason": "header and footer text is not compared for PDFs, so the VERSION A/B edit in the running header is absent from the PDF comparison",
   "kind": "subset-of-word",
-  "pdf_sha256": "d9e61c81019556f2013889e765b453b7e5ca1e5dafb06ba306db9ec2759e6935"
+  "pdf_sha256": "45c1de3f84ad28572cda12b48069252bddbd57a6d5d5e0815706e9f44e18bf7f"
  },
  {
   "alias": "gen-table",

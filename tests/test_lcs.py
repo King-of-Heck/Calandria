@@ -62,3 +62,47 @@ def test_ops_are_a_valid_edit_script_random():
             elif tag == "insert":
                 rebuilt.append(b[j])
         assert rebuilt == b
+
+
+def _w(t):
+    return 0 if not t.strip() else (len(t) if t[0].isalnum() else 1)
+
+
+def test_word_ops_weights_words_by_length_and_spaces_not_at_all():
+    a = ["and", " ", "quarterly", " ", "performance", " ", "reporting"]
+    b = ["monthly", " ", "performance", " ", "reporting", ",", " ", "and"]
+    eq = [(a[i], b[j]) for t, i, j in lcs.word_ops(a, b, _w) if t == "equal"]
+    assert ("performance", "performance") in eq and ("reporting", "reporting") in eq
+    assert ("and", "and") not in eq
+
+
+def test_word_ops_prefers_fewer_change_runs_then_more_matches():
+    # Matching the first "." splits the insert in two; the last "." keeps it one run.
+    a = ["x", "."]
+    b = ["y", ".", "z", "."]
+    ops = lcs.word_ops(a, b, _w)
+    assert [o for o in ops if o[0] == "equal"] == [("equal", 1, 3)]
+    # Zero-weight space still matched when it costs no extra run.
+    ops = lcs.word_ops(["a", " ", "b"], ["a", " ", "c"], _w)
+    assert ops == [("equal", 0, 0), ("equal", 1, 1), ("delete", 2, 2), ("insert", 3, 2)]
+
+
+def test_word_ops_gap_lists_deletes_before_inserts():
+    ops = lcs.word_ops(["p", "a", "b", "q"], ["p", "c", "d", "q"], _w)
+    assert [t for t, _i, _j in ops] == ["equal", "delete", "delete", "insert", "insert", "equal"]
+
+
+def test_word_ops_same_matches_either_way_round():
+    rnd = random.Random(3)
+    for _ in range(300):
+        a = [rnd.choice("abc. ") for _ in range(rnd.randint(0, 9))]
+        b = [rnd.choice("abc. ") for _ in range(rnd.randint(0, 9))]
+        fwd = {(i, j) for t, i, j in lcs.word_ops(a, b, _w) if t == "equal"}
+        swp = {(i, j) for t, j, i in lcs.word_ops(b, a, _w) if t == "equal"}
+        assert fwd == swp, (a, b)
+
+
+def test_word_ops_falls_back_to_plain_lcs_above_the_cap(monkeypatch):
+    monkeypatch.setattr(lcs, "WORD_CELL_CAP", 4)
+    a, b = ["p", "x", "y", "z", "q"], ["p", "u", "v", "w", "q"]
+    assert lcs.word_ops(a, b, _w) == lcs_ops(a, b)

@@ -124,7 +124,7 @@ def test_payload_of_a_one_line_insertion():
     assert d["render_set_styles"]["Standard"]["insert"]["color"] == "0000ff"
     assert d["render_set_styles"]["Black and White"]["delete"]["color"] == "000000"
     assert (d["render_set"], d["change_bars"]) == ("Standard", True)
-    assert d["report_lines"][0] == "Original: a.docx" and d["report_lines"][2] == "Compared: 2026-09-09 14:05"
+    assert d["report_lines"][0] == "Original: a.docx" and d["report_lines"][2].startswith("Compared: 2026-09-09 14:05 with Delta ")
     assert d["report_lines"][3] == "Rendering set: Standard"
     assert d["changed_pages"] == [1]
     json.dumps(d)

@@ -615,6 +615,8 @@ def test_pdf_download_name_survives_a_non_latin1_quoted_and_newline_bearing_file
 def test_index_and_static_files_are_served_with_their_types(srv):
     status, headers, data = _req(srv.url)
     assert status == 200 and headers["Content-Type"] == "text/html; charset=utf-8" and b"<title>Delta</title>" in data
+    assert f'<span id="version" class="version" title="Delta version">Delta {__version__}</span>'.encode() in data
+    assert b"{{version}}" not in data
     status, headers, data = _req(srv.url + "static/app.js")
     assert status == 200 and headers["Content-Type"] == "text/javascript; charset=utf-8" and b"api" in data
     status, headers, data = _req(srv.url + "static/style.css")

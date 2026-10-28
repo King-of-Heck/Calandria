@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytest
 
+from delta import __version__
 from delta.diff.changes import Comparison, empty_summary
 from delta.diff.compare import compare
 from delta.docx.parser import parse_docx
@@ -27,7 +28,8 @@ def _info(**kw):
 
 def test_report_lines():
     assert report_lines(_info()) == [
-        "Original: a.docx", "Modified: b.docx", "Compared: 2026-09-09 14:05", "Rendering set: Standard",
+        "Original: a.docx", "Modified: b.docx", f"Compared: 2026-09-09 14:05 with Delta {__version__}",
+        "Rendering set: Standard",
         "Options: ignore case off; count numbering changes on",
         "Changes: 8 (insertions 4, deletions 3, numbering 1); formatting 5 (not counted)"]
     assert report_lines(_info(ignore_case=True, count_numbering=False))[4] == \

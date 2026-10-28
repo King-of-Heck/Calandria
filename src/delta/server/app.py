@@ -46,7 +46,10 @@ def _static_bytes(name: str) -> bytes | None:
     if name not in STATIC:
         return None
     path = resources.files("delta.viewer").joinpath(name)
-    return path.read_bytes() if path.is_file() else None
+    if not path.is_file():
+        return None
+    data = path.read_bytes()
+    return data.replace(b"{{version}}", __version__.encode()) if name == "index.html" else data
 
 
 def _flag(query: dict, key: str, default: bool) -> bool:

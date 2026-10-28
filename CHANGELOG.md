@@ -1,5 +1,11 @@
 # Delta changelog
 
+## v2.12.4 — Version shown (2026-10-28)
+
+- The window shows the Delta version in the bottom right corner of its status bar.
+- The comparison summary in a saved PDF says which version made it: "Compared: 2026-10-28 17:33
+  with Delta 2.12.4".
+
 ## v2.12.3 — PDF table rows that run on (2026-10-28)
 
 - Comparing PDFs: a table row split over a page break whose every cell carries on to the next

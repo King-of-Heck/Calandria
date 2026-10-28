@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from .. import __version__
 from ..diff.changes import Comparison
 
 TITLE = "Comparison summary"
@@ -73,7 +74,7 @@ def report_lines(info: ReportInfo) -> list[str]:
     lines = [
         f"Original: {info.original}",
         f"Modified: {info.modified}",
-        f"Compared: {info.when:%Y-%m-%d %H:%M}",
+        f"Compared: {info.when:%Y-%m-%d %H:%M} with Delta {__version__}",
         f"Rendering set: {info.render_set}",
         f"Options: ignore case {_onoff(info.ignore_case)}; count numbering changes {_onoff(info.count_numbering)}",
         f"Changes: {s['total']} (insertions {s['insertions']}, deletions {s['deletions']}, "

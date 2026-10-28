@@ -3,10 +3,10 @@ import sys
 
 import pytest
 
-from calandria.pdfread import extract
-from calandria.pdfread.extract import DAMAGED, NO_TEXT, PROTECTED, extract_pages, page_count, unreadable
-from calandria.pdfread.types import PageData, PdfRefused
-from calandria.testing.makepdf import make_pdf
+from delta.pdfread import extract
+from delta.pdfread.extract import DAMAGED, NO_TEXT, PROTECTED, extract_pages, page_count, unreadable
+from delta.pdfread.types import PageData, PdfRefused
+from delta.testing.makepdf import make_pdf
 
 ONE = [[("text", 72, 100, 12, "Hello world"), ("text", 72, 130, 12, "Bold", "B"),
         ("rect", 72, 200, 200, 40), ("line", 172, 200, 172, 240)]]
@@ -70,7 +70,7 @@ def test_a_damaged_file_is_refused():
 
 
 def test_the_messages_are_the_agreed_wording():
-    assert NO_TEXT == ("This PDF has no text, so it looks scanned. Calandria can only compare PDFs "
+    assert NO_TEXT == ("This PDF has no text, so it looks scanned. Delta can only compare PDFs "
                        "that contain real text.")
     assert PROTECTED == "This PDF is password-protected. Open it and print it to a new PDF first."
 
@@ -107,6 +107,6 @@ def test_page_reads_resources_inherited_from_the_pages_tree():
 
 def test_importing_the_reader_does_not_import_pypdf():
     import subprocess
-    code = "import sys, calandria.pdfread.extract, calandria.pdfread.content; print('pypdf' in sys.modules)"
+    code = "import sys, delta.pdfread.extract, delta.pdfread.content; print('pypdf' in sys.modules)"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"

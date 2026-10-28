@@ -1,7 +1,7 @@
 import io
 
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import (DOC, FLD, FLDC, FTR, HDR, IMG, P, PR, R, RELS, SECT, SETTINGS,
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import (DOC, FLD, FLDC, FTR, HDR, IMG, P, PR, R, RELS, SECT, SETTINGS,
                                         make_docx)
 
 
@@ -108,7 +108,7 @@ def test_a_section_break_inside_a_header_part_is_not_a_section():
 
 
 def test_a_section_break_inside_a_footnote_does_not_add_a_section():
-    from calandria.testing.makedocx import FOOTNOTES, FNREF
+    from delta.testing.makedocx import FOOTNOTES, FNREF
     note = FOOTNOTES({1: PR(R("note text"), ppr=SECT())})
     d = _doc(PR(R("body") + FNREF(1)) + SECT(), **{"word/footnotes.xml": note})
     assert len(d.sections) == 1 and d.footnotes[1][0].text == "note text"

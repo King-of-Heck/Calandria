@@ -13,7 +13,8 @@ from dataclasses import dataclass
 
 from fontTools.ttLib import TTCollection, TTFont
 
-ENV_DIRS = "CALANDRIA_FONT_DIRS"
+ENV_DIRS = "DELTA_FONT_DIRS"
+OLD_ENV_DIRS = "CALANDRIA_FONT_DIRS"   # the name before the app was renamed Delta (v2.12.0)
 FALLBACKS = ("Calibri", "Times New Roman", "Arial")
 SUBSTITUTIONS = {
     "cambria math": "Cambria", "helvetica": "Arial", "helvetica neue": "Arial", "times": "Times New Roman",
@@ -24,7 +25,7 @@ SUBSTITUTIONS = {
 
 
 def default_dirs() -> list[str]:
-    env = os.environ.get(ENV_DIRS)
+    env = os.environ.get(ENV_DIRS) or os.environ.get(OLD_ENV_DIRS)
     if env:
         return [d for d in env.split(os.pathsep) if d]
     dirs = [os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")]

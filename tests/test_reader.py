@@ -3,9 +3,9 @@ import sys
 
 import pytest
 
-from calandria.reader import UnknownKind, documents, kind_of, read_document, read_source
-from calandria.testing.makedocx import DOC, P, make_docx
-from calandria.testing.makepdf import make_pdf
+from delta.reader import UnknownKind, documents, kind_of, read_document, read_source
+from delta.testing.makedocx import DOC, P, make_docx
+from delta.testing.makepdf import make_pdf
 
 PDF = make_pdf([[("text", 72, 100, 12, "Hello from a PDF")]])
 DOCX = make_docx({"word/document.xml": DOC(P("Hello from Word"))})
@@ -28,11 +28,11 @@ def test_a_word_comparison_never_imports_pypdf():
     # installed fonts), so a real fpdf2 write needs a stand-in for the face -> file step; a core
     # font name serves fine here, since this test only checks which modules get imported.
     code = ("import sys\n"
-            "from calandria.pdf.fpdf_sink import FpdfPainter\n"
+            "from delta.pdf.fpdf_sink import FpdfPainter\n"
             "FpdfPainter._family = lambda self, face: 'helvetica'\n"
-            "from calandria.server.session import Session\n"
-            "from calandria.testing.fakefonts import FakeResolver\n"
-            "from calandria.testing.makedocx import DOC, P, make_docx\n"
+            "from delta.server.session import Session\n"
+            "from delta.testing.fakefonts import FakeResolver\n"
+            "from delta.testing.makedocx import DOC, P, make_docx\n"
             "d = lambda t: make_docx({'word/document.xml': DOC(P(t))})\n"
             "s = Session(fonts=FakeResolver())\n"
             "s.load('a.docx', d('one two'), 'b.docx', d('one three'))\n"

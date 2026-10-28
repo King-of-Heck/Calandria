@@ -2,12 +2,12 @@ import os
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.model import Table
-from calandria.pdfread import parse_pdf
-from calandria.pdfread.extract import NO_TEXT
-from calandria.pdfread.types import PdfRefused
-from calandria.testing.makepdf import make_pdf
+from delta.diff.compare import compare
+from delta.model import Table
+from delta.pdfread import parse_pdf
+from delta.pdfread.extract import NO_TEXT
+from delta.pdfread.types import PdfRefused
+from delta.testing.makepdf import make_pdf
 
 ARIAL = r"C:\Windows\Fonts\arial.ttf"
 pytestmark = pytest.mark.skipif(not os.path.isfile(ARIAL), reason="needs a system TrueType font for real glyph widths")

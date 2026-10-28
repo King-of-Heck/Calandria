@@ -1,11 +1,11 @@
-"""Gate: Calandria's extraction matches SorkWhare 1.16.0 on the corpus, modulo explained divergences."""
+"""Gate: Delta's extraction matches SorkWhare 1.16.0 on the corpus, modulo explained divergences."""
 # Deliberate model-vs-reference differences (and the allow.json policy): KNOWN_DIVERGENCES.md.
 import json
 
 import pytest
 
-from calandria.docx.parser import parse_docx
-from calandria.harness.flatten import flatten
+from delta.docx.parser import parse_docx
+from delta.harness.flatten import flatten
 
 from .common import CORPUS, ORACLE, allowed, divergences, load_allow, pairs
 

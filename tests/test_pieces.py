@@ -1,10 +1,10 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.pieces import LayoutOptions, Piece, merge_pieces, row_pieces, visible
-from calandria.model import NoteRef
-from calandria.testing.makedocx import DOC, P, PR, R, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.pieces import LayoutOptions, Piece, merge_pieces, row_pieces, visible
+from delta.model import NoteRef
+from delta.testing.makedocx import DOC, P, PR, R, make_docx
 
 
 def _cmp(body_a, body_b):
@@ -127,7 +127,7 @@ def test_a_tab_inside_a_change_keeps_its_mode():
 
 
 def test_style_bold_reaches_the_piece_as_bold_and_is_not_a_formatting_change():
-    from calandria.testing.makedocx import STYLES, W_NS
+    from delta.testing.makedocx import STYLES, W_NS
     sty = STYLES(styles=f'<w:style w:type="paragraph" w:styleId="TOC1"><w:rPr><w:b/></w:rPr></w:style>')
     body = PR(R("Section 1") + R(" plain", '<w:b w:val="0"/>'), ppr='<w:pStyle w:val="TOC1"/>')
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": sty})))
@@ -143,7 +143,7 @@ def test_style_bold_reaches_the_piece_as_bold_and_is_not_a_formatting_change():
 
 
 def test_reference_marks_are_raised_pieces_with_the_note_number_and_mode():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     fa = {"word/footnotes.xml": FOOTNOTES({1: "Old note.", 2: "Kept."})}
     fb = {"word/footnotes.xml": FOOTNOTES({2: "Kept.", 3: "New note."})}
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Text") + FNREF(1) + R(" more") + FNREF(2))), **fa})))
@@ -164,7 +164,7 @@ def test_reference_marks_are_raised_pieces_with_the_note_number_and_mode():
 
 
 def test_a_mark_inside_a_deleted_segment_comes_from_the_original():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     fa = {"word/footnotes.xml": FOOTNOTES({1: "Gone."})}
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Keep all of this shared text") + FNREF(1)
                                                                        + R(" and drop that"))), **fa})))
@@ -178,12 +178,12 @@ def test_a_mark_inside_a_deleted_segment_comes_from_the_original():
 
 
 def test_field_run_is_its_own_piece_carrying_the_field():
-    from calandria.testing.makedocx import FLD, PR, R
+    from delta.testing.makedocx import FLD, PR, R
     import io
-    from calandria.docx.parser import parse_docx
-    from calandria.testing.makedocx import DOC, make_docx
-    from calandria.diff.compare import compare
-    from calandria.layout.pieces import LayoutOptions, row_pieces
+    from delta.docx.parser import parse_docx
+    from delta.testing.makedocx import DOC, make_docx
+    from delta.diff.compare import compare
+    from delta.layout.pieces import LayoutOptions, row_pieces
     d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("Page ") + FLD("PAGE", "7") + R(" end")))})))
     c = compare(d, d)
     ps = row_pieces(c, c.rows[0], LayoutOptions())

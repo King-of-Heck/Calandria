@@ -1,4 +1,4 @@
-"""Calandria.ico is generated from the favicon's geometry in index.html (one source of truth) and
+"""Delta.ico is generated from the favicon's geometry in index.html (one source of truth) and
 the tracked file matches the generator, so the shortcut's icon and the window's icon never drift."""
 import io
 import re
@@ -17,7 +17,7 @@ SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 
 def _svg():
-    html = resources.files("calandria.viewer").joinpath("index.html").read_text("utf-8")
+    html = resources.files("delta.viewer").joinpath("index.html").read_text("utf-8")
     return unquote(re.search(r'href="data:image/svg\+xml,([^"]+)"', html).group(1))
 
 
@@ -52,4 +52,4 @@ def test_ico_bytes_carry_every_size_and_are_deterministic():
 
 
 def test_tracked_ico_matches_the_generator():
-    assert (ROOT / "Calandria.ico").read_bytes() == make_icon.ico_bytes(_svg())
+    assert (ROOT / "Delta.ico").read_bytes() == make_icon.ico_bytes(_svg())

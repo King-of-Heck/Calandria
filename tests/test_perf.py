@@ -3,9 +3,9 @@ Here: a 3000-paragraph pair with five scattered edits, parse included, must stay
 import io
 import time
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, P, make_docx
 
 _WORDS = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor".split()
 

@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from calandria.diff.compare import compare            # noqa: E402
-from calandria.docx.parser import parse_docx          # noqa: E402
-from calandria.layout.engine import layout, layout_document   # noqa: E402
+from delta.diff.compare import compare            # noqa: E402
+from delta.docx.parser import parse_docx          # noqa: E402
+from delta.layout.engine import layout, layout_document   # noqa: E402
 from parity.common import CORPUS, page_digest, pairs  # noqa: E402
 
 OUT = ROOT / "tests" / "parity" / "golden-pages.json"

@@ -1,5 +1,5 @@
 import zipfile, io
-from calandria.testing.makedocx import make_docx, DOC, P, PR, R, STYLES, TBL
+from delta.testing.makedocx import make_docx, DOC, P, PR, R, STYLES, TBL
 
 
 def test_make_docx_roundtrip():

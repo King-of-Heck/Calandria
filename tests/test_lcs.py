@@ -1,7 +1,7 @@
 import random
 
-from calandria.diff import lcs
-from calandria.diff.lcs import lcs_ops
+from delta.diff import lcs
+from delta.diff.lcs import lcs_ops
 
 
 def test_equal_sequences():

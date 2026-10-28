@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.harness.changes import records, reference_summary
+from delta.diff.compare import compare
+from delta.harness.changes import records, reference_summary
 
 from .common import CORPUS, ORACLE, allowed, divergences, load_allow, pairs, parse_cached
 
@@ -13,7 +13,7 @@ ALLOW = load_allow("allow-changes.json")
 FIELDS = ["type", "cat", "oi", "ni", "html", "numChanged", "oldMarker", "fmtChanged", "fmtDescs", "tbl"]
 VARIANTS = {"compare_v2": {"ignore_case": False}, "compare_v2_ic": {"ignore_case": True}}
 # The reference numbers rows and counts an amendment as an insertion and a deletion too; since
-# v2.5.0 Calandria numbers and counts passages (KNOWN_DIVERGENCES (n)). Only the keys whose
+# v2.5.0 Delta numbers and counts passages (KNOWN_DIVERGENCES (n)). Only the keys whose
 # meaning is the same on both sides are compared; the row gate never compared the number.
 SUMMARY_FIELDS = ("numbering", "formatting", "content", "punctuation", "moves", "splits", "merges")
 

@@ -1,4 +1,4 @@
-// Calandria viewer: loads two .docx files, shows the server's page drawings, restyles them by
+// Delta viewer: loads two .docx files, shows the server's page drawings, restyles them by
 // rendering set, zooms, downloads the PDF, and keeps the server alive while this window is open
 // (it stops a few seconds after the pings stop; each ping says whether the page is hidden, since
 // a hidden window's timers are throttled to one wake a minute and the server allows for that).
@@ -34,7 +34,7 @@ export async function api(path, body) {
   const init = body === undefined ? {} :
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   let r;
-  try { r = await fetch(path, init); } catch (e) { throw new Error("Calandria is not running"); }
+  try { r = await fetch(path, init); } catch (e) { throw new Error("Delta is not running"); }
   const text = await r.text();
   let json = null;
   try { json = JSON.parse(text); } catch (e) { /* not JSON */ }
@@ -231,7 +231,7 @@ export async function restyle() {
     Object.assign(state.data, { pages: d.pages, report_lines: d.report_lines, render_set: d.render_set, change_bars: d.change_bars, sides: d.sides, side_marks: d.side_marks });
     renderPages();
     applyStyles();
-    document.dispatchEvent(new CustomEvent("calandria:restyled"));
+    document.dispatchEvent(new CustomEvent("delta:restyled"));
   } catch (e) {
     if (state.seq === seq) fail(e);            // a superseded request's error is not the current one's
   } finally {
@@ -256,12 +256,12 @@ function show(data) {
   $("changeBars").checked = data.change_bars;
   setOptions(data.options);
   $("pdf").disabled = false;
-  document.title = `${data.names.original} vs ${data.names.modified} — Calandria`;
+  document.title = `${data.names.original} vs ${data.names.modified} — Delta`;
   renderPages();
   applyStyles();
   hideNotice();
   msg("");
-  document.dispatchEvent(new CustomEvent("calandria:loaded", { detail: data }));
+  document.dispatchEvent(new CustomEvent("delta:loaded", { detail: data }));
 }
 
 function renderPages() {
@@ -409,7 +409,7 @@ function closed(text) {
 
 async function quit() {
   try { await api("/api/quit", {}); } catch (e) { /* already gone */ }
-  closed("Calandria has quit. You can close this window.");
+  closed("Delta has quit. You can close this window.");
 }
 
 function ping() {
@@ -420,7 +420,7 @@ function ping() {
       // One lost ping is a hiccup (a sleeping laptop, a busy server); three in a row is a server
       // that has gone, and only then does the page shut itself down.
       if (++state.misses >= PING_MISSES) {
-        closed("Calandria is no longer running. Double-click Calandria.cmd to start it again.");
+        closed("Delta is no longer running. Double-click Delta.cmd to start it again.");
       }
     });
 }
@@ -437,7 +437,19 @@ function wirePopover() {
   });
 }
 
+// The app was called Calandria up to v2.11.3: its saved choices carry over once, under the new names.
+function carryOldSettings() {
+  try {
+    for (const key of ["deferPages", "changedOnly", "panel"]) {
+      const old = localStorage.getItem(`calandria.${key}`);
+      if (old !== null && localStorage.getItem(`delta.${key}`) === null) localStorage.setItem(`delta.${key}`, old);
+      localStorage.removeItem(`calandria.${key}`);
+    }
+  } catch (e) { /* storage off */ }
+}
+
 function wire() {
+  carryOldSettings();
   initSources({ compare: compareNow, swap: compareNow });   // the slots are already exchanged when swap fires
   for (const id of OPTION_IDS) $(id).addEventListener("change", relayout);
   $("renderSet").addEventListener("change", (e) => { state.renderSet = e.target.value; restyle(); });
@@ -446,25 +458,25 @@ function wire() {
   $("zoomIn").addEventListener("click", () => stepZoom(1));
   $("zoomPct").addEventListener("click", () => setZoom(1));
   $("zoomFit").addEventListener("click", toggleFit);
-  try { state.deferPages = localStorage.getItem("calandria.deferPages") !== "off"; } catch (e) { /* storage off */ }
+  try { state.deferPages = localStorage.getItem("delta.deferPages") !== "off"; } catch (e) { /* storage off */ }
   $("deferPages").checked = state.deferPages;
   $("deferPages").addEventListener("change", (e) => {
     state.deferPages = e.target.checked;
-    try { localStorage.setItem("calandria.deferPages", state.deferPages ? "on" : "off"); } catch (e2) { /* storage off */ }
+    try { localStorage.setItem("delta.deferPages", state.deferPages ? "on" : "off"); } catch (e2) { /* storage off */ }
     if (state.data) applyDefer();
   });
-  try { state.changedOnly = localStorage.getItem("calandria.changedOnly") === "on"; } catch (e) { /* storage off */ }
+  try { state.changedOnly = localStorage.getItem("delta.changedOnly") === "on"; } catch (e) { /* storage off */ }
   $("showChangedOnly").checked = state.changedOnly;
   $("showChangedOnly").addEventListener("change", (e) => {
     state.changedOnly = e.target.checked;
-    try { localStorage.setItem("calandria.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
+    try { localStorage.setItem("delta.changedOnly", state.changedOnly ? "on" : "off"); } catch (e2) { /* storage off */ }
     const lead = leadPane().el;
     const at = anchorPage(lead);                   // the reader's place survives the toggle
     applyChangedOnly();
     applyZoom();
     scrollToPage(lead, at);
     updatePageStatus();
-    document.dispatchEvent(new CustomEvent("calandria:resized"));   // the strip's band follows the new scroll height
+    document.dispatchEvent(new CustomEvent("delta:resized"));   // the strip's band follows the new scroll height
   });
   $("keysOpen").addEventListener("click", () => { if (!$("keys").open) $("keys").showModal(); });
   for (const el of [$("paneOriginal"), $("pages"), $("paneModified")]) el.addEventListener("wheel", (e) => {
@@ -484,7 +496,7 @@ function wire() {
       if (!$("keys").open) $("keys").showModal();   // a second ? while the sheet is open must not throw
     }
   });
-  document.addEventListener("calandria:resized", () => { if (state.fit) applyZoom(); });
+  document.addEventListener("delta:resized", () => { if (state.fit) applyZoom(); });
   window.addEventListener("resize", () => { if (state.fit) applyZoom(); });
   for (const el of [$("paneOriginal"), $("pages"), $("paneModified")]) el.addEventListener("scroll", updatePageStatus);
   $("pdf").addEventListener("click", savePdf);

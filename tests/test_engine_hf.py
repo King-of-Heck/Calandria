@@ -1,14 +1,14 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout, layout_document
-from calandria.layout.pieces import LayoutOptions
-from calandria.layout.tables import table_maps
-from calandria.pdf.draw import bar_intervals, changed_pages
-from calandria.server.session import change_marks
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import (DOC, FLD, FTR, HDR, IMG, P, PR, R, RELS, SECT, SETTINGS, STYLES,
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout, layout_document
+from delta.layout.pieces import LayoutOptions
+from delta.layout.tables import table_maps
+from delta.pdf.draw import bar_intervals, changed_pages
+from delta.server.session import change_marks
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import (DOC, FLD, FTR, HDR, IMG, P, PR, R, RELS, SECT, SETTINGS, STYLES,
                                         TBL, make_docx)
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
@@ -139,7 +139,7 @@ def test_image_only_header_paragraph_holds_its_box():
 
 
 def test_footnote_reserve_comes_off_the_footer_lifted_bottom():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES
+    from delta.testing.makedocx import FNREF, FOOTNOTES
     foot = "".join(P(f"f{i}") for i in range(5))                 # bottom 696
     body = "".join(P(f"p{i}") for i in range(45)) + PR(R("ref") + FNREF(1)) + "".join(P(f"q{i}") for i in range(10))
     files = {"word/document.xml": DOC(body + SECT(ftr={"default": "rId3"})), "word/styles.xml": STY,
@@ -179,7 +179,7 @@ def test_a_centred_page_number_is_centred_on_its_own_width():
 
 
 def test_only_a_numpages_document_is_laid_out_twice(monkeypatch):
-    from calandria.layout import engine
+    from delta.layout import engine
     calls: list = []
     real = engine._layout
 

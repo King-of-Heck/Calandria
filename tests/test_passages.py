@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from calandria.diff.changes import SUMMARY_KEYS, Passage, Row, empty_summary, row_passages
-from calandria.diff.compare import compare
-from calandria.diff.inline import Seg
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, W_NS, make_docx
+from delta.diff.changes import SUMMARY_KEYS, Passage, Row, empty_summary, row_passages
+from delta.diff.compare import compare
+from delta.diff.inline import Seg
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, P, W_NS, make_docx
 
 CORPUS = Path(__file__).parent / "corpus"
 

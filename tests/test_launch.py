@@ -1,6 +1,6 @@
 import subprocess
 
-from calandria.server import launch
+from delta.server import launch
 
 
 def _install_edge(root):

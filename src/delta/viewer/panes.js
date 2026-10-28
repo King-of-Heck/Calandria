@@ -96,8 +96,8 @@ export function applyPanes() {
   if (state.data && !state.busy && (missingSide() || (sides && state.data.side_marks !== state.marks))) restyle();
   $("view").classList.toggle("multi", visiblePanes().length > 1);
   if (state.data) applyZoom();
-  document.dispatchEvent(new CustomEvent("calandria:panes", { detail: { views: { ...state.views } } }));
-  document.dispatchEvent(new CustomEvent("calandria:resized"));
+  document.dispatchEvent(new CustomEvent("delta:panes", { detail: { views: { ...state.views } } }));
+  document.dispatchEvent(new CustomEvent("delta:resized"));
 }
 
 // One pane's pages from a block {pages, page_count}: a numbered, deferred .page per drawing, the

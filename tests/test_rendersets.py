@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from calandria.pdf.rendersets import (BLACK_AND_WHITE, EFFECTS, RENDER_SETS, STANDARD, CatStyle,
+from delta.pdf.rendersets import (BLACK_AND_WHITE, EFFECTS, RENDER_SETS, STANDARD, CatStyle,
                                       RenderSet, render_set)
 
 

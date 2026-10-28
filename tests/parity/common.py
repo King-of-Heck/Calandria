@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 
-from calandria.docx.parser import parse_docx
+from delta.docx.parser import parse_docx
 
 HERE = Path(__file__).resolve().parent
 CORPUS = HERE.parent / "corpus"

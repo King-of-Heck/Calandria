@@ -1,6 +1,6 @@
 from lxml import etree
-from calandria.docx.styles import Styles
-from calandria.docx.ns import W
+from delta.docx.styles import Styles
+from delta.docx.ns import W
 
 STYLES = f'''<w:styles xmlns:w="{W}">
 <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault>
@@ -44,9 +44,9 @@ def test_paragraph_mark_rpr_inside_ppr_is_ignored():
 
 
 def test_tab_stops_are_read_and_inherited_down_the_chain():
-    from calandria.docx.styles import Styles, read_ppr
-    from calandria.model import TabStop
-    from calandria.testing.makedocx import W_NS
+    from delta.docx.styles import Styles, read_ppr
+    from delta.model import TabStop
+    from delta.testing.makedocx import W_NS
     import lxml.etree as ET
     root = ET.fromstring(
         f'<w:styles xmlns:w="{W_NS}">'

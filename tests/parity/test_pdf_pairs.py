@@ -12,10 +12,10 @@ from collections import Counter
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.model import collapse_ws
-from calandria.pdfread import finish, parse_pdf, read_pdf
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.model import collapse_ws
+from delta.pdfread import finish, parse_pdf, read_pdf
 
 from .common import CORPUS, HERE, pairs
 

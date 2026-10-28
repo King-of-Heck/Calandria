@@ -1,4 +1,4 @@
-from calandria.model import (Run, RunProps, Paragraph, ParaProps, Table, Row, Cell,
+from delta.model import (Run, RunProps, Paragraph, ParaProps, Table, Row, Cell,
                              Document, Section, collapse_ws)
 
 

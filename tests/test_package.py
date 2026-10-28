@@ -1,7 +1,7 @@
 from lxml import etree
-from calandria.docx.package import Package, _ensure_w_namespace
-from calandria.docx.ns import W, wq, wval, wbool, twips_to_pt, half_pt
-from calandria.testing.makedocx import make_docx, DOC, P
+from delta.docx.package import Package, _ensure_w_namespace
+from delta.docx.ns import W, wq, wval, wbool, twips_to_pt, half_pt
+from delta.testing.makedocx import make_docx, DOC, P
 
 RELS = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         '<Relationship Id="rId3" Type="x/header" Target="header1.xml"/>'
@@ -64,7 +64,7 @@ def test_package_context_manager_closes_the_zip(tmp_path):
 
 
 def test_parse_docx_from_a_path_releases_the_file(tmp_path):
-    from calandria.docx.parser import parse_docx
+    from delta.docx.parser import parse_docx
     path = tmp_path / "doc.docx"
     path.write_bytes(make_docx({"word/document.xml": DOC(P("hi"))}))
     doc = parse_docx(path)

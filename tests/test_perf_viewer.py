@@ -6,10 +6,10 @@ import time
 
 import pytest
 
-from calandria.layout.fonts import default_dirs
-from calandria.server.session import Session
-from calandria.testing.makedocx import DOC, make_docx
-from calandria.testing.perfdoc import hundred_page_pair
+from delta.layout.fonts import default_dirs
+from delta.server.session import Session
+from delta.testing.makedocx import DOC, make_docx
+from delta.testing.perfdoc import hundred_page_pair
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")

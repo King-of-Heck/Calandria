@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from calandria.diff.chars import FmtSpan, bold_runs, char_fmt, fmt_spans
-from calandria.diff.units import walk
-from calandria.model import WS_CHARS
-from calandria.testing.makedocx import DOC, make_docx
-from calandria.docx.parser import parse_docx
-from calandria.model import Paragraph, ParaProps, Run, RunProps
+from delta.diff.chars import FmtSpan, bold_runs, char_fmt, fmt_spans
+from delta.diff.units import walk
+from delta.model import WS_CHARS
+from delta.testing.makedocx import DOC, make_docx
+from delta.docx.parser import parse_docx
+from delta.model import Paragraph, ParaProps, Run, RunProps
 
 
 def _p(*runs):
@@ -214,7 +214,7 @@ def test_spans_carry_caps_without_making_them_a_formatting_difference():
 
 
 def test_tab_marks_locate_the_collapsed_spaces_that_held_tabs():
-    from calandria.diff.chars import tab_marks
+    from delta.diff.chars import tab_marks
     p = _p(("\t\tLead", {}), ("\tmid", {}), (" \t \tdouble", {}), ("\t", {}))
     assert p.text == "Lead mid double"
     assert tab_marks(p) == (2, {4: 1, 8: 2})          # the trailing tab is trimmed with the whitespace
@@ -231,8 +231,8 @@ def test_spans_carry_style_bold_without_making_it_a_formatting_difference():
 
 
 def test_note_marks_locate_references_in_the_collapsed_text():
-    from calandria.diff.chars import note_marks
-    from calandria.model import NoteRef
+    from delta.diff.chars import note_marks
+    from delta.model import NoteRef
     ref = lambda k: {"note": NoteRef("footnote", k)}       # noqa: E731
     p = _p(("  Delivery", {}), ("", ref(2)), ("  within ", {}), ("", ref(1)), (" days", {}), ("", ref(3)), ("  ", {}))
     assert p.text == "Delivery within days"

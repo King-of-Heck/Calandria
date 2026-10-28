@@ -1,8 +1,8 @@
-from calandria.diff.compare import compare, compare_units
-from calandria.diff.inline import Seg
-from calandria.diff.units import Loc, units
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, W_NS, make_docx
+from delta.diff.compare import compare, compare_units
+from delta.diff.inline import Seg
+from delta.diff.units import Loc, units
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, P, W_NS, make_docx
 
 
 def _doc(body, **parts):
@@ -156,8 +156,8 @@ def test_all_inserted_document():
 
 
 def test_note_rows_are_counted_and_never_pair_with_body_text():
-    from calandria.model import NoteRef
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.model import NoteRef
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     a = _doc(PR(R("Body text") + FNREF(1)) + P("Same words here"),
              **{"word/footnotes.xml": FOOTNOTES({1: "Invoice date."})})
     b = _doc(PR(R("Body text") + FNREF(1)) + PR(R("Other") + FNREF(2)),

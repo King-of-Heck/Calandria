@@ -45,7 +45,7 @@ class _Bad(Exception):
 def _static_bytes(name: str) -> bytes | None:
     if name not in STATIC:
         return None
-    path = resources.files("calandria.viewer").joinpath(name)
+    path = resources.files("delta.viewer").joinpath(name)
     return path.read_bytes() if path.is_file() else None
 
 
@@ -115,7 +115,7 @@ def _style(body: dict) -> tuple[str, bool, bool, list[str]]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Calandria/" + __version__
+    server_version = "Delta/" + __version__
     protocol_version = "HTTP/1.1"
     timeout = 60                            # StreamRequestHandler puts this on the socket
     _sent = False                           # set once this request's headers are on the wire

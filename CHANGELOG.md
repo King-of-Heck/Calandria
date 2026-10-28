@@ -1,4 +1,16 @@
-# Calandria changelog
+# Delta changelog
+
+## v2.12.0 — Calandria is now Delta (2026-10-28)
+
+- The app is renamed Delta. Double-click `Delta.cmd` (or the `Delta` shortcut it writes beside
+  itself) in the extracted folder; the window, the saved PDFs and the messages all say Delta.
+  Entries below this one keep the old name.
+- From the command line it is `python -m delta <command>`, not `python -m calandria`.
+- The log is `%LOCALAPPDATA%\Delta\delta.log`. The old `Calandria` folder there is no longer
+  written to and can be deleted.
+- Choices the viewer remembers (Changed only, page loading, the folded panel) carry over from
+  Calandria. `CALANDRIA_FONT_DIRS` is still read when `DELTA_FONT_DIRS` is not set.
+- Nothing about comparing changes: the same documents give the same changes and counts.
 
 ## v2.11.3 — PDF titles and contents page numbers (2026-10-28)
 

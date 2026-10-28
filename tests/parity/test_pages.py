@@ -8,9 +8,9 @@ import os
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.layout.engine import layout, layout_document
-from calandria.layout.fonts import default_dirs
+from delta.diff.compare import compare
+from delta.layout.engine import layout, layout_document
+from delta.layout.fonts import default_dirs
 
 from .common import CORPUS, HERE, page_digest, pairs, parse_cached
 

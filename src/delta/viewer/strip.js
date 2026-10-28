@@ -4,7 +4,7 @@
 // track as the pane's scrollbar thumb (the strip's height less the arrow button at each end and
 // the horizontal scrollbar at the bottom), so a mark lines up with the thumb when its change is
 // on screen. The strip only listens to the change list's events and asks for a jump with
-// calandria:goto — it never reads its state. Top level touches no DOM, so the pure track and
+// delta:goto — it never reads its state. Top level touches no DOM, so the pure track and
 // markTop can be imported under node.
 
 const $ = (id) => document.getElementById(id);
@@ -60,7 +60,7 @@ export function initStrip() {
       b.className = `mark ${p.category}`;
       b.title = `Change ${p.cid} · p. ${a.page}`;
       b.setAttribute("aria-label", b.title);
-      b.addEventListener("click", () => document.dispatchEvent(new CustomEvent("calandria:goto", { detail: { cid: p.cid } })));
+      b.addEventListener("click", () => document.dispatchEvent(new CustomEvent("delta:goto", { detail: { cid: p.cid } })));
       strip.appendChild(b);
       marks.set(p.cid, { button: b, anchor: a });
     }
@@ -76,16 +76,16 @@ export function initStrip() {
     view.style.height = `${((main.clientHeight / Math.max(1, total)) * tr.len).toFixed(1)}px`;
   };
 
-  document.addEventListener("calandria:loaded", (e) => build(e.detail));
-  document.addEventListener("calandria:filtered", (e) => {
+  document.addEventListener("delta:loaded", (e) => build(e.detail));
+  document.addEventListener("delta:filtered", (e) => {
     const on = new Set(e.detail.visible);
     for (const [cid, m] of marks) m.button.classList.toggle("dim", !on.has(cid));
   });
-  document.addEventListener("calandria:selected", (e) => {
+  document.addEventListener("delta:selected", (e) => {
     for (const [cid, m] of marks) m.button.classList.toggle("current", cid === e.detail.cid);
   });
   const relayout = () => { place(); viewport(); };    // zoom, fit, changed pages only, a resize
   main.addEventListener("scroll", viewport);
   window.addEventListener("resize", relayout);
-  document.addEventListener("calandria:resized", relayout);
+  document.addEventListener("delta:resized", relayout);
 }

@@ -4,14 +4,14 @@ import re
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.diff.units import units
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout, layout_document
-from calandria.layout.pieces import LayoutOptions
-from calandria.layout.sides import SIDES, side_items, side_options
-from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
-from calandria.testing.fakefonts import FakeResolver
+from delta.diff.compare import compare
+from delta.diff.units import units
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout, layout_document
+from delta.layout.pieces import LayoutOptions
+from delta.layout.sides import SIDES, side_items, side_options
+from delta.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
+from delta.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -72,7 +72,7 @@ def test_right_indent_moves_the_alignment_box_in():
 
 
 def test_list_marker_is_placed_in_the_gutter():
-    from calandria.testing.makedocx import NUMBERING
+    from delta.testing.makedocx import NUMBERING
     num = NUMBERING([("decimal", "%1.", 720, 360, None)])
     parts = {"word/document.xml": DOC(P("Item", ppr='<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>')),
              "word/styles.xml": STY, "word/numbering.xml": num}
@@ -141,8 +141,8 @@ def test_empty_document_gives_one_empty_page():
 
 
 def test_requires_documents_on_the_comparison():
-    from calandria.diff.compare import compare_units
-    from calandria.diff.units import units
+    from delta.diff.compare import compare_units
+    from delta.diff.units import units
     d = _parse(P("x"))
     with pytest.raises(ValueError):
         layout(compare_units(units(d), units(d)), LayoutOptions(fonts=FR))
@@ -261,7 +261,7 @@ def test_side_options_and_side_items():
     assert (so.show_insertions, so.show_deletions, so.show_formatting) == (False, True, False)
     sm = side_options(LayoutOptions(fonts=FR, side="modified"))
     assert (sm.show_insertions, sm.show_deletions, sm.show_formatting) == (True, False, False)
-    from calandria.layout.merged import merged_items
+    from delta.layout.merged import merged_items
     cmp = compare(_parse(P("keep") + P("old")), _parse(P("keep") + "<w:p/>" + P("brand new")))
     items = merged_items(cmp)
     orig = side_items(items, cmp, "original")
@@ -346,7 +346,7 @@ BOX = ('<w:pBdr><w:top w:val="single" w:sz="8" w:space="4"/><w:bottom w:val="sin
 
 
 def test_paragraph_borders_are_rules_on_the_placed_lines():
-    from calandria.layout.pages import Rule
+    from delta.layout.pages import Rule
     body = P(" ".join(["aaaa"] * 100), ppr=BOX) + P("after")      # 18 words per 468 pt line: 6 lines
     L = _lay(body, body)
     lines = L.pages[0].lines
@@ -374,7 +374,7 @@ def test_joined_paragraphs_draw_no_rule_between_them():
 
 
 def test_right_border_inside_a_table_cell_uses_the_cell_edge():
-    from calandria.layout.pages import Rule
+    from delta.layout.pages import Rule
     ppr = '<w:pBdr><w:right w:val="single" w:sz="4" w:space="0"/></w:pBdr>'
     body = ('<w:tbl><w:tblGrid><w:gridCol w:w="4000"/></w:tblGrid><w:tr><w:tc>'
             + P("cell", ppr=ppr) + '</w:tc></w:tr></w:tbl>')
@@ -386,7 +386,7 @@ def test_right_border_inside_a_table_cell_uses_the_cell_edge():
 
 
 def _lay_notes(body, notes=None, endnotes=None, **opts):
-    from calandria.testing.makedocx import ENDNOTES, FOOTNOTES
+    from delta.testing.makedocx import ENDNOTES, FOOTNOTES
     parts = {"word/document.xml": DOC(body), "word/styles.xml": STY}
     if notes:
         parts["word/footnotes.xml"] = FOOTNOTES(notes)
@@ -397,8 +397,8 @@ def _lay_notes(body, notes=None, endnotes=None, **opts):
 
 
 def test_a_footnote_sits_at_the_foot_of_the_page_under_a_separator():
-    from calandria.layout.pages import Rule
-    from calandria.testing.makedocx import FNREF, PR, R
+    from delta.layout.pages import Rule
+    from delta.testing.makedocx import FNREF, PR, R
     L = _lay_notes(PR(R("aaaa") + FNREF(1)) + P("bbbb"), {1: "Note one."})
     lines = L.pages[0].lines
     assert [(ln.stream, ln.top, ln.height) for ln in lines] == [("body", 72, 12), ("body", 84, 12),
@@ -412,7 +412,7 @@ def test_a_footnote_sits_at_the_foot_of_the_page_under_a_separator():
 
 
 def test_a_line_moves_to_the_next_page_together_with_its_footnote():
-    from calandria.testing.makedocx import FNREF, PR, R
+    from delta.testing.makedocx import FNREF, PR, R
     body = "".join(P(f"p{i}") for i in range(53)) + PR(R("last") + FNREF(1))     # 636 pt used of 648
     L = _lay_notes(body, {1: "Note."})
     assert L.page_count == 2 and len(L.pages[0].lines) == 53
@@ -420,7 +420,7 @@ def test_a_line_moves_to_the_next_page_together_with_its_footnote():
 
 
 def test_endnotes_follow_the_body_under_a_separator():
-    from calandria.testing.makedocx import ENREF, PR, R
+    from delta.testing.makedocx import ENREF, PR, R
     L = _lay_notes(PR(R("aaaa") + ENREF(1)) + P("bbbb"), endnotes={1: "The end."})
     lines = L.pages[0].lines
     assert [(ln.stream, ln.top, ln.height) for ln in lines] == [("body", 72, 12), ("body", 84, 12),
@@ -429,7 +429,7 @@ def test_endnotes_follow_the_body_under_a_separator():
 
 
 def test_a_footnote_inside_a_table_cell_floats_and_keeps_the_table_whole():
-    from calandria.testing.makedocx import FNREF, PR, R
+    from delta.testing.makedocx import FNREF, PR, R
     body = ('<w:tbl><w:tblGrid><w:gridCol w:w="4000"/><w:gridCol w:w="4000"/></w:tblGrid><w:tr><w:tc>'
             + PR(R("cell") + FNREF(1)) + '</w:tc><w:tc>' + P("two") + '</w:tc></w:tr></w:tbl>')
     L = _lay_notes(body, {1: "Cell note."})
@@ -440,7 +440,7 @@ def test_a_footnote_inside_a_table_cell_floats_and_keeps_the_table_whole():
 
 
 def test_a_deleted_note_floats_on_the_original_side_only():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(PR(R("aaaa") + FNREF(1))), "word/styles.xml": STY,
                                          "word/footnotes.xml": FOOTNOTES({1: "Gone."})})))
     b = _parse(P("aaaa"))
@@ -455,7 +455,7 @@ def test_a_deleted_note_floats_on_the_original_side_only():
 
 
 def test_the_larger_of_space_after_and_space_before_separates_paragraphs():
-    from calandria.testing.makedocx import W_NS
+    from delta.testing.makedocx import W_NS
     body = (P("a", ppr='<w:spacing w:after="240"/>') + P("b", ppr='<w:spacing w:before="720"/>')
             + P("c", ppr='<w:spacing w:before="100"/>') + "<w:p/>" + P("d", ppr='<w:spacing w:before="600"/>'))
     L = _lay(body, body)

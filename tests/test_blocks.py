@@ -1,12 +1,12 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.blocks import Ctx, next_tab_stop, para_block
-from calandria.layout.merged import merged_items
-from calandria.layout.pieces import LayoutOptions
-from calandria.testing.makedocx import DOC, NUMBERING, P, STYLES, W_NS, make_docx
-from calandria.testing.fakefonts import FakeResolver
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.blocks import Ctx, next_tab_stop, para_block
+from delta.layout.merged import merged_items
+from delta.layout.pieces import LayoutOptions
+from delta.testing.makedocx import DOC, NUMBERING, P, STYLES, W_NS, make_docx
+from delta.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -194,7 +194,7 @@ BOX = ('<w:pBdr><w:top w:val="single" w:sz="8" w:space="4"/><w:bottom w:val="sin
 
 
 def test_paragraph_borders_add_their_width_and_space_to_the_first_and_last_line():
-    from calandria.model import Border
+    from delta.model import Border
     body = P(" ".join(["aaaa"] * 20), ppr=BOX)                       # 8 words per 200 pt line: 3 lines
     c, items = _items(body, body)
     b = _block(items, 0, _ctx(c))
@@ -219,15 +219,15 @@ def test_adjacent_paragraphs_with_the_same_borders_join_into_one_box():
 
 
 def test_a_note_first_paragraph_opens_with_its_number():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     fn = FOOTNOTES({1: "Note one.\nSecond para."})
     body = PR(R("Body") + FNREF(1))
     c, items = _items(body, body)
     # the fixture builder attaches footnotes.xml only via the parts map: rebuild with it
     a = _parse(body)
-    from calandria.docx.parser import parse_docx
+    from delta.docx.parser import parse_docx
     import io
-    from calandria.testing.makedocx import DOC, make_docx
+    from delta.testing.makedocx import DOC, make_docx
     d = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(body), "word/styles.xml": STY, "word/footnotes.xml": fn})))
     c = compare(d, d)
     items = merged_items(c)

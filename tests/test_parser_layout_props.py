@@ -1,7 +1,7 @@
 import io
 
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, NUMBERING, P, TBL, W_NS, make_docx
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, NUMBERING, P, TBL, W_NS, make_docx
 
 
 def _doc(body, **parts):

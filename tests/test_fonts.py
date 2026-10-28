@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from calandria.layout.fonts import FontResolver, default_dirs
-from calandria.testing.fakefonts import FakeResolver
+from delta.layout.fonts import FontResolver, default_dirs
+from delta.testing.fakefonts import FakeResolver
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")
@@ -85,10 +85,18 @@ def test_faces_are_cached(fonts):
 
 
 def test_env_dirs_override_and_empty_dir_raises(monkeypatch, tmp_path):
-    monkeypatch.setenv("CALANDRIA_FONT_DIRS", str(tmp_path))
+    monkeypatch.setenv("DELTA_FONT_DIRS", str(tmp_path))
     assert default_dirs() == [str(tmp_path)]
     with pytest.raises(RuntimeError):
         FontResolver()
+
+
+def test_env_dirs_old_name_still_read(monkeypatch, tmp_path):
+    monkeypatch.delenv("DELTA_FONT_DIRS", raising=False)
+    monkeypatch.setenv("CALANDRIA_FONT_DIRS", str(tmp_path))
+    assert default_dirs() == [str(tmp_path)]
+    monkeypatch.setenv("DELTA_FONT_DIRS", str(tmp_path / "new"))
+    assert default_dirs() == [str(tmp_path / "new")]
 
 
 def test_fake_resolver_surface():
@@ -116,7 +124,7 @@ def test_symbol_font_measures_its_private_use_characters(fonts):
 
 
 def test_symbol_glyph_outlines_come_with_their_advances(fonts):
-    from calandria.layout.fonts import glyph_outlines
+    from delta.layout.fonts import glyph_outlines
     f = _wingdings(fonts)
     (outline,), upem = glyph_outlines(f.path, f.font_number, "\uf097")
     d, adv = outline

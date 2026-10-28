@@ -15,7 +15,7 @@ LOCK = tomllib.loads('''
 version = 1
 
 [[package]]
-name = "calandria"
+name = "delta"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
@@ -149,21 +149,21 @@ def test_wheel_members_refuses_a_purelib_or_platlib_data_tree():
 
 
 def test_stage_app_copies_without_bytecode(tmp_path):
-    src = tmp_path / "src" / "calandria"
+    src = tmp_path / "src" / "delta"
     (src / "viewer").mkdir(parents=True)
     (src / "__pycache__").mkdir()
     (src / "__init__.py").write_text("x = 1")
     (src / "viewer" / "index.html").write_text("<p>")
     (src / "__pycache__" / "__init__.cpython-314.pyc").write_bytes(b"\x00")
     (src / "stale.pyc").write_bytes(b"\x00")
-    dst = tmp_path / "app" / "calandria"
+    dst = tmp_path / "app" / "delta"
     copied = br.stage_app(src, dst)
     assert copied == [dst / "__init__.py", dst / "viewer" / "index.html"]
     assert not (dst / "__pycache__").exists() and not (dst / "stale.pyc").exists()
     assert (dst / "viewer" / "index.html").read_text() == "<p>"
 
 
-CHANGELOG = """# Calandria changelog
+CHANGELOG = """# Delta changelog
 
 ## v2.1.0 — Later (2026-10-01)
 
@@ -191,28 +191,28 @@ def test_changelog_entry_missing_raises():
 
 def test_release_notes_has_description_entry_and_download_line():
     notes = br.release_notes(CHANGELOG, "2.0.0")
-    assert notes.startswith("**Calandria**")
+    assert notes.startswith("**Delta**")
     assert "## v2.0.0 — First release (2026-09-09)" in notes
-    assert "`Calandria-2.0.0.zip`" in notes
+    assert "`Delta-2.0.0.zip`" in notes
     assert "later" not in notes
 
 
 def test_notes_out_writes_the_release_notes_as_utf8(tmp_path):
-    import calandria
+    import delta
     out = tmp_path / "n.md"
     assert br.main(["--notes-out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
-    assert text.startswith("**Calandria**")
-    assert f"## v{calandria.__version__} —" in text
+    assert text.startswith("**Delta**")
+    assert f"## v{delta.__version__} —" in text
 
 
 def test_layout_paths_put_python_and_app_under_internal(tmp_path):
-    stage = tmp_path / "Calandria-9.9.9"
+    stage = tmp_path / "Delta-9.9.9"
     paths = br.layout_paths(stage)
     assert br.INTERNAL == "_internal"
     assert paths == {"python": stage / "_internal" / "python",
                      "site": stage / "_internal" / "python" / "Lib" / "site-packages",
-                     "app": stage / "_internal" / "app" / "calandria"}
+                     "app": stage / "_internal" / "app" / "delta"}
     assert br.pth_lines()[-1] == "..\\app"           # python/ and app/ stay siblings
 
 
@@ -221,7 +221,7 @@ def test_smoke_serve_arguments_cover_the_console_less_launch():
 
 
 def _fake_stage(tmp_path):
-    stage = tmp_path / "Calandria-9.9.9"
+    stage = tmp_path / "Delta-9.9.9"
     python_dir = br.layout_paths(stage)["python"]
     python_dir.mkdir(parents=True)
     (python_dir / "python.exe").write_bytes(b"MZ")
@@ -234,19 +234,19 @@ def _fake_run(serve_writes_log):
     check, the pdf (a %PDF file), the pdf compare (itself, total 0) and the serve (the url line, and
     the log only when asked)."""
     def run(cmd, cwd, timeout=300):
-        if cmd[1:] == ["-m", "calandria", "version"]:
-            return "calandria 9.9.9\n"
+        if cmd[1:] == ["-m", "delta", "version"]:
+            return "delta 9.9.9\n"
         if cmd[1] == "-c":
             return ""
-        if cmd[1:4] == ["-m", "calandria", "pdf"]:
+        if cmd[1:4] == ["-m", "delta", "pdf"]:
             Path(cmd[6]).write_bytes(b"%PDF-1.7 fake")
             return '{"pages": 1, "out": "x"}\n'
-        if cmd[1:4] == ["-m", "calandria", "compare"]:
+        if cmd[1:4] == ["-m", "delta", "compare"]:
             return '{\n "total": 0\n}\n'
         assert cmd[1:1 + len(br.SMOKE_SERVE)] == br.SMOKE_SERVE
         log = Path(cmd[-1].removeprefix("--log="))
         if serve_writes_log:
-            log.write_text('--- 2026-09-09 12:00:00 calandria 9.9.9 serve\n{"url": "http://127.0.0.1:5/"}\n',
+            log.write_text('--- 2026-09-09 12:00:00 delta 9.9.9 serve\n{"url": "http://127.0.0.1:5/"}\n',
                            encoding="utf-8")
         return '{"url": "http://127.0.0.1:5/"}\n'
     return run
@@ -256,7 +256,7 @@ def test_the_serve_smoke_passes_on_a_fresh_log(tmp_path, monkeypatch):
     stage = _fake_stage(tmp_path)
     monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=True))
     br.smoke(stage, "9.9.9")
-    assert (stage.parent / "smoke" / "calandria.log").read_text(encoding="utf-8").startswith("--- ")
+    assert (stage.parent / "smoke" / "delta.log").read_text(encoding="utf-8").startswith("--- ")
 
 
 def test_the_serve_smoke_fails_when_the_serve_writes_no_log(tmp_path, monkeypatch):
@@ -270,7 +270,7 @@ def test_the_serve_smoke_ignores_a_log_left_by_an_earlier_build(tmp_path, monkey
     stage = _fake_stage(tmp_path)
     work = stage.parent / "smoke"
     work.mkdir()
-    (work / "calandria.log").write_text('--- stale\n{"url": "http://127.0.0.1:5/"}\n', encoding="utf-8")
+    (work / "delta.log").write_text('--- stale\n{"url": "http://127.0.0.1:5/"}\n', encoding="utf-8")
     monkeypatch.setattr(br, "_run", _fake_run(serve_writes_log=False))
     with pytest.raises(RuntimeError, match="log smoke"):
         br.smoke(stage, "9.9.9")
@@ -380,16 +380,16 @@ def test_unpack_embed_without_pth_raises(tmp_path):
 
 
 def test_zip_stage_puts_everything_under_the_top_folder(tmp_path):
-    stage = tmp_path / "Calandria-9.9.9"
+    stage = tmp_path / "Delta-9.9.9"
     (stage / "python").mkdir(parents=True)
-    (stage / "Calandria.cmd").write_bytes(b"@echo off\r\n")
+    (stage / "Delta.cmd").write_bytes(b"@echo off\r\n")
     (stage / "python" / "python314._pth").write_text(br.PTH_TEXT)
     out = tmp_path / "out.zip"
     names = br.zip_stage(stage, out)
-    assert names == ["Calandria-9.9.9/Calandria.cmd", "Calandria-9.9.9/python/python314._pth"]
+    assert names == ["Delta-9.9.9/Delta.cmd", "Delta-9.9.9/python/python314._pth"]
     with zipfile.ZipFile(out) as z:
         assert sorted(z.namelist()) == names
-        assert z.read("Calandria-9.9.9/Calandria.cmd") == b"@echo off\r\n"
+        assert z.read("Delta-9.9.9/Delta.cmd") == b"@echo off\r\n"
         assert z.getinfo(names[0]).compress_type == zipfile.ZIP_DEFLATED
 
 
@@ -400,15 +400,15 @@ def test_zip_stage_is_byte_identical_across_builds(tmp_path):
     def make_stage(d):
         d.mkdir(parents=True)
         (d / "python").mkdir()
-        (d / "Calandria.cmd").write_bytes(b"@echo off\r\n")
+        (d / "Delta.cmd").write_bytes(b"@echo off\r\n")
         (d / "python" / "python314._pth").write_text(br.PTH_TEXT)
 
-    stage1 = tmp_path / "one" / "Calandria-9.9.9"
+    stage1 = tmp_path / "one" / "Delta-9.9.9"
     make_stage(stage1)
     out1 = tmp_path / "out1.zip"
     br.zip_stage(stage1, out1)
 
-    stage2 = tmp_path / "two" / "Calandria-9.9.9"
+    stage2 = tmp_path / "two" / "Delta-9.9.9"
     make_stage(stage2)
     later = time.time() + 5000
     for p in stage2.rglob("*"):
@@ -426,25 +426,25 @@ def test_child_env_drops_python_variables_and_disables_bytecode():
 
 
 def test_src_on_path_is_added_once():
-    import calandria
+    import delta
 
     src = str(br.ROOT / "src")
-    # Some other module already on sys.path (calandria's own editable install, a harness script
+    # Some other module already on sys.path (delta's own editable install, a harness script
     # imported by another test module) may have put `src` there before this test runs -- that is
     # not what is under test. What matters is that _src_on_path() itself never grows the count.
     before = sys.path.count(src)
     br._version()
     br._version()
     assert sys.path.count(src) == max(before, 1)
-    assert br._version() == calandria.__version__
+    assert br._version() == delta.__version__
 
 
 def test_stage_app_leaves_the_testing_package_out(tmp_path):
-    src = tmp_path / "src" / "calandria"
+    src = tmp_path / "src" / "delta"
     (src / "testing").mkdir(parents=True)
     (src / "__init__.py").write_text("x = 1")
     (src / "testing" / "makedocx.py").write_text("y = 2")
-    dst = tmp_path / "app" / "calandria"
+    dst = tmp_path / "app" / "delta"
     assert br.stage_app(src, dst) == [dst / "__init__.py"]
     assert not (dst / "testing").exists()
 
@@ -459,7 +459,7 @@ def test_the_smoke_starts_from_a_clean_work_folder(tmp_path, monkeypatch):
     assert not (work / "stale.txt").exists()
 
 
-FENCED = """# Calandria changelog
+FENCED = """# Delta changelog
 
 ## v2.1.0 — Later (2026-10-01)
 
@@ -486,8 +486,8 @@ def test_notes_and_notes_out_together_write_the_file_and_print(tmp_path, capfdbi
     out = tmp_path / "n.md"
     assert br.main(["--notes", "--notes-out", str(out)]) == 0
     printed = capfdbinary.readouterr().out
-    assert printed.startswith(b"**Calandria**") and out.read_bytes() == printed
+    assert printed.startswith(b"**Delta**") and out.read_bytes() == printed
 
 
 def test_top_files_include_the_launcher_its_icon_and_the_docs():
-    assert br.TOP_FILES == ("Calandria.cmd", "Calandria.ico", "README.md", "CHANGELOG.md")
+    assert br.TOP_FILES == ("Delta.cmd", "Delta.ico", "README.md", "CHANGELOG.md")

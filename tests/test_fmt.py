@@ -1,5 +1,5 @@
-from calandria.diff.chars import FmtSpan
-from calandria.diff.fmt import FmtRange, fmt_desc, fmt_diff
+from delta.diff.chars import FmtSpan
+from delta.diff.fmt import FmtRange, fmt_desc, fmt_diff
 
 
 def _sp(s, e, **kw):

@@ -1,8 +1,8 @@
-"""Write Calandria.ico from the favicon embedded in the viewer page.
+"""Write Delta.ico from the favicon embedded in the viewer page.
 
 The page's `<link rel="icon">` data URI is the one drawing of the mark; this reads its geometry
 back (a stroked triangle and filled bars) and rasterises it at every size a Windows icon wants,
-supersampled so the edges are smooth. The tracked Calandria.ico must match this output
+supersampled so the edges are smooth. The tracked Delta.ico must match this output
 (tests/test_icon.py), so change the page and rerun this rather than editing the .ico.
 
     uv run python harness/make_icon.py
@@ -18,7 +18,7 @@ from urllib.parse import unquote
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-INDEX = ROOT / "src" / "calandria" / "viewer" / "index.html"
+INDEX = ROOT / "src" / "delta" / "viewer" / "index.html"
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 BOX = 512            # the SVG viewBox is 0 0 512 512
 OVERSAMPLE = 8
@@ -68,8 +68,8 @@ def ico_bytes(svg: str) -> bytes:
 
 def main() -> int:
     data = ico_bytes(favicon_svg(INDEX.read_text("utf-8")))
-    (ROOT / "Calandria.ico").write_bytes(data)
-    print(f"Calandria.ico  {len(data)} bytes, sizes {', '.join(map(str, SIZES))}")
+    (ROOT / "Delta.ico").write_bytes(data)
+    print(f"Delta.ico  {len(data)} bytes, sizes {', '.join(map(str, SIZES))}")
     return 0
 
 

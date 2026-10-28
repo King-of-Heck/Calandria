@@ -1,4 +1,4 @@
-"""Read a text PDF into the Document the rest of Calandria compares, lays out and draws.
+"""Read a text PDF into the Document the rest of Delta compares, lays out and draws.
 
     extract (pypdf: file structure only) -> grids -> lines -> borderless tables -> furniture, footnotes
         -> paragraphs -> Document

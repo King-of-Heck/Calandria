@@ -4,7 +4,7 @@ import struct
 
 import pytest
 
-from calandria.server import shortcut as sc
+from delta.server import shortcut as sc
 
 
 def _parse(data: bytes) -> dict:
@@ -53,19 +53,19 @@ def _parse(data: bytes) -> dict:
 
 
 def test_shortcut_bytes_carry_the_target_in_the_id_list_and_the_link_info():
-    data = sc.shortcut_bytes(r"C:\Tools\Calandria\Calandria.cmd", r"C:\Tools\Calandria",
-                             r"C:\Tools\Calandria\Calandria.ico", "Calandria", r".\Calandria.cmd")
+    data = sc.shortcut_bytes(r"C:\Tools\Delta\Delta.cmd", r"C:\Tools\Delta",
+                             r"C:\Tools\Delta\Delta.ico", "Delta", r".\Delta.cmd")
     p = _parse(data)
     assert p["show"] == 1 and p["attrs"] == 0x20                             # SW_SHOWNORMAL, an archive file
     assert p["flags"] & sc._IS_UNICODE
-    assert p["base"] == r"C:\Tools\Calandria\Calandria.cmd" and p["base_ansi"] == b"C:\\Tools\\Calandria\\Calandria.cmd"
-    assert p["name"] == "Calandria" and p["relative"] == r".\Calandria.cmd"
-    assert p["working_dir"] == r"C:\Tools\Calandria" and p["icon"] == r"C:\Tools\Calandria\Calandria.ico"
+    assert p["base"] == r"C:\Tools\Delta\Delta.cmd" and p["base_ansi"] == b"C:\\Tools\\Delta\\Delta.cmd"
+    assert p["name"] == "Delta" and p["relative"] == r".\Delta.cmd"
+    assert p["working_dir"] == r"C:\Tools\Delta" and p["icon"] == r"C:\Tools\Delta\Delta.ico"
     assert "arguments" not in p
     root, drive, tools, cal, cmd = p["items"]
     assert root == sc._ROOT_MY_COMPUTER
     assert drive[0] == 0x2F and drive[1:5] == b"C:\\\0" and len(drive) == 23     # the 0x19-byte volume item
-    for item, name, kind in ((tools, b"Tools", 0x31), (cal, b"Calandria", 0x31), (cmd, b"Calandria.cmd", 0x32)):
+    for item, name, kind in ((tools, b"Tools", 0x31), (cal, b"Delta", 0x31), (cmd, b"Delta.cmd", 0x32)):
         assert item[0] == kind and item[12:].rstrip(b"\0") == name
         assert len(item) % 2 == 0                                            # word-aligned
     assert struct.unpack_from("<H", tools, 10)[0] == 0x10 and struct.unpack_from("<H", cmd, 10)[0] == 0x20
@@ -82,16 +82,16 @@ def test_a_name_outside_the_code_page_does_not_raise():
 
 
 def test_write_shortcut_needs_the_icon_and_writes_once(tmp_path):
-    cmd = tmp_path / "Calandria.cmd"
+    cmd = tmp_path / "Delta.cmd"
     cmd.write_text("@echo off\r\n")
     assert sc.write_shortcut(str(cmd)) == "no icon"
-    assert not (tmp_path / "Calandria.lnk").exists()
-    (tmp_path / "Calandria.ico").write_bytes(b"\0\0\1\0")
+    assert not (tmp_path / "Delta.lnk").exists()
+    (tmp_path / "Delta.ico").write_bytes(b"\0\0\1\0")
     assert sc.write_shortcut(str(cmd)) == "written"
-    lnk = tmp_path / "Calandria.lnk"
+    lnk = tmp_path / "Delta.lnk"
     p = _parse(lnk.read_bytes())
-    assert p["base"] == str(cmd) and p["icon"] == str(tmp_path / "Calandria.ico")
-    assert p["working_dir"] == str(tmp_path) and p["relative"] == r".\Calandria.cmd"
+    assert p["base"] == str(cmd) and p["icon"] == str(tmp_path / "Delta.ico")
+    assert p["working_dir"] == str(tmp_path) and p["relative"] == r".\Delta.cmd"
     before = lnk.stat().st_mtime_ns
     assert sc.write_shortcut(str(cmd)) == "unchanged"                        # a synced folder is not churned
     assert lnk.stat().st_mtime_ns == before
@@ -104,18 +104,18 @@ def test_the_windows_shell_resolves_the_written_shortcut(tmp_path):
     """The shell's own reader (WScript.Shell through PowerShell, which the desktop allows) sees the
     target, the working folder and the icon. Skipped where PowerShell or COM is not available."""
     import subprocess
-    cmd = tmp_path / "Calandria.cmd"
+    cmd = tmp_path / "Delta.cmd"
     cmd.write_text("@echo off\r\n")
-    (tmp_path / "Calandria.ico").write_bytes(b"\0\0\1\0")
+    (tmp_path / "Delta.ico").write_bytes(b"\0\0\1\0")
     assert sc.write_shortcut(str(cmd)) == "written"
     script = ("$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:CAL_LNK);"
               "$s.TargetPath; $s.WorkingDirectory; $s.IconLocation; $s.Description")
     try:
         r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                            capture_output=True, text=True, timeout=60,
-                           env={**os.environ, "CAL_LNK": str(tmp_path / "Calandria.lnk")})
+                           env={**os.environ, "CAL_LNK": str(tmp_path / "Delta.lnk")})
     except (OSError, subprocess.TimeoutExpired):
         pytest.skip("no PowerShell")
     if r.returncode != 0 or "language mode" in r.stderr.lower():
         pytest.skip("PowerShell cannot create COM objects here")
-    assert r.stdout.splitlines() == [str(cmd), str(tmp_path), str(tmp_path / "Calandria.ico") + ",0", "Calandria"]
+    assert r.stdout.splitlines() == [str(cmd), str(tmp_path), str(tmp_path / "Delta.ico") + ",0", "Delta"]

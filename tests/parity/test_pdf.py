@@ -9,12 +9,12 @@ from datetime import datetime
 import pytest
 from pypdf import PdfReader
 
-from calandria.diff.compare import compare
-from calandria.layout.engine import layout
-from calandria.layout.fonts import default_dirs
-from calandria.pdf.draw import PdfOptions
-from calandria.pdf.report import TITLE, report_info
-from calandria.pdf.writer import render
+from delta.diff.compare import compare
+from delta.layout.engine import layout
+from delta.layout.fonts import default_dirs
+from delta.pdf.draw import PdfOptions
+from delta.pdf.report import TITLE, report_info
+from delta.pdf.writer import render
 
 from .common import CORPUS, pairs, parse_cached
 

@@ -1,6 +1,6 @@
-from calandria.diff.units import Loc, units
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, make_docx
+from delta.diff.units import Loc, units
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, P, make_docx
 
 
 def _doc(body, **parts):
@@ -30,14 +30,14 @@ def test_units_second_table_increments_ti():
 
 
 def test_loc_as_dict():
-    from calandria.diff.units import Loc
+    from delta.diff.units import Loc
     assert Loc(1, 2, 3, 4).as_dict() == {"ti": 1, "ri": 2, "ci": 3, "cols": 4}
 
 
 def test_note_paragraphs_follow_their_anchor_paragraph_in_the_stream():
-    from calandria.diff.units import walk
-    from calandria.model import NoteRef
-    from calandria.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
+    from delta.diff.units import walk
+    from delta.model import NoteRef
+    from delta.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
     body = (PR(R("First") + FNREF(1) + R(" para") + FNREF(2)) + P("Second") +
             PR(R("Third") + ENREF(1) + FNREF(1)))          # note 1 referenced again: its body appears once
     d = _doc(body, **{"word/footnotes.xml": FOOTNOTES({1: "Note one.\nStill one.", 2: "Note two."}),
@@ -54,7 +54,7 @@ def test_note_paragraphs_follow_their_anchor_paragraph_in_the_stream():
 
 
 def test_a_reference_to_a_missing_note_yields_nothing():
-    from calandria.diff.units import walk
-    from calandria.testing.makedocx import FNREF, PR, R
+    from delta.diff.units import walk
+    from delta.testing.makedocx import FNREF, PR, R
     d = _doc(PR(R("x") + FNREF(7)))
     assert [p.text for p, _l, _w in walk(d)] == ["x"]

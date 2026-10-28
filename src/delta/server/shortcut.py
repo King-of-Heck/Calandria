@@ -1,6 +1,6 @@
 """Write a Windows shortcut (.lnk) without COM or PowerShell.
 
-A .cmd cannot carry an icon; a shortcut can. The launcher used to refresh `Calandria.lnk`
+A .cmd cannot carry an icon; a shortcut can. The launcher used to refresh `Delta.lnk`
 through `WScript.Shell` in an inline PowerShell command, which a locked-down machine refuses
 (Constrained Language Mode allows no COM objects). The Shell Link binary format (MS-SHLLINK)
 is small enough to write by hand: a header, a LinkInfo block naming the target by its local
@@ -27,8 +27,8 @@ _FILE_ATTRIBUTE_DIRECTORY = 0x10
 _FILE_ATTRIBUTE_ARCHIVE = 0x20
 _SW_SHOWNORMAL = 1
 _DRIVE_FIXED = 3
-LINK_NAME = "Calandria.lnk"
-ICON_NAME = "Calandria.ico"
+LINK_NAME = "Delta.lnk"
+ICON_NAME = "Delta.ico"
 
 
 def _string_data(s: str) -> bytes:
@@ -94,7 +94,7 @@ def shortcut_bytes(target: str, working_dir: str, icon: str, description: str,
 
 
 def write_shortcut(cmd_path: str) -> str:
-    """Refresh `Calandria.lnk` beside the launcher `cmd_path`, with `Calandria.ico` from the same
+    """Refresh `Delta.lnk` beside the launcher `cmd_path`, with `Delta.ico` from the same
     folder. Returns "written", "unchanged" (the bytes already match, so a synced folder is not
     touched) or "no icon". Errors are the caller's to report: nothing here may stop the app."""
     cmd_path = os.path.abspath(cmd_path)
@@ -103,7 +103,7 @@ def write_shortcut(cmd_path: str) -> str:
     if not os.path.isfile(icon):
         return "no icon"
     lnk = os.path.join(folder, LINK_NAME)
-    data = shortcut_bytes(cmd_path, folder, icon, "Calandria", ".\\" + os.path.basename(cmd_path))
+    data = shortcut_bytes(cmd_path, folder, icon, "Delta", ".\\" + os.path.basename(cmd_path))
     try:
         with open(lnk, "rb") as f:
             if f.read() == data:

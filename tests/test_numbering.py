@@ -1,6 +1,6 @@
 from lxml import etree
-from calandria.docx.numbering import Numbering, NumberingCounter, fmt_num, BULLETS
-from calandria.docx.ns import W
+from delta.docx.numbering import Numbering, NumberingCounter, fmt_num, BULLETS
+from delta.docx.ns import W
 
 NUM = f'''<w:numbering xmlns:w="{W}">
 <w:abstractNum w:abstractNumId="0">

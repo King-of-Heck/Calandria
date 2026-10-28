@@ -1,5 +1,5 @@
-from calandria.pdfread.lines import build_lines
-from calandria.pdfread.types import TextRun
+from delta.pdfread.lines import build_lines
+from delta.pdfread.types import TextRun
 
 
 def R(text, x0, x1, y=100.0, size=12.0, font="Arial"):

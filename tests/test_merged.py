@@ -2,11 +2,11 @@ import io
 
 import pytest
 
-from calandria.diff.compare import compare, compare_units
-from calandria.diff.units import Loc, table_by_ti, units, walk
-from calandria.docx.parser import parse_docx
-from calandria.layout.merged import merged_items
-from calandria.testing.makedocx import DOC, P, TBL, make_docx
+from delta.diff.compare import compare, compare_units
+from delta.diff.units import Loc, table_by_ti, units, walk
+from delta.docx.parser import parse_docx
+from delta.layout.merged import merged_items
+from delta.testing.makedocx import DOC, P, TBL, make_docx
 
 
 def _doc(body):
@@ -106,8 +106,8 @@ def test_requires_the_documents():
 
 
 def test_a_deleted_paragraph_takes_its_note_with_it():
-    from calandria.model import NoteRef
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.model import NoteRef
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     fn = {"word/footnotes.xml": FOOTNOTES({1: "Gone note."})}
     a = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("keep") + PR(R("gone") + FNREF(1)) + P("end")), **fn})))
     b = parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("keep") + P("end"))})))

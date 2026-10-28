@@ -1,14 +1,14 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout
-from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import BLACK, PdfOptions, draw_layout
-from calandria.pdf.rendersets import render_set
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.recpaint import RecordingPainter
-from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, PR, R, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout
+from delta.layout.pieces import LayoutOptions
+from delta.pdf.draw import BLACK, PdfOptions, draw_layout
+from delta.pdf.rendersets import render_set
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.recpaint import RecordingPainter
+from delta.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, PR, R, make_docx
 
 
 def _pair():
@@ -76,7 +76,7 @@ def test_a_comment_free_page_emits_no_bubble_ops():
 
 
 def test_svg_pages_contain_the_bubble_rect_and_text():
-    from calandria.viewer.svg import render_pages
+    from delta.viewer.svg import render_pages
     a, b = _pair()
     lay = layout(compare(a, b), LayoutOptions(fonts=FakeResolver()))
     svg = "".join(render_pages(lay, resolver=FakeResolver()))

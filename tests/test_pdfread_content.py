@@ -1,8 +1,8 @@
 import pytest
 
-from calandria.pdfread.content import IDENT, apply, base_matrix, interpret, mul
-from calandria.pdfread.pdffonts import PdfFont
-from calandria.pdfread.types import PageData
+from delta.pdfread.content import IDENT, apply, base_matrix, interpret, mul
+from delta.pdfread.pdffonts import PdfFont
+from delta.pdfread.types import PageData
 
 F = PdfFont("ABCDEF+Arial", widths={65: 500.0, 66: 500.0, 32: 250.0})
 LETTER = (0.0, 0.0, 612.0, 792.0)
@@ -91,7 +91,7 @@ def test_an_unknown_font_name_still_reads_as_cp1252():
 
 
 def test_a_page_shown_entirely_through_an_unknown_font_is_unreadable():
-    from calandria.pdfread.extract import unreadable
+    from delta.pdfread.extract import unreadable
     p = run(text_ops(([b"Hi"], b"Tj")), fonts={})
     assert unreadable(p)
 

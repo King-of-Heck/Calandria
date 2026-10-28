@@ -1,9 +1,9 @@
 import pytest
 
-from calandria.model import NoteRef, Paragraph, Table
-from calandria.pdfread.build import body_metrics, build_document, pair_style, split_font
-from calandria.pdfread.grid import find_grids
-from calandria.pdfread.types import Line, PageLines, Seg, Span
+from delta.model import NoteRef, Paragraph, Table
+from delta.pdfread.build import body_metrics, build_document, pair_style, split_font
+from delta.pdfread.grid import find_grids
+from delta.pdfread.types import Line, PageLines, Seg, Span
 
 FULL = "The Supplier shall deliver the Goods to the Buyer at the Delivery Point on the agreed date"
 
@@ -153,7 +153,7 @@ def test_a_dot_leader_before_a_page_number_becomes_a_right_tab_with_a_dot_leader
 def test_a_contents_lines_page_number_is_a_page_field_that_never_counts_as_a_change():
     """The page numbers in a table of contents follow the pagination, so an edit anywhere earlier
     moves them all; like Word's own page fields they are drawn as printed but not compared."""
-    from calandria.diff.compare import compare
+    from delta.diff.compare import compare
 
     def toc(n):
         return build_document([page(0, [L("1.6 Conflict ........................................ " + n, 100)])],

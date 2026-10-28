@@ -1,6 +1,6 @@
-from calandria.layout.lines import Spacing, break_lines, line_height, measure
-from calandria.layout.pieces import Piece
-from calandria.testing.fakefonts import FakeResolver
+from delta.layout.lines import Spacing, break_lines, line_height, measure
+from delta.layout.pieces import Piece
+from delta.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()          # 5 pt per character at size 10; line height 12; ascent 8; descent 4
 FACE = FR.face("Fake")
@@ -87,7 +87,7 @@ def test_caps_pieces_measure_and_draw_as_capitals():
     assert runs[0].w == 60 and runs[0].piece.text == "Engineering, procurement"
 
 
-from calandria.model import TabStop
+from delta.model import TabStop
 
 
 def _tab_runs(*parts, size=10):
@@ -174,9 +174,9 @@ def test_a_raised_piece_measures_small_and_carries_its_rise():
 
 
 def test_image_run_sizes_the_line_by_its_box():
-    from calandria.layout.lines import Spacing, break_lines, measure
-    from calandria.layout.pieces import Piece
-    from calandria.testing.fakefonts import FakeResolver
+    from delta.layout.lines import Spacing, break_lines, measure
+    from delta.layout.pieces import Piece
+    from delta.testing.fakefonts import FakeResolver
     fr = FakeResolver()
     runs = measure([Piece("ab", "eq", size=10), Piece("", "eq", image_w=50.0, image_h=40.0)], fr, "Fake", 10)
     assert [(r.text, r.w, r.image_h) for r in runs] == [("ab", 10.0, 0.0), ("", 50.0, 40.0)]

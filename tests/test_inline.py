@@ -1,4 +1,4 @@
-from calandria.diff.inline import (CONN, INLINE_TOKEN_CAP, Seg, coalesce, inline_segs, safe_inline,
+from delta.diff.inline import (CONN, INLINE_TOKEN_CAP, Seg, coalesce, inline_segs, safe_inline,
                                    tok_bold, whole_segs)
 
 

@@ -4,14 +4,14 @@ from datetime import datetime
 
 import pytest
 
-from calandria import __version__
-from calandria.layout.fonts import default_dirs
-from calandria.server.session import (OPTION_KEYS, BadDocument, Options, Session, change_marks, check_render,
+from delta import __version__
+from delta.layout.fonts import default_dirs
+from delta.server.session import (OPTION_KEYS, BadDocument, Options, Session, change_marks, check_render,
                                       parse_options)
-from calandria.server import session as session_module
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, STYLES, TBL, make_docx
-from calandria.testing.makepdf import make_pdf
+from delta.server import session as session_module
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, STYLES, TBL, make_docx
+from delta.testing.makepdf import make_pdf
 
 FR = FakeResolver()
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -96,7 +96,7 @@ def test_a_load_that_fails_after_parsing_leaves_the_first_pair_intact(monkeypatc
     """Both files parse before anything is committed, so the not-a-zip case above never got as far
     as the fields; a failure in the comparison or the layout did, and left the session describing
     the new pair while still holding the old one's drawings."""
-    import calandria.server.session as sessmod
+    import delta.server.session as sessmod
 
     s = _session()
     monkeypatch.setattr(sessmod, "layout", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
@@ -243,7 +243,7 @@ def test_pdf_changed_only_changes_the_name_and_the_report():
 
 # v2.4.0: three sides per comparison (spec §12.2).
 
-from calandria.server.session import row_map
+from delta.server.session import row_map
 
 
 def test_row_map_names_the_first_line_of_every_row():
@@ -284,7 +284,7 @@ def test_marks_tint_the_side_pages_and_a_relayout_rebuilds_every_side():
 
 # v2.4.3: the sides are laid out and drawn on request and kept until the next commit.
 
-from calandria.server.session import BadRequest, parse_sides
+from delta.server.session import BadRequest, parse_sides
 
 
 def test_parse_sides_takes_a_list_or_a_query_string_in_side_order():
@@ -310,7 +310,7 @@ def test_pages_lays_out_only_the_sides_asked_for():
 
 
 def test_side_layouts_and_drawings_are_kept_until_the_next_commit(monkeypatch):
-    import calandria.server.session as mod
+    import delta.server.session as mod
     s = _session(P("aaaa") + P("old"), P("aaaa") + P("new"))
     calls = []
     real_layout, real_render = mod.layout, mod.render_pages
@@ -332,7 +332,7 @@ def test_side_layouts_and_drawings_are_kept_until_the_next_commit(monkeypatch):
 
 
 def test_a_side_that_fails_to_lay_out_leaves_the_comparison_shown(monkeypatch):
-    import calandria.server.session as mod
+    import delta.server.session as mod
     s = _session(P("aaaa") + P("old"), P("aaaa") + P("new"))
     before = s.pages(sides=["blackline"])
 

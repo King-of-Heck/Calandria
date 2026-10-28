@@ -2,11 +2,11 @@ import io
 
 import pytest
 
-from calandria.docx.hf import (SectionHf, displayed, format_number, is_blank, page_number, resolve,
+from delta.docx.hf import (SectionHf, displayed, format_number, is_blank, page_number, resolve,
                                variant_for)
-from calandria.docx.parser import parse_docx
-from calandria.model import Section
-from calandria.testing.makedocx import DOC, FLD, HDR, FTR, IMG, P, PR, R, RELS, SECT, SETTINGS, make_docx
+from delta.docx.parser import parse_docx
+from delta.model import Section
+from delta.testing.makedocx import DOC, FLD, HDR, FTR, IMG, P, PR, R, RELS, SECT, SETTINGS, make_docx
 
 
 def _doc(body, parts=None, even_and_odd=False):

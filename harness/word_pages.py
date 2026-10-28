@@ -15,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from calandria.docx.parser import parse_docx                  # noqa: E402
-from calandria.layout.engine import layout_document           # noqa: E402
+from delta.docx.parser import parse_docx                  # noqa: E402
+from delta.layout.engine import layout_document           # noqa: E402
 
 PDF_DIR = ROOT / "tests" / "fixtures" / "wordpdf"
 _PAGE = re.compile(rb"/Type\s*/Page(?![s/A-Za-z])")

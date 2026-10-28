@@ -8,9 +8,9 @@ from datetime import datetime
 
 import pytest
 
-from calandria.layout.fonts import default_dirs
-from calandria.server.session import Options, Session
-from calandria.viewer.svg import SVG_NS
+from delta.layout.fonts import default_dirs
+from delta.server.session import Options, Session
+from delta.viewer.svg import SVG_NS
 
 from .common import CORPUS, pairs
 

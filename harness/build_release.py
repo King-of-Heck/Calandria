@@ -7,12 +7,12 @@ extracted next to it, the app and the launcher, in one folder.
 
 Layout of the zip (one top folder; one thing to double-click):
 
-    Calandria-<version>/
-      Calandria.cmd  Calandria.ico  README.md  CHANGELOG.md
+    Delta-<version>/
+      Delta.cmd  Delta.ico  README.md  CHANGELOG.md
       _internal/python/   python.exe, pythonw.exe, python314.zip, python314._pth
                           (python314.zip / . / Lib\\site-packages / ..\\app), the DLLs,
                           Lib/site-packages/<wheels extracted>
-      _internal/app/calandria/   the package (no bytecode)
+      _internal/app/delta/   the package (no bytecode)
 
 Wheels come from the URLs in uv.lock and are checked against the lock's sha256. lxml and pillow
 take the compiled cp314-cp314-win_amd64 wheel (never cp314t); everything else takes the pure
@@ -32,7 +32,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TOP_FILES = ("Calandria.cmd", "Calandria.ico", "README.md", "CHANGELOG.md")   # beside _internal
+TOP_FILES = ("Delta.cmd", "Delta.ico", "README.md", "CHANGELOG.md")   # beside _internal
 PY_VERSION = "3.14.7"
 EMBED_URL = f"https://www.python.org/ftp/python/{PY_VERSION}/python-{PY_VERSION}-embed-amd64.zip"
 EMBED_SHA256 = "d297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15"
@@ -42,17 +42,17 @@ PURE_TAGS = ("py3-none-any", "py2.py3-none-any")
 PTH_NAME = "python314._pth"
 PTH_TEXT = "python314.zip\n.\nLib\\site-packages\n..\\app\n"
 INTERNAL = "_internal"
-SMOKE_SERVE = ["-m", "calandria", "serve", "--no-browser", "--idle=1", "--grace=1"]
+SMOKE_SERVE = ["-m", "delta", "serve", "--no-browser", "--idle=1", "--grace=1"]
 CACHE = ROOT / "build" / "cache"
 STAGE = ROOT / "build" / "stage"
 DIST = ROOT / "dist"
 SMOKE_IMPORTS = ("from lxml import etree; from PIL import Image; from fontTools.ttLib import TTFont; "
-                  "import fpdf, calandria, pypdf")
+                  "import fpdf, delta, pypdf")
 
 DESCRIPTION = (
-    "**Calandria** is an offline Word (`.docx`) and PDF redline / compare tool from HeckSoft (a King of "
+    "**Delta** is an offline Word (`.docx`) and PDF redline / compare tool from HeckSoft (a King of "
     "Heck Company), the successor to SorkWhare Compare. Extract the zip anywhere, double-click "
-    "`Calandria.cmd`: Calandria opens in its own window (no console, no browser tabs). Drop the "
+    "`Delta.cmd`: Delta opens in its own window (no console, no browser tabs). Drop the "
     "original and the modified document on the page: the redline is laid out page by page on "
     "screen and saved as a PDF from the same drawing. Closing the window stops it. No install, no "
     "admin rights, no internet connection; the documents never leave your computer."
@@ -154,8 +154,8 @@ def changelog_entry(text: str, version: str) -> str:
 def release_notes(changelog_text: str, version: str) -> str:
     entry = changelog_entry(changelog_text, version)
     return (f"{DESCRIPTION}\n\n---\n\n{entry}\n---\n\n"
-            f"**Download:** `Calandria-{version}.zip` (attached below) — extract it anywhere and "
-            f"double-click `Calandria.cmd` inside the extracted folder. 64-bit Windows; no install.\n")
+            f"**Download:** `Delta-{version}.zip` (attached below) — extract it anywhere and "
+            f"double-click `Delta.cmd` inside the extracted folder. 64-bit Windows; no install.\n")
 
 
 def _fetch(url: str, dest: Path) -> None:
@@ -209,12 +209,12 @@ def unpack_embed(embed_zip: Path, python_dir: Path) -> None:
 def layout_paths(stage_dir: Path) -> dict[str, Path]:
     python_dir = stage_dir / INTERNAL / "python"
     return {"python": python_dir, "site": python_dir / "Lib" / "site-packages",
-            "app": stage_dir / INTERNAL / "app" / "calandria"}
+            "app": stage_dir / INTERNAL / "app" / "delta"}
 
 
 def stage(version: str) -> Path:
-    """Build build/stage/Calandria-<version>/ from scratch; return it."""
-    stage_dir = STAGE / f"Calandria-{version}"
+    """Build build/stage/Delta-<version>/ from scratch; return it."""
+    stage_dir = STAGE / f"Delta-{version}"
     if stage_dir.exists():
         shutil.rmtree(stage_dir)
     paths = layout_paths(stage_dir)
@@ -235,7 +235,7 @@ def stage(version: str) -> Path:
     if bad:
         raise RuntimeError(f"unexpected native extension(s): {', '.join(p.name for p in bad)}")
     print("app")
-    stage_app(ROOT / "src" / "calandria", paths["app"])
+    stage_app(ROOT / "src" / "delta", paths["app"])
     for name in TOP_FILES:
         shutil.copyfile(ROOT / name, stage_dir / name)
     return stage_dir
@@ -263,7 +263,7 @@ def _run(cmd: list[str], cwd: Path, timeout: float = 300) -> str:
 
 
 def _src_on_path() -> None:
-    """Make the repo's `calandria` importable in THIS process (for the version and the smoke pair)."""
+    """Make the repo's `delta` importable in THIS process (for the version and the smoke pair)."""
     src = str(ROOT / "src")
     if src not in sys.path:
         sys.path.insert(0, src)
@@ -276,28 +276,28 @@ def smoke(stage_dir: Path, version: str) -> None:
     if not (python_dir / "pythonw.exe").is_file():
         raise RuntimeError("the embeddable Python has no pythonw.exe; the launcher needs it")
     print("smoke")
-    out = _run([py, "-m", "calandria", "version"], stage_dir)
-    if out.strip() != f"calandria {version}":
+    out = _run([py, "-m", "delta", "version"], stage_dir)
+    if out.strip() != f"delta {version}":
         raise RuntimeError(f"version smoke printed {out!r}")
     _run([py, "-c", SMOKE_IMPORTS], stage_dir)
     _run([py, "-c", "import os, sys; real = [p for p in sys.path if p and p != os.getcwd()]; "
                     "assert len(real) == 4, sys.path"], stage_dir)   # -c may prepend '' / the cwd
     _src_on_path()
-    from calandria.testing.makedocx import make_docx, DOC, P
+    from delta.testing.makedocx import make_docx, DOC, P
     work = stage_dir.parent / "smoke"
     if work.exists():
         shutil.rmtree(work)                  # only this run's files count, not an earlier build's
     work.mkdir()
     (work / "a.docx").write_bytes(make_docx({"word/document.xml": DOC(P("Alpha beta gamma") + P("Delta"))}))
     (work / "b.docx").write_bytes(make_docx({"word/document.xml": DOC(P("Alpha beta gamma") + P("Delta epsilon"))}))
-    out = _run([py, "-m", "calandria", "pdf", str(work / "a.docx"), str(work / "b.docx"), str(work / "out.pdf")],
+    out = _run([py, "-m", "delta", "pdf", str(work / "a.docx"), str(work / "b.docx"), str(work / "out.pdf")],
                stage_dir)
     if '"pages": 1' not in out or not (work / "out.pdf").read_bytes().startswith(b"%PDF"):
         raise RuntimeError(f"pdf smoke: {out!r}")
-    out = _run([py, "-m", "calandria", "compare", str(work / "out.pdf"), str(work / "out.pdf")], stage_dir)
+    out = _run([py, "-m", "delta", "compare", str(work / "out.pdf"), str(work / "out.pdf")], stage_dir)
     if '"total": 0' not in out:
         raise RuntimeError(f"pdf compare smoke: {out!r}")
-    log = work / "calandria.log"
+    log = work / "delta.log"
     out = _run([py, *SMOKE_SERVE, f"--log={log}"], stage_dir, timeout=60)
     if '"url": "http://127.0.0.1:' not in out:
         raise RuntimeError(f"serve smoke: {out!r}")
@@ -325,7 +325,7 @@ def zip_stage(stage_dir: Path, out: Path) -> list[str]:
 
 def _version() -> str:
     _src_on_path()
-    from calandria import __version__
+    from delta import __version__
     return __version__
 
 
@@ -338,7 +338,7 @@ def build(skip_tests: bool = False, skip_smoke: bool = False, keep_stage: bool =
     stage_dir = stage(version)
     if not skip_smoke:
         smoke(stage_dir, version)
-    out = DIST / f"Calandria-{version}.zip"
+    out = DIST / f"Delta-{version}.zip"
     if out.exists():
         out.unlink()
     names = zip_stage(stage_dir, out)

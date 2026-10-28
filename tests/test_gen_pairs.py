@@ -3,9 +3,9 @@ import json
 import sys
 from pathlib import Path
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.model import Table
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.model import Table
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "harness"))
 import gen_pairs  # noqa: E402
@@ -33,8 +33,8 @@ def test_fmt_pair_exercises_every_formatting_attribute():
 
 
 def test_longcap_pair_is_above_the_inline_cap():
-    from calandria.diff.inline import INLINE_TOKEN_CAP
-    from calandria.diff.text import tokenize
+    from delta.diff.inline import INLINE_TOKEN_CAP
+    from delta.diff.text import tokenize
     a, _b = gen_pairs.PAIRS["longcap"]
     d = parse_docx(io.BytesIO(gen_pairs.build(a)))
     assert len(tokenize(d.blocks[0].text)) > INLINE_TOKEN_CAP

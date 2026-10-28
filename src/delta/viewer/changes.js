@@ -29,8 +29,8 @@ let menuRow = null;                   // the row to give the focus back to
 const COMMENT_STATE = { added: "Added", removed: "Removed", edited: "Edited", unchanged: "" };
 
 export function initChanges() {
-  document.addEventListener("calandria:loaded", (e) => { data = e.detail; build(); });
-  document.addEventListener("calandria:restyled", () => highlight(current));
+  document.addEventListener("delta:loaded", (e) => { data = e.detail; build(); });
+  document.addEventListener("delta:restyled", () => highlight(current));
   $("fLocation").addEventListener("change", refilter);
   $("tiles").addEventListener("click", (e) => {
     const t = e.target.closest("button.tile");
@@ -48,7 +48,7 @@ export function initChanges() {
     if (i >= 0) go(i);
     e.target.value = "";
   });
-  document.addEventListener("calandria:goto", (e) => {
+  document.addEventListener("delta:goto", (e) => {
     const i = visible.findIndex((en) => en.cid === e.detail.cid);
     if (i >= 0) go(i);
   });
@@ -94,17 +94,17 @@ function initPanel() {
   const panel = $("panel");
   const btn = $("panelToggle");
   let collapsed = false;
-  try { collapsed = localStorage.getItem("calandria.panel") === "collapsed"; } catch (e) { /* storage off */ }
+  try { collapsed = localStorage.getItem("delta.panel") === "collapsed"; } catch (e) { /* storage off */ }
   const apply = () => {
     panel.classList.toggle("collapsed", collapsed);
     btn.textContent = collapsed ? "›" : "‹";
     btn.title = collapsed ? "Show the change list" : "Hide the change list";
     btn.setAttribute("aria-expanded", String(!collapsed));
-    document.dispatchEvent(new CustomEvent("calandria:resized"));
+    document.dispatchEvent(new CustomEvent("delta:resized"));
   };
   btn.addEventListener("click", () => {
     collapsed = !collapsed;
-    try { localStorage.setItem("calandria.panel", collapsed ? "collapsed" : "open"); } catch (e) { /* storage off */ }
+    try { localStorage.setItem("delta.panel", collapsed ? "collapsed" : "open"); } catch (e) { /* storage off */ }
     apply();
   });
   apply();
@@ -268,7 +268,7 @@ function refilter() {
   renderList();
   highlight(-1);
   status();
-  document.dispatchEvent(new CustomEvent("calandria:filtered", { detail: { visible: visible.map((en) => en.cid) } }));
+  document.dispatchEvent(new CustomEvent("delta:filtered", { detail: { visible: visible.map((en) => en.cid) } }));
 }
 
 function renderList() {
@@ -332,7 +332,7 @@ function go(i) {
   current = i;
   highlight(i);
   status();
-  document.dispatchEvent(new CustomEvent("calandria:selected", { detail: { cid: visible[i].cid } }));
+  document.dispatchEvent(new CustomEvent("delta:selected", { detail: { cid: visible[i].cid } }));
   for (const li of ol.querySelectorAll("li")) {
     const on = Number(li.dataset.i) === i;
     li.classList.toggle("current", on);

@@ -1,4 +1,4 @@
-from calandria.pdfread.types import Line, PageData, PdfRefused, Seg, Span, TextRun
+from delta.pdfread.types import Line, PageData, PdfRefused, Seg, Span, TextRun
 
 
 def test_seg_direction_and_length():

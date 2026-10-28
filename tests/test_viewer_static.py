@@ -8,9 +8,9 @@ from importlib import resources
 
 import pytest
 
-from calandria.server.app import DEFAULT_IDLE, STATIC
+from delta.server.app import DEFAULT_IDLE, STATIC
 
-VIEWER = resources.files("calandria.viewer")
+VIEWER = resources.files("delta.viewer")
 
 
 def _read(name):
@@ -34,7 +34,7 @@ def test_index_references_only_served_files():
 
 def test_index_declares_a_module_script_charset_and_title():
     html = _read("index.html")
-    assert '<meta charset="utf-8">' in html and "<title>Calandria</title>" in html
+    assert '<meta charset="utf-8">' in html and "<title>Delta</title>" in html
     assert '<script type="module" src="/static/app.js">' in html
 
 
@@ -110,7 +110,7 @@ def test_the_source_cards_start_in_the_page_area_and_move_to_the_toolbar():
 def test_the_empty_state_teaches():
     _, main = _main_html()
     assert "nothing is written to Word" in main
-    assert "Closing this window closes Calandria" in main
+    assert "Closing this window closes Delta" in main
     assert "Drop the .docx or .pdf here or click to choose" in main
 
 
@@ -165,9 +165,19 @@ def test_tiles_filter_and_the_checkbox_row_is_gone():
 def test_the_panel_collapses_and_remembers_it():
     assert 'id="panelToggle"' in _read("index.html")
     js = _read("changes.js")
-    assert '"calandria.panel"' in js and "calandria:resized" in js
+    assert '"delta.panel"' in js and "delta:resized" in js
     css = _read("style.css")
     assert "#panel.collapsed" in css and ":focus-visible" in css
+
+
+def test_the_old_names_saved_choices_carry_over_first():
+    # v2.12.0: the app was Calandria; its saved choices move to the delta.* keys before anything reads them.
+    app = _read("app.js")
+    carry = _function_body(app, "carryOldSettings")
+    keys = {k for js in (app, _read("changes.js")) for k in re.findall(r'localStorage\.getItem\("delta\.(\w+)"\)', js)}
+    assert keys and all(f'"{k}"' in carry for k in keys)
+    wire = _function_body(app, "wire")
+    assert wire.index("carryOldSettings();") < wire.index("localStorage") and wire.index("carryOldSettings();") < wire.index("initChanges();")
 
 
 # v2.2.1: the minors deferred from the v2.2.0 reviews.
@@ -264,9 +274,9 @@ def test_the_strip_is_served_and_sits_after_the_pages():
     assert html.index('id="strip"') > html.index("</main>") and html.index('id="strip"') < html.index('id="rowMenu"')
     assert 'initStrip()' in _function_body(_read("app.js"), "wire")
     js = _read("changes.js")
-    assert "calandria:filtered" in _function_body(js, "refilter")
-    assert "calandria:selected" in _function_body(js, "go")
-    assert "calandria:goto" in _function_body(js, "initChanges")
+    assert "delta:filtered" in _function_body(js, "refilter")
+    assert "delta:selected" in _function_body(js, "go")
+    assert "delta:goto" in _function_body(js, "initChanges")
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
@@ -284,7 +294,7 @@ def test_the_strip_places_marks_by_page_offset_and_zoom_and_follows_relayouts():
     body = _function_body(js, "initStrip")
     assert "page.offsetTop + a.top * (Number(page.dataset.scale) || 1) * PT" in body
     assert "main.offsetWidth - main.clientWidth" in body and "main.offsetHeight - main.clientHeight" in body
-    assert 'document.addEventListener("calandria:resized", relayout)' in body
+    assert 'document.addEventListener("delta:resized", relayout)' in body
     assert 'window.addEventListener("resize", relayout)' in body
 
 
@@ -297,7 +307,7 @@ def test_changed_pages_only_is_a_view_toggle_and_a_pdf_flag():
     js = _read("app.js")
     option_ids = re.search(r"const OPTION_IDS = \[(.*?)\];", js).group(1)
     assert "showChangedOnly" not in option_ids and "changedOnly" not in option_ids
-    assert '"calandria.changedOnly"' in js
+    assert '"delta.changedOnly"' in js
     assert "changed_only=" in _function_body(js, "savePdf")
     assert ".page:not([hidden])" in _function_body(js, "currentPage")
     assert ".page:not([hidden])" in _function_body(js, "applyZoom")
@@ -391,7 +401,7 @@ def test_panes_js_is_served_wired_and_owns_the_toggles():
     assert 'SIDE_ORDER = ["original", "blackline", "modified"]' in _read("sides.js")   # declared once
     body = _function_body(js, "toggleView")
     assert "visiblePanes().length === 1" in body           # the last pane on cannot be turned off
-    assert '"calandria:panes"' in _function_body(js, "applyPanes")
+    assert '"delta:panes"' in _function_body(js, "applyPanes")
     assert "$(\"viewMarks\").disabled" in _function_body(js, "applyPanes")
     assert "state.data.side_marks !== state.marks" in _function_body(js, "applyPanes")
     app = _read("app.js")
@@ -433,7 +443,7 @@ def test_a_drop_never_compares_by_itself_and_the_defer_toggle_lives_under_option
     assert html.count('id="deferPages"') == 1 and 'class="test"' not in html
     app = _read("app.js")
     assert "deferPages: true," in _read("app.js")
-    assert 'localStorage.getItem("calandria.deferPages") !== "off"' in app       # absent = on
+    assert 'localStorage.getItem("delta.deferPages") !== "off"' in app       # absent = on
     assert "export function deferPage(" in app and "export function warmPages(" in app
     assert 'contentVisibility = state.deferPages ? "auto" : ""' in _function_body(app, "deferPage")
     assert "buildPages(main, state.data)" in _function_body(app, "renderPages") and "warmPages()" in _function_body(app, "renderPages")
@@ -480,7 +490,7 @@ def test_sync_js_is_served_and_hung_on_the_panes():
     app = _read("app.js")
     assert "initSync()" in _function_body(app, "wire") and "refreshSync()" in _function_body(app, "applyZoom")
     assert "syncFrom(" in _function_body(_read("changes.js"), "go")
-    assert "syncFrom(" in _function_body(_read("panes.js"), "applyPanes") or "calandria:panes" in js
+    assert "syncFrom(" in _function_body(_read("panes.js"), "applyPanes") or "delta:panes" in js
 
 
 # Task 5 review fixes: per-page scale under Fit, a clamped follower write, a jump that lands past
@@ -543,8 +553,8 @@ def test_refresh_sync_builds_its_page_map_in_one_walk():
 
 def test_resized_no_longer_duplicates_apply_zooms_refresh():
     js = _read("sync.js")
-    # calandria:resized only re-syncs; app.js's applyZoom already calls refreshSync()
-    body = js[js.index('addEventListener("calandria:resized"'):]
+    # delta:resized only re-syncs; app.js's applyZoom already calls refreshSync()
+    body = js[js.index('addEventListener("delta:resized"'):]
     body = body[:body.index("});")]
     lines = [ln for ln in body.splitlines() if not ln.strip().startswith("//")]
     assert "refreshSync()" not in "\n".join(lines) and "syncFrom(" in body

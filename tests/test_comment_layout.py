@@ -1,12 +1,12 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.comments import COLUMN_GAP, COLUMN_W, reserved_width
-from calandria.layout.engine import layout
-from calandria.layout.pieces import LayoutOptions
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import COMMENTS, COMMENTS_EX, CRANGE, CRELS, DOC, P, PR, R, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.comments import COLUMN_GAP, COLUMN_W, reserved_width
+from delta.layout.engine import layout
+from delta.layout.pieces import LayoutOptions
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import COMMENTS, COMMENTS_EX, CRANGE, CRELS, DOC, P, PR, R, make_docx
 
 OPTS = lambda: LayoutOptions(fonts=FakeResolver())
 

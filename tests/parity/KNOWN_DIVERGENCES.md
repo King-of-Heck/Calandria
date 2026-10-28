@@ -1,8 +1,8 @@
 # Known model-vs-reference divergences
 
-The parity gate (`tests/parity/test_extraction.py`) compares Calandria's extraction against the
+The parity gate (`tests/parity/test_extraction.py`) compares Delta's extraction against the
 reference engine's, paragraph for paragraph, over the corpus. The two are not meant to agree
-everywhere: `calandria.model` and the parser keep Word semantics, while the reference engine is a
+everywhere: `delta.model` and the parser keep Word semantics, while the reference engine is a
 regex reader with its own simplifications. The list below records every place where the two are
 known to differ by design, with the reason and which side matches Word.
 
@@ -11,29 +11,29 @@ down so that a future failure is recognised as a known divergence rather than a 
 
 ## (a) List counters: per abstract list vs. a single level-keyed cascade
 
-Calandria keeps one counter set per abstract numbering definition, so two interleaved lists that
+Delta keeps one counter set per abstract numbering definition, so two interleaved lists that
 use different abstract definitions advance independently. The reference keeps a single cascade
 keyed by level, so interleaving two lists at the same level makes them share one running number.
 
-Calandria is Word-correct. Word restarts and continues numbering per abstract list; a level
+Delta is Word-correct. Word restarts and continues numbering per abstract list; a level
 number belongs to the list that owns it, not to the level index on its own.
 
 ## (b) `w:lvlOverride` / `w:startOverride`
 
-Calandria honours a `<w:num>`'s `<w:lvlOverride><w:startOverride>` and restarts that level's
+Delta honours a `<w:num>`'s `<w:lvlOverride><w:startOverride>` and restarts that level's
 counter on first use of the overriding `numId`. The reference ignores overrides entirely and
 continues the shared abstract list.
 
-Calandria is Word-correct. `startOverride` is how Word expresses "restart numbering at 1" for a
+Delta is Word-correct. `startOverride` is how Word expresses "restart numbering at 1" for a
 list that reuses an existing abstract definition, which is the normal shape a restart takes.
 
 ## (c) Empty numbered paragraphs consume a number
 
-An empty paragraph carrying a `<w:numPr>` takes a number in Calandria, so the next item in the
+An empty paragraph carrying a `<w:numPr>` takes a number in Delta, so the next item in the
 list skips one. The reference returns from its paragraph handler as soon as the collapsed text is
 empty -- before it resolves numbering -- so an empty numbered paragraph consumes nothing.
 
-Calandria is Word-correct: Word numbers an empty list item and shows its marker. Both sides drop
+Delta is Word-correct: Word numbers an empty list item and shows its marker. Both sides drop
 the empty paragraph from the flat records, so the divergence surfaces as a `marker` mismatch on
 the *following* items, not as a paragraph-count difference. Pinned by
 `tests/test_parser.py::test_empty_numbered_paragraph_consumes_a_number`.
@@ -41,18 +41,18 @@ the *following* items, not as a paragraph-count difference. Pinned by
 ## (d) The default paragraph style applies to unstyled paragraphs
 
 A paragraph with no `<w:pStyle>` resolves through Word's default paragraph style (the
-`w:type="paragraph"` style marked `w:default`) in Calandria, so it inherits that style's
+`w:type="paragraph"` style marked `w:default`) in Delta, so it inherits that style's
 alignment, indents and `numPr` as well as its spacing and keep flags. The reference consults the
 default style for spacing and the keep flags only; alignment, indents and numbering fall back to
 their hard defaults.
 
-Calandria is Word-correct: the default paragraph style is a full style, not a spacing-only one.
+Delta is Word-correct: the default paragraph style is a full style, not a spacing-only one.
 Expect this to show up as `align`, `indLeftPt`, `indHangingPt`, `indFirstLinePt`, `marker` or
 `isNumbered` on a document whose default style sets any of them.
 
 ## (e) A dangling `pStyle` skips the default-style rung
 
-When a paragraph names a `pStyle` that is absent from `styles.xml`, Calandria resolves an empty
+When a paragraph names a `pStyle` that is absent from `styles.xml`, Delta resolves an empty
 style chain -- the default paragraph style is used only when no `pStyle` is named at all. So a
 dangling style id yields hard defaults, not the default style's properties.
 
@@ -62,13 +62,13 @@ fields in the first place), so this only diverges on the fields listed in (d).
 
 ## (f) `w:default` acceptance is wider than the reference's
 
-Calandria treats a style as the default paragraph style when `w:default` is `1`, `true` or `on`,
+Delta treats a style as the default paragraph style when `w:default` is `1`, `true` or `on`,
 and treats a style with no `w:type` as a paragraph style (Word's own default for the attribute).
 The reference requires literally `w:default="1"` together with an explicit `w:type="paragraph"`.
 
-Calandria is Word-correct -- these are ordinary OOXML boolean and attribute-default rules -- but
+Delta is Word-correct -- these are ordinary OOXML boolean and attribute-default rules -- but
 it means a document written with `w:default="true"`, or with the type attribute omitted, gets a
-default paragraph style in Calandria and none in the reference, which then shows up as the
+default paragraph style in Delta and none in the reference, which then shows up as the
 divergences described in (d).
 
 ## Policy
@@ -81,7 +81,7 @@ reason. For example:
 
 Do not use `"alias": "*"`, and do not widen an entry to cover fields the pair does not actually
 diverge on -- a scoped entry keeps the gate discriminating everywhere else. Anything not on this
-list is a bug in Calandria until it is investigated and either fixed or added here.
+list is a bug in Delta until it is investigated and either fixed or added here.
 
 # Diff-engine divergences (Plan 2)
 
@@ -99,40 +99,40 @@ the oracle comparison needs a token-level normalization. Until then both sides a
 
 ## (h) Whitespace class (not a divergence -- a recorded intention)
 
-Calandria deliberately uses the reference's JavaScript `\s` set (single source `model.WS_CHARS`),
+Delta deliberately uses the reference's JavaScript `\s` set (single source `model.WS_CHARS`),
 so U+FEFF collapses to a space and U+0085 does not -- matching the reference, not Python's `\s`.
 
 Not a divergence today; recorded so nobody "fixes" it back to `\s`.
 
 ## (i) Non-BMP characters
 
-Calandria indexes text by code point; the reference by UTF-16 code unit, so an emoji or astral CJK
+Delta indexes text by code point; the reference by UTF-16 code unit, so an emoji or astral CJK
 character occupies one position here and two there.
 
-Calandria is correct. Surfaces as `boldRuns`/`html` divergences on a pair containing such
+Delta is correct. Surfaces as `boldRuns`/`html` divergences on a pair containing such
 characters; a scoped allow entry citing (i) is the remedy.
 
 ## (j) Nested tables
 
-Calandria (lxml) keeps a nested table's paragraphs inside the outer cell with the outer location;
+Delta (lxml) keeps a nested table's paragraphs inside the outer cell with the outer location;
 the reference's non-greedy `<w:tbl>...</w:tbl>` / `<w:tc>...</w:tc>` regexes terminate on the INNER
 closing tag and truncate the outer table.
 
-Calandria is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
-Calandria to match.
+Delta is correct; a nested-table pair will fail the gate with the oracle wrong -- do not "fix"
+Delta to match.
 
 ## (n) Changes counted by passage (v2.5.0)
 
 The reference numbers paragraphs: one change per changed, inserted, deleted or renumbered row, and
 its summary adds one insertion AND one deletion for every changed paragraph whatever it holds, so
-its tiles cannot add up to its total. Since v2.5.0 Calandria numbers passages: within a row, an
+its tiles cannot add up to its total. Since v2.5.0 Delta numbers passages: within a row, an
 inserted passage is a maximal stretch of inserted segments broken only by an equal segment holding
 visible text (whitespace-only equal text and deleted segments in between do not break it), deleted
 passages likewise, plus one numbering passage per renumbered marker when numbering is counted; a
 replacement is a deleted passage then an inserted one. This is the unit Litera counts (a Workshare
 Compare report of a 200-paragraph pair read Insertions 150, Deletions 97, Total 247 = the sum; the
 same pair reads 142 / 95 / 237 here, the rest being word-level versus character-level diffing).
-`insertions`, `deletions`, `numbering_changes` and `total` are therefore Calandria-only; the row
+`insertions`, `deletions`, `numbering_changes` and `total` are therefore Delta-only; the row
 gate does not read the number. Rows, `type`, `cat`, `numbering` (every renumbered row, counted or
 not), `formatting`, `content` and `punctuation` still match the reference exactly.
 
@@ -180,7 +180,7 @@ are, they will be added to `Cell` and `CellBox` so that both sinks keep reading 
 
 The reference has no note paragraphs in its comparison rows: it folds every footnote/endnote
 reference into its paragraph's text as a sentinel token (U+E000 `kind:id` U+E001) appended at
-the END of the paragraph in reference order, and diffs those tokens with the words. Calandria
+the END of the paragraph in reference order, and diffs those tokens with the words. Delta
 keeps the text as typed, anchors each reference by offset, and compares the note bodies as rows
 of their own right after the paragraph that references them (`units.walk`), counted like body
 text (v2.6.0).
@@ -190,7 +190,7 @@ note rows and note paragraphs are dropped, `oi`/`ni` count body paragraphs only,
 are appended to `text` and `html` (shared plain, original-only deleted, revised-only inserted),
 and the compared summary keys are recounted over body rows (`reference_summary`). Left as real
 divergences, to be allowed per pair when hit: a paragraph whose only change is a reference added
-or removed is "changed" for the reference (a sentinel token moved) and "equal" for Calandria (the
+or removed is "changed" for the reference (a sentinel token moved) and "equal" for Delta (the
 note itself is the inserted/deleted row); a sentinel token can tip the reference's pairing
 similarity or dense-rewrite thresholds; a bold run ending the paragraph spans the sentinels there.
 
@@ -198,7 +198,7 @@ similarity or dense-rewrite thresholds; a bold run ending the paragraph spans th
 
 The reference compares one set of header/footer parts per document (the last section's
 references win, text-less parts skipped) as extra streams, and its harness export carries none of
-those rows. Calandria compares headers and footers as displayed (v2.7.0): for every section, the
+those rows. Delta compares headers and footers as displayed (v2.7.0): for every section, the
 part Word shows on its first, odd and even pages, resolved through the previous sections when a
 section names none, blank parts dropped, repeated content once, in document order -- one header
 stream and one footer stream, diffed like the body. The harness projects header/footer rows and
@@ -213,7 +213,7 @@ draws the result Word cached in the file, so the page reads as Word wrote it.
 ## (q) Comments
 
 The reference has no comment stream at all -- SorkWhare drops `word/comments.xml` on export, so
-comments are simply absent from its change list. Calandria compares comments (v2.8.0): matched by
+comments are simply absent from its change list. Delta compares comments (v2.8.0): matched by
 identity across the two documents (a durable id, then anchor overlap plus author, then text
 similarity plus author), classified added / removed / edited / unchanged, threaded (replies follow
 their parent, `depth` counts the chain), and diffed with the same inline machinery as body text.

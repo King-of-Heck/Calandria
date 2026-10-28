@@ -1,7 +1,7 @@
 import io
 
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, P, PEOPLE, PR, R,
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, P, PEOPLE, PR, R,
                                         make_docx)
 
 

@@ -3,14 +3,14 @@ from datetime import datetime
 
 import pytest
 
-from calandria.diff.changes import Comparison, empty_summary
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.pdf.report import (GAP, LINE_GAP, SIZE, TITLE, TITLE_SIZE, ReportInfo, draw_report,
+from delta.diff.changes import Comparison, empty_summary
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.pdf.report import (GAP, LINE_GAP, SIZE, TITLE, TITLE_SIZE, ReportInfo, draw_report,
                                   report_height, report_info, report_lines)
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, make_docx
-from calandria.testing.recpaint import RecordingPainter
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import COMMENTS, CRANGE, CRELS, DOC, P, PR, R, make_docx
+from delta.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()
 WHEN = datetime(2026, 9, 9, 14, 5)
@@ -72,7 +72,7 @@ def test_long_names_are_trimmed_to_the_width():
 
 
 def test_synthetic_bold_title_is_faked():
-    from calandria.layout.pages import FontRef
+    from delta.layout.pages import FontRef
     bold = FontRef("<f>", 0, "F", True, False, True)
     bold.width = lambda t, s: 0.5 * s * len(t)             # noqa: E731
     bold.line_height = lambda s: 1.2 * s                   # noqa: E731
@@ -159,9 +159,9 @@ def test_pdf_sources_are_named_in_the_report():
 
 
 def test_report_info_reads_the_source_kind_from_the_documents():
-    from calandria.diff.compare import compare
-    from calandria.pdfread import parse_pdf
-    from calandria.testing.makepdf import make_pdf
+    from delta.diff.compare import compare
+    from delta.pdfread import parse_pdf
+    from delta.testing.makepdf import make_pdf
     a = parse_pdf(make_pdf([[("text", 72, 100, 12, "Alpha")], [("image", 0, 0, 612, 792)]]))
     b = parse_pdf(make_pdf([[("text", 72, 100, 12, "Alpha beta")]]))
     assert report_info(compare(a, b), "a.pdf", "b.pdf", "Standard").source == ((2,), ())

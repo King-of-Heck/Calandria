@@ -3,16 +3,16 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout
-from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import PdfOptions, draw_layout
-from calandria.pdf.rendersets import STANDARD
-from calandria.testing.fakefonts import FakeFace, FakeResolver
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
-from calandria.testing.recpaint import RecordingPainter
-from calandria.viewer.svg import SVG_NS, SvgPainter, render_pages
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout
+from delta.layout.pieces import LayoutOptions
+from delta.pdf.draw import PdfOptions, draw_layout
+from delta.pdf.rendersets import STANDARD
+from delta.testing.fakefonts import FakeFace, FakeResolver
+from delta.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from delta.testing.recpaint import RecordingPainter
+from delta.viewer.svg import SVG_NS, SvgPainter, render_pages
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -186,7 +186,7 @@ def test_side_pages_carry_tint_rects_only_with_marks():
 
 
 def test_a_symbol_face_is_drawn_as_glyph_outlines(monkeypatch):
-    import calandria.viewer.svg as svgmod
+    import delta.viewer.svg as svgmod
     monkeypatch.setattr(svgmod, "glyph_outlines",
                         lambda path, n, text: ([("M0 0L10 0L10 10Z", 1000), ("", 500)], 2000))
     face = FakeFace("Wingdings 2", False, False, 0.5, 1.2, 0.8)
@@ -206,7 +206,7 @@ def test_a_symbol_face_is_drawn_as_glyph_outlines(monkeypatch):
 
 
 def test_a_symbol_face_with_fake_bold_strokes_its_outlines(monkeypatch):
-    import calandria.viewer.svg as svgmod
+    import delta.viewer.svg as svgmod
     monkeypatch.setattr(svgmod, "glyph_outlines", lambda path, n, text: ([("M0 0Z", 1000)], 1000))
     face = FakeFace("Symbol", True, False, 0.5, 1.2, 0.8)
     face.symbol = True

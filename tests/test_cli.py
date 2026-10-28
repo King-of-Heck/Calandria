@@ -8,9 +8,9 @@ from datetime import datetime
 import pytest
 from pypdf import PdfReader
 
-from calandria.__main__ import _open_log, main
-from calandria.layout.fonts import default_dirs
-from calandria.testing.makedocx import make_docx, DOC, P
+from delta.__main__ import _open_log, main
+from delta.layout.fonts import default_dirs
+from delta.testing.makedocx import make_docx, DOC, P
 
 _needs_fonts = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                   reason="no system font directory on this machine")
@@ -129,7 +129,7 @@ def test_pdf_command_options(tmp_path, capsys):
 
 @_needs_fonts
 def test_pdf_command_stamps_the_report_and_the_metadata_from_one_clock(tmp_path, capsys, monkeypatch):
-    import calandria.__main__ as cli
+    import delta.__main__ as cli
 
     class _Clock(datetime):
         @classmethod
@@ -176,7 +176,7 @@ def test_serve_usage_errors(capsys):
 
 def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: opened.append(url))
     t0 = time.perf_counter()
     assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4"]) == 0
     assert time.perf_counter() - t0 < 30
@@ -187,15 +187,15 @@ def test_serve_prints_the_url_and_stops_when_idle(capsys, monkeypatch):
 
 def test_serve_opens_the_browser_by_default(monkeypatch):
     opened = []
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: opened.append(url))
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: opened.append(url))
     assert main(["serve", "--idle=0.4", "--grace=0.4"]) == 0
     assert len(opened) == 1 and opened[0].startswith("http://127.0.0.1:")
 
 
 def test_version_subcommand(capsys):
-    from calandria import __version__
+    from delta import __version__
     assert main(["version"]) == 0
-    assert capsys.readouterr().out.strip() == f"calandria {__version__}"
+    assert capsys.readouterr().out.strip() == f"delta {__version__}"
 
 
 def test_version_subcommand_takes_no_arguments(capsys):
@@ -204,20 +204,20 @@ def test_version_subcommand_takes_no_arguments(capsys):
 
 
 def test_serve_writes_the_launchers_shortcut_and_logs_it(capsys, monkeypatch, tmp_path):
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
-    cmd = tmp_path / "Calandria.cmd"
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
+    cmd = tmp_path / "Delta.cmd"
     cmd.write_text("@echo off\r\n")
-    (tmp_path / "Calandria.ico").write_bytes(b"\0\0\1\0")
+    (tmp_path / "Delta.ico").write_bytes(b"\0\0\1\0")
     assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", f"--shortcut={cmd}"]) == 0
     out = capsys.readouterr().out
-    assert "shortcut written" in out and (tmp_path / "Calandria.lnk").stat().st_size > 0x4C
+    assert "shortcut written" in out and (tmp_path / "Delta.lnk").stat().st_size > 0x4C
     assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", f"--shortcut={cmd}"]) == 0
     assert "shortcut unchanged" in capsys.readouterr().out
 
 
 def test_a_failed_shortcut_is_one_line_and_the_app_still_serves(capsys, monkeypatch):
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
-    monkeypatch.setattr("calandria.__main__.write_shortcut", lambda p: (_ for _ in ()).throw(PermissionError("read only")))
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
+    monkeypatch.setattr("delta.__main__.write_shortcut", lambda p: (_ for _ in ()).throw(PermissionError("read only")))
     assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", "--shortcut=x.cmd"]) == 0
     out = capsys.readouterr().out
     assert "shortcut failed 'read only'" in out and '"url"' in out
@@ -231,11 +231,11 @@ def test_serve_grace_usage_errors(capsys):
 
 
 def test_serve_writes_the_url_line_to_the_log_file(tmp_path, capsys, monkeypatch):
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
-    log = tmp_path / "sub" / "calandria.log"
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
+    log = tmp_path / "sub" / "delta.log"
     assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={log}"]) == 0
     lines = log.read_text(encoding="utf-8").splitlines()
-    assert lines[0].startswith("--- ") and "calandria" in lines[0]
+    assert lines[0].startswith("--- ") and "delta" in lines[0]
     assert json.loads(lines[1])["url"].startswith("http://127.0.0.1:")
     assert json.loads(capsys.readouterr().out.splitlines()[0])["url"] == json.loads(lines[1])["url"]
 
@@ -247,8 +247,8 @@ def test_serve_hands_the_timing_sink_to_the_server_and_it_writes_console_and_log
         seen.update(kw)
         kw["ready"]("http://127.0.0.1:1/")
         kw["log"]("timing compare pages=1 total=0.010")
-    monkeypatch.setattr("calandria.__main__.serve", fake_serve)
-    log = tmp_path / "calandria.log"
+    monkeypatch.setattr("delta.__main__.serve", fake_serve)
+    log = tmp_path / "delta.log"
     assert main(["serve", "--no-browser", f"--log={log}"]) == 0
     lines = log.read_text(encoding="utf-8").splitlines()
     assert lines[-1] == "timing compare pages=1 total=0.010" and json.loads(lines[-2])["url"] == "http://127.0.0.1:1/"
@@ -284,10 +284,10 @@ def test_open_log_appends_when_a_console_exists(tmp_path):
 
 
 def test_serve_carries_on_when_the_log_cannot_be_opened(tmp_path, capsys, monkeypatch):
-    monkeypatch.setattr("calandria.server.app.open_viewer", lambda url: None)
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
     blocker = tmp_path / "file"
     blocker.write_text("x")
-    assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={blocker / 'calandria.log'}"]) == 0
+    assert main(["serve", "--no-browser", "--idle=0.4", "--grace=0.4", f"--log={blocker / 'delta.log'}"]) == 0
     out, err = capsys.readouterr()
     assert json.loads(out.splitlines()[0])["url"].startswith("http://127.0.0.1:")
     assert "cannot open the log file" in err
@@ -305,7 +305,7 @@ def test_open_log_rotates_the_old_log_to_dot_one(tmp_path):
 
 def test_verbose_is_dropped_when_there_is_no_stderr_to_write_to(monkeypatch):
     calls = []
-    monkeypatch.setattr("calandria.__main__.serve", lambda **kw: calls.append(kw))
+    monkeypatch.setattr("delta.__main__.serve", lambda **kw: calls.append(kw))
     monkeypatch.setattr(sys, "stderr", None)                      # pythonw.exe without --log
     assert main(["serve", "--no-browser", "--verbose"]) == 0
     assert calls[0]["verbose"] is False
@@ -317,7 +317,7 @@ def test_verbose_is_dropped_when_there_is_no_stderr_to_write_to(monkeypatch):
 # Task 11: compare and dump take PDFs too, through the same reader seam as the server.
 
 def test_compare_and_dump_take_pdfs(tmp_path, capsys):
-    from calandria.testing.makepdf import make_pdf
+    from delta.testing.makepdf import make_pdf
     a, b = tmp_path / "a.pdf", tmp_path / "b.pdf"
     a.write_bytes(make_pdf([[("text", 72, 100, 12, "Alpha beta")]]))
     b.write_bytes(make_pdf([[("text", 72, 100, 12, "Alpha gamma")]]))
@@ -329,7 +329,7 @@ def test_compare_and_dump_take_pdfs(tmp_path, capsys):
 
 
 def test_mixed_kinds_are_refused_on_the_command_line(tmp_path):
-    from calandria.testing.makepdf import make_pdf
+    from delta.testing.makepdf import make_pdf
     a, b = tmp_path / "a.docx", tmp_path / "b.pdf"
     a.write_bytes(make_docx({"word/document.xml": DOC(P("x"))}))
     b.write_bytes(make_pdf([[("text", 72, 100, 12, "x")]]))

@@ -9,7 +9,7 @@ from .content import base_matrix, interpret
 from .pdffonts import PdfFont, load_font
 from .types import PageData, PdfRefused
 
-NO_TEXT = ("This PDF has no text, so it looks scanned. Calandria can only compare PDFs "
+NO_TEXT = ("This PDF has no text, so it looks scanned. Delta can only compare PDFs "
            "that contain real text.")
 PROTECTED = "This PDF is password-protected. Open it and print it to a new PDF first."
 DAMAGED = "This PDF could not be read; the file looks damaged."

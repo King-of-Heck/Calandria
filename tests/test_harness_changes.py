@@ -1,10 +1,10 @@
-from calandria.diff.chars import FmtSpan
-from calandria.diff.compare import compare
-from calandria.diff.fmt import FmtRange
-from calandria.diff.inline import Seg
-from calandria.docx.parser import parse_docx
-from calandria.harness.changes import esc, fmt_wrap, records, render_html
-from calandria.testing.makedocx import DOC, P, PR, R, make_docx
+from delta.diff.chars import FmtSpan
+from delta.diff.compare import compare
+from delta.diff.fmt import FmtRange
+from delta.diff.inline import Seg
+from delta.docx.parser import parse_docx
+from delta.harness.changes import esc, fmt_wrap, records, render_html
+from delta.testing.makedocx import DOC, P, PR, R, make_docx
 
 
 def _doc(body):
@@ -52,11 +52,11 @@ def test_records_shape_for_each_row_type():
 
 def test_header_and_footer_rows_are_projected_out_like_note_rows():
     import io
-    from calandria.diff.compare import compare
-    from calandria.docx.parser import parse_docx
-    from calandria.harness.changes import records, reference_summary
-    from calandria.harness.flatten import flatten
-    from calandria.testing.makedocx import DOC, HDR, P, RELS, SECT, make_docx
+    from delta.diff.compare import compare
+    from delta.docx.parser import parse_docx
+    from delta.harness.changes import records, reference_summary
+    from delta.harness.flatten import flatten
+    from delta.testing.makedocx import DOC, HDR, P, RELS, SECT, make_docx
     def doc(head):
         return parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(P("body") + SECT(hdr={"default": "rId1"})),
                                                 "word/_rels/document.xml.rels": RELS({"rId1": "header1.xml"}),

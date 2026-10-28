@@ -1,5 +1,5 @@
-from calandria.pdfread.grid import find_grids
-from calandria.pdfread.types import Seg
+from delta.pdfread.grid import find_grids
+from delta.pdfread.types import Seg
 
 
 def H(y, x0, x1):

@@ -1,6 +1,6 @@
 import pytest
 
-from calandria.pdf.decor import decorations, run_effects
+from delta.pdf.decor import decorations, run_effects
 
 
 def test_single_underline_and_strike_geometry():

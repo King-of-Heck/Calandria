@@ -1,4 +1,4 @@
-from calandria.layout.planner import BlockSpec, Break, plan_breaks
+from delta.layout.planner import BlockSpec, Break, plan_breaks
 
 
 def B(*hs, **kw):
@@ -104,7 +104,7 @@ def test_space_before_is_dropped_when_widow_control_pushes_the_block_whole():
 
 
 def test_a_line_carries_its_footnotes_and_the_separator_once_per_page():
-    from calandria.layout.planner import NOTE_SEP_PT
+    from delta.layout.planner import NOTE_SEP_PT
     assert NOTE_SEP_PT == 9.0
     # the second line references a 42 pt note: 10 + (10 + 42 + 9) = 71 > 70 moves it; 41 fits
     assert plan_breaks([B(10, 10, line_notes=[0, 42])], const(70)).breaks == [Break(0, 1)]

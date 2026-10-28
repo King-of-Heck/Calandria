@@ -1,6 +1,6 @@
-from calandria.docx.parser import parse_docx
-from calandria.harness.flatten import flatten
-from calandria.testing.makedocx import make_docx, DOC, P, W_NS
+from delta.docx.parser import parse_docx
+from delta.harness.flatten import flatten
+from delta.testing.makedocx import make_docx, DOC, P, W_NS
 
 
 def test_flatten_shape_and_empty_paragraphs_dropped():

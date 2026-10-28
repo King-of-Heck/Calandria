@@ -1,9 +1,9 @@
 import io
 
-from calandria.diff.changes import comment_label
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import COMMENTS, COMMENTS_EX, CRANGE, CRELS, DOC, P, PR, R, make_docx
+from delta.diff.changes import comment_label
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import COMMENTS, COMMENTS_EX, CRANGE, CRELS, DOC, P, PR, R, make_docx
 
 
 def _doc(body, comments=None, comments_ex=None):

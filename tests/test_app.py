@@ -11,14 +11,14 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from calandria import __version__
-from calandria.layout.fonts import default_dirs
-from calandria.server import app as appmod
-from calandria.server.app import DEFAULT_GRACE, DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
-from calandria.server.session import Session
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import DOC, P, STYLES, make_docx
-from calandria.testing.makepdf import make_pdf
+from delta import __version__
+from delta.layout.fonts import default_dirs
+from delta.server import app as appmod
+from delta.server.app import DEFAULT_GRACE, DEFAULT_IDLE, MAX_BODY, STATIC, make_server, run, url_of
+from delta.server.session import Session
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import DOC, P, STYLES, make_docx
+from delta.testing.makepdf import make_pdf
 
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
 WHEN = datetime(2026, 9, 9, 14, 5)
@@ -614,7 +614,7 @@ def test_pdf_download_name_survives_a_non_latin1_quoted_and_newline_bearing_file
 
 def test_index_and_static_files_are_served_with_their_types(srv):
     status, headers, data = _req(srv.url)
-    assert status == 200 and headers["Content-Type"] == "text/html; charset=utf-8" and b"<title>Calandria</title>" in data
+    assert status == 200 and headers["Content-Type"] == "text/html; charset=utf-8" and b"<title>Delta</title>" in data
     status, headers, data = _req(srv.url + "static/app.js")
     assert status == 200 and headers["Content-Type"] == "text/javascript; charset=utf-8" and b"api" in data
     status, headers, data = _req(srv.url + "static/style.css")
@@ -645,7 +645,7 @@ def test_a_refused_cross_origin_post_does_not_reset_the_idle_clock(srv):
 
 
 def test_an_internal_value_or_lookup_error_is_a_500_not_a_client_error(srv, monkeypatch):
-    from calandria.server.session import Session
+    from delta.server.session import Session
     for exc in (ValueError("bug"), LookupError("bug")):
         monkeypatch.setattr(Session, "state", lambda self, exc=exc: (_ for _ in ()).throw(exc))
         status, d = _json(srv.url + "api/state")

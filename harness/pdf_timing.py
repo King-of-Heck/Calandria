@@ -17,14 +17,14 @@ LAPTOP_FACTOR = 6.5      # the work laptop against this desktop, measured for v2
 
 
 def own_pdf() -> bytes:
-    from calandria.diff.compare import compare
-    from calandria.docx.parser import parse_docx
-    from calandria.layout.engine import layout
-    from calandria.pdf.draw import PdfOptions
-    from calandria.pdf.report import report_info
-    from calandria.pdf.writer import render
-    from calandria.testing.makedocx import DOC, make_docx
-    from calandria.testing.perfdoc import hundred_page_pair
+    from delta.diff.compare import compare
+    from delta.docx.parser import parse_docx
+    from delta.layout.engine import layout
+    from delta.pdf.draw import PdfOptions
+    from delta.pdf.report import report_info
+    from delta.pdf.writer import render
+    from delta.testing.makedocx import DOC, make_docx
+    from delta.testing.perfdoc import hundred_page_pair
     a, b = hundred_page_pair()
     docs = [parse_docx(io.BytesIO(make_docx({"word/document.xml": DOC(x)}))) for x in (a, b)]
     cmp = compare(*docs)
@@ -33,7 +33,7 @@ def own_pdf() -> bytes:
 
 
 def measure(label: str, data: bytes) -> None:
-    from calandria.pdfread.extract import extract_pages
+    from delta.pdfread.extract import extract_pages
     t0 = time.perf_counter()
     pages = extract_pages(data)
     secs = time.perf_counter() - t0

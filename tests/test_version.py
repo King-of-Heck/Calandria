@@ -1,5 +1,5 @@
-import calandria
+import delta
 
 
 def test_version():
-    assert calandria.__version__ == "2.11.3"
+    assert delta.__version__ == "2.12.0"

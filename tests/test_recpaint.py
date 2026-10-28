@@ -1,6 +1,6 @@
-from calandria.layout.pages import FontRef
-from calandria.pdf.painter import rgb
-from calandria.testing.recpaint import RecordingPainter
+from delta.layout.pages import FontRef
+from delta.pdf.painter import rgb
+from delta.testing.recpaint import RecordingPainter
 
 FACE = FontRef("<fake:Fake|>", 0, "Fake", False, False, False)
 

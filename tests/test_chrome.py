@@ -1,5 +1,5 @@
-from calandria.layout.chrome import strip_marks
-from calandria.layout.pages import GlyphRun, PlacedLine
+from delta.layout.chrome import strip_marks
+from delta.layout.pages import GlyphRun, PlacedLine
 
 # The fields themselves are substituted before a part is measured (chrome.part_blocks), so they are
 # tested at the engine level in tests/test_engine_hf.py.

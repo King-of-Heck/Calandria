@@ -1,4 +1,4 @@
-from calandria.pdfread.pdffonts import REPLACEMENT, PdfFont, load_font, parse_tounicode
+from delta.pdfread.pdffonts import REPLACEMENT, PdfFont, load_font, parse_tounicode
 
 CMAP = b"""/CIDInit /ProcSet findresource begin
 1 begincodespacerange <0000> <FFFF> endcodespacerange

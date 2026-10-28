@@ -1,17 +1,17 @@
 """Command line entry:
-    python -m calandria dump <file.docx>
+    python -m delta dump <file.docx>
     Every <file.docx> may also be a text PDF (both files of a pair must be the same kind).
-    python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
-    python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+    python -m delta compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+    python -m delta layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
                                [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                                [--hide-formatting] [--pages]
-    python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
+    python -m delta pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
                             [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                             [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                             [--report=first|last|none] [--changed-only]
-    python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
+    python -m delta serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
                               [--shortcut=LAUNCHER.cmd] [--no-browser] [--verbose]
-    python -m calandria version
+    python -m delta version
 """
 import json
 import math
@@ -33,19 +33,19 @@ from .reader import documents, read_source
 from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
 from .server.shortcut import write_shortcut
 
-USAGE = ("usage: python -m calandria dump <file.docx>\n"
+USAGE = ("usage: python -m delta dump <file.docx>\n"
          "       Every <file.docx> may also be a text PDF (both files of a pair must be the same kind).\n"
-         "       python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
-         "       python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
+         "       python -m delta compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
+         "       python -m delta layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]\n"
          "                                  [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                                  [--hide-formatting] [--pages]\n"
-         "       python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]\n"
+         "       python -m delta pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]\n"
          "                               [--hide-unchanged] [--hide-insertions] [--hide-deletions]\n"
          "                               [--hide-formatting] [--no-change-bars] [--render-set=NAME]\n"
          "                               [--report=first|last|none] [--changed-only]\n"
-         "       python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]\n"
+         "       python -m delta serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]\n"
          "                                 [--shortcut=LAUNCHER.cmd] [--no-browser] [--verbose]\n"
-         "       python -m calandria version")
+         "       python -m delta version")
 _COMPARE_FLAGS = {"--ignore-case", "--no-count-numbering"}
 _HIDE_FLAGS = {"--hide-unchanged", "--hide-insertions", "--hide-deletions", "--hide-formatting"}
 _LAYOUT_FLAGS = _COMPARE_FLAGS | _HIDE_FLAGS | {"--pages"}
@@ -113,13 +113,13 @@ def _open_log(path: str):
         sys.stdout = f
     if sys.stderr is None:
         sys.stderr = f
-    print(f"--- {datetime.now():%Y-%m-%d %H:%M:%S} calandria {__version__} serve", file=f, flush=True)
+    print(f"--- {datetime.now():%Y-%m-%d %H:%M:%S} delta {__version__} serve", file=f, flush=True)
     return f
 
 
 def main(argv) -> int:
     if argv == ["version"]:
-        print(f"calandria {__version__}")
+        print(f"delta {__version__}")
         return 0
     if len(argv) == 2 and argv[0] == "dump":
         print(json.dumps(flatten(documents(_read(argv[1]))[0]), ensure_ascii=True, indent=1))

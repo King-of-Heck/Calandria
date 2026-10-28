@@ -5,14 +5,14 @@ from datetime import datetime
 import pytest
 from pypdf import PdfReader
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout
-from calandria.layout.fonts import default_dirs, default_resolver
-from calandria.pdf.draw import DrawResult, PdfOptions
-from calandria.pdf.report import TITLE, report_info
-from calandria.pdf.writer import render, write_pdf
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout
+from delta.layout.fonts import default_dirs, default_resolver
+from delta.pdf.draw import DrawResult, PdfOptions
+from delta.pdf.report import TITLE, report_info
+from delta.pdf.writer import render, write_pdf
+from delta.testing.makedocx import DOC, P, STYLES, TBL, make_docx
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")
@@ -65,7 +65,7 @@ def test_unknown_render_set_is_rejected_before_drawing():
 def test_unknown_report_placement_is_rejected_before_fonts_are_touched(monkeypatch):
     cmp = _cmp(P("a"), P("a"))
     L = layout(cmp)
-    monkeypatch.setattr("calandria.pdf.writer.default_resolver",
+    monkeypatch.setattr("delta.pdf.writer.default_resolver",
                         lambda: pytest.fail("the placement must be checked before fonts are resolved"))
     with pytest.raises(ValueError, match="unknown report placement 'lastt'"):
         render(L, report_info(cmp, "a", "b", "Standard", WHEN), PdfOptions(report="lastt"))

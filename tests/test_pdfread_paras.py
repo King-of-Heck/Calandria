@@ -1,5 +1,5 @@
-from calandria.pdfread.paras import MARKER, build_paragraphs, justified_document, nothing_wraps, prevailing_pitch
-from calandria.pdfread.types import Line, Span
+from delta.pdfread.paras import MARKER, build_paragraphs, justified_document, nothing_wraps, prevailing_pitch
+from delta.pdfread.types import Line, Span
 
 LEFT, RIGHT = 72.0, 540.0
 FULL = "The Supplier shall deliver the Goods to the Buyer at the Delivery Point on the agreed date"

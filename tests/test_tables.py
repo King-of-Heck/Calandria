@@ -1,13 +1,13 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.blocks import Ctx, ParaBlock
-from calandria.layout.merged import merged_items
-from calandria.layout.pieces import LayoutOptions
-from calandria.layout.tables import TableRowBlock, table_blocks, table_maps, table_runs
-from calandria.testing.makedocx import DOC, P, STYLES, TBL, make_docx
-from calandria.testing.fakefonts import FakeResolver
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.blocks import Ctx, ParaBlock
+from delta.layout.merged import merged_items
+from delta.layout.pieces import LayoutOptions
+from delta.layout.tables import TableRowBlock, table_blocks, table_maps, table_runs
+from delta.testing.makedocx import DOC, P, STYLES, TBL, make_docx
+from delta.testing.fakefonts import FakeResolver
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')

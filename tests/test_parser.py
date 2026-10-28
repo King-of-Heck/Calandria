@@ -1,6 +1,6 @@
-from calandria.docx.parser import parse_docx
-from calandria.model import Paragraph, Table
-from calandria.testing.makedocx import make_docx, DOC, P, W_NS
+from delta.docx.parser import parse_docx
+from delta.model import Paragraph, Table
+from delta.testing.makedocx import make_docx, DOC, P, W_NS
 
 
 def _doc(body, **parts):
@@ -276,7 +276,7 @@ def test_caps_and_small_caps_come_from_the_run_or_its_style():
 
 
 def test_paragraph_tab_stops_merge_style_level_and_own():
-    from calandria.model import TabStop
+    from delta.model import TabStop
     styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="TOC2">'
               '<w:name w:val="toc 2"/><w:pPr><w:tabs><w:tab w:val="left" w:pos="800"/>'
               '<w:tab w:val="right" w:leader="dot" w:pos="9350"/></w:tabs></w:pPr></w:style></w:styles>')
@@ -309,7 +309,7 @@ def test_bold_from_the_paragraph_style_is_drawn_not_compared():
 
 
 def test_paragraph_borders_from_own_ppr_and_style():
-    from calandria.model import Border
+    from delta.model import Border
     styles = (f'<w:styles xmlns:w="{W_NS}"><w:style w:type="paragraph" w:styleId="Boxed">'
               '<w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="0" w:color="FF0000"/>'
               '<w:left w:val="double" w:sz="6" w:space="2" w:color="auto"/></w:pBdr></w:pPr></w:style></w:styles>')
@@ -328,8 +328,8 @@ def test_paragraph_borders_from_own_ppr_and_style():
 
 
 def test_footnotes_and_endnotes_are_parsed_and_references_numbered():
-    from calandria.model import NoteRef
-    from calandria.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
+    from delta.model import NoteRef
+    from delta.testing.makedocx import ENDNOTES, ENREF, FNREF, FOOTNOTES, PR, R
     body = (PR(R("Delivery") + FNREF(2) + R(" within thirty days") + FNREF(1) + R(".")) +
             PR(R("Payment") + ENREF(1) + R(" terms")) + P("plain"))
     d = _doc(body, **{"word/footnotes.xml": FOOTNOTES({1: "Invoice date, not delivery.\nSecond paragraph.",
@@ -348,7 +348,7 @@ def test_footnotes_and_endnotes_are_parsed_and_references_numbered():
 
 
 def test_a_note_body_may_hold_a_table_and_a_missing_part_means_no_notes():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R, TBL
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R, TBL
     d = _doc(PR(R("x") + FNREF(5)), **{"word/footnotes.xml": FOOTNOTES({5: TBL([["cell"]]) + P("after")})})
     blocks = d.footnotes[5]
     assert isinstance(blocks[0], Table) and blocks[1].text == "after"

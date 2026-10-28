@@ -2,10 +2,10 @@
 the notice)."""
 import io
 
-from calandria.docx.package import Package
-from calandria.docx.parser import parse_docx
-from calandria.docx.revisions import REVISION_TAGS, count_revisions, revision_parts
-from calandria.testing.makedocx import DOC, HDR, P, R, RELS, SECT, make_docx
+from delta.docx.package import Package
+from delta.docx.parser import parse_docx
+from delta.docx.revisions import REVISION_TAGS, count_revisions, revision_parts
+from delta.testing.makedocx import DOC, HDR, P, R, RELS, SECT, make_docx
 
 INS = '<w:ins w:id="1" w:author="A" w:date="2026-09-17T00:00:00Z"><w:r><w:t>new</w:t></w:r></w:ins>'
 DEL = '<w:del w:id="2" w:author="A" w:date="2026-09-17T00:00:00Z"><w:r><w:delText>old</w:delText></w:r></w:del>'

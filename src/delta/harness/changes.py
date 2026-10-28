@@ -1,5 +1,5 @@
 """Render the change model in the reference engine's HTML row shape for the parity gate (the
-reference numbers rows; Calandria numbers passages, so the number is not emitted).
+reference numbers rows; Delta numbers passages, so the number is not emitted).
 
 Only the harness speaks HTML; the change model itself is plain data. The escaping and wrapper
 rules here reproduce the reference's row html byte for byte, which is what lets the gate compare

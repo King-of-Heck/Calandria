@@ -5,8 +5,8 @@ from datetime import datetime
 import pytest
 from pypdf import PdfReader
 
-from calandria.layout.fonts import default_dirs, default_resolver
-from calandria.pdf.fpdf_sink import FpdfPainter
+from delta.layout.fonts import default_dirs, default_resolver
+from delta.pdf.fpdf_sink import FpdfPainter
 
 pytestmark = pytest.mark.skipif(not any(os.path.isdir(d) for d in default_dirs()),
                                 reason="no system font directory on this machine")

@@ -115,15 +115,15 @@ function onScroll(side) {
 
 export function initSync() {
   for (const side of SIDES) $(PANE[side]).addEventListener("scroll", onScroll(side));
-  document.addEventListener("calandria:loaded", (e) => { data = e.detail; refreshSync(); });
-  document.addEventListener("calandria:restyled", refreshSync);
-  document.addEventListener("calandria:panes", (e) => {
+  document.addEventListener("delta:loaded", (e) => { data = e.detail; refreshSync(); });
+  document.addEventListener("delta:restyled", refreshSync);
+  document.addEventListener("delta:panes", (e) => {
     views = e.detail.views;
     refreshSync();
     const lead = views.blackline ? "blackline" : visible()[0];
     if (lead) syncFrom(lead);
   });
-  document.addEventListener("calandria:resized", () => {
+  document.addEventListener("delta:resized", () => {
     // app.js's applyZoom already calls refreshSync(); this listener only re-syncs the panes to
     // the lead once the index reflects the new sizes.
     const v = visible();

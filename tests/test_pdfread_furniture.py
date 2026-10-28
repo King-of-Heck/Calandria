@@ -1,6 +1,6 @@
-from calandria.pdfread.furniture import _PAGENUM, _signature, collect_notes, find_furniture
-from calandria.pdfread.grid import find_grids
-from calandria.pdfread.types import Line, PageLines, Seg, Span
+from delta.pdfread.furniture import _PAGENUM, _signature, collect_notes, find_furniture
+from delta.pdfread.grid import find_grids
+from delta.pdfread.types import Line, PageLines, Seg, Span
 
 H = 792.0
 

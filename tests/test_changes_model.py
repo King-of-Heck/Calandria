@@ -1,8 +1,8 @@
 import json
 
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.testing.makedocx import DOC, P, make_docx
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.testing.makedocx import DOC, P, make_docx
 
 
 def _doc(body):
@@ -36,7 +36,7 @@ def test_empty_documents():
 
 
 def _toc(title, page):
-    from calandria.model import Document, Paragraph, ParaProps, Run, RunProps, Section
+    from delta.model import Document, Paragraph, ParaProps, Run, RunProps, Section
     return Document(blocks=[Paragraph([Run(title + "\t", RunProps()),
                                        Run("{PAGEREF}", RunProps(field="PAGEREF", field_text=page))],
                                       ParaProps())], sections=[Section()])

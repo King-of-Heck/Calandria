@@ -21,7 +21,7 @@ class FpdfPainter:
         self.pdf.set_auto_page_break(False)
         self.pdf.set_margins(0, 0, 0)
         self.pdf.set_title(title)
-        self.pdf.set_creator("Calandria")
+        self.pdf.set_creator("Delta")
         if creation is not None:
             self.pdf.set_creation_date(creation)
         self._fonts: dict[tuple[str, int], str] = {}

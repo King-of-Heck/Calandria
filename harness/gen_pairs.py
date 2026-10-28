@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from calandria.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, ENDNOTES, ENREF,
+from delta.testing.makedocx import (COMMENTS, COMMENTS_EX, CRANGE, CREF, CRELS, DOC, ENDNOTES, ENREF,
                                         FLD, FNREF, FOOTNOTES, FTR, HDR, NUMBERING, P, PR, R, RELS, SECT,
                                         SETTINGS, STYLES, TBL, make_docx)  # noqa: E402
 

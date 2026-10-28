@@ -1,4 +1,4 @@
-"""Calandria document tree. Every later stage (diff, layout, sinks) consumes this."""
+"""Delta document tree. Every later stage (diff, layout, sinks) consumes this."""
 from __future__ import annotations
 
 import re

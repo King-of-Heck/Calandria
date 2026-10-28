@@ -1,4 +1,4 @@
-# Calandria
+# Delta
 
 Offline Word (`.docx`) and PDF redline / compare tool from HeckSoft (a King of Heck Company).
 Successor to SorkWhare Compare. Runs from a single downloaded folder
@@ -9,37 +9,37 @@ Status: v2.11.3 (see `CHANGELOG.md`).
 
 ## Running from the release zip
 
-Download `Calandria-<version>.zip` from the GitHub release, extract it anywhere (Explorer's
-"Extract All" is fine) and double-click `Calandria.cmd` inside the extracted folder. Calandria
+Download `Delta-<version>.zip` from the GitHub release, extract it anywhere (Explorer's
+"Extract All" is fine) and double-click `Delta.cmd` inside the extracted folder. Delta
 opens in its own window (Microsoft Edge in app mode; the default browser if Edge is absent).
 Close the window, or press Quit, to stop it. Nothing is installed: the folder holds its own
 64-bit Python and libraries, and removing the folder removes everything. To update, extract the
 new zip and delete the old folder. If nothing appears, look at
-`%LOCALAPPDATA%\Calandria\calandria.log`. Its first line is written by `Calandria.cmd` itself,
+`%LOCALAPPDATA%\Delta\delta.log`. Its first line is written by `Delta.cmd` itself,
 so a missing or empty log means the launcher never ran.
 
-The first launch also writes a `Calandria` shortcut beside `Calandria.cmd`, carrying the icon (a
-`.cmd` cannot). Double-click the shortcut, or drag it to the Desktop or pin it, to start Calandria from
+The first launch also writes a `Delta` shortcut beside `Delta.cmd`, carrying the icon (a
+`.cmd` cannot). Double-click the shortcut, or drag it to the Desktop or pin it, to start Delta from
 then on; every launch refreshes it, so it follows the folder if you move it.
 
-Inside the folder: `Calandria.cmd`, `Calandria.ico`, this file, the changelog and `_internal\` (`python\`, the
+Inside the folder: `Delta.cmd`, `Delta.ico`, this file, the changelog and `_internal\` (`python\`, the
 official embeddable Python with the libraries extracted into `Lib\site-packages`, and
-`app\calandria\`, the program). `_internal\python\python.exe -m calandria <command>` runs the
+`app\delta\`, the program). `_internal\python\python.exe -m delta <command>` runs the
 command line from the folder.
 
 ## Command line
 
 ```
-python -m calandria dump <file.docx>
-python -m calandria compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
-python -m calandria layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+python -m delta dump <file.docx>
+python -m delta compare <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
+python -m delta layout <a.docx> <b.docx> [--ignore-case] [--no-count-numbering]
                            [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                            [--hide-formatting] [--pages]
-python -m calandria pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
+python -m delta pdf <a.docx> <b.docx> <out.pdf> [--ignore-case] [--no-count-numbering]
                         [--hide-unchanged] [--hide-insertions] [--hide-deletions]
                         [--hide-formatting] [--no-change-bars] [--render-set=NAME]
                         [--report=first|last|none] [--changed-only]
-python -m calandria serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
+python -m delta serve [--port=N] [--idle=SECONDS] [--grace=SECONDS] [--log=PATH]
                           [--no-browser] [--verbose]
 ```
 
@@ -66,7 +66,7 @@ changes. Then `uv run pytest tests/parity -q` should be green with an empty
 
 `layout` prints the page model (pages, positioned lines, glyph runs, table boxes) that the PDF
 writer and the viewer draw; `--pages` prints only the page count. Metrics come from the fonts
-installed under `C:\Windows\Fonts` (override with `CALANDRIA_FONT_DIRS`).
+installed under `C:\Windows\Fonts` (override with `DELTA_FONT_DIRS`).
 
 Page counts on the corpus, and a digest of each redline's whole page model (so a line that merely
 moves is caught too), are pinned by `tests/parity/golden-pages.json`. After a deliberate layout
@@ -141,7 +141,7 @@ as for `.docx`.
 
 ## Viewer
 
-`python -m calandria serve` (or a double-click on `Calandria.cmd`) starts a local server on
+`python -m delta serve` (or a double-click on `Delta.cmd`) starts a local server on
 127.0.0.1 and opens the viewer in an Edge app window (or the default browser). Drop the original
 `.docx` on the "Original" card and the modified one on "Modified" (or click a card to choose, or
 drop both files anywhere), then press Compare; Swap exchanges the sides. The pages shown are the
@@ -181,8 +181,8 @@ uv run python harness/build_release.py
 
 runs the whole test suite (the parity gates included), downloads the embeddable Python and the
 runtime wheels named in `uv.lock` into `build/cache/` (each checked against its recorded sha256),
-extracts them into `build/stage/Calandria-<version>/`, smoke-tests the staged interpreter
-(`version`, the imports, a `pdf`, a `serve`) and writes `dist/Calandria-<version>.zip`. The
-version is `calandria.__version__` and must have an entry in `CHANGELOG.md`.
+extracts them into `build/stage/Delta-<version>/`, smoke-tests the staged interpreter
+(`version`, the imports, a `pdf`, a `serve`) and writes `dist/Delta-<version>.zip`. The
+version is `delta.__version__` and must have an entry in `CHANGELOG.md`.
 `--skip-tests`, `--skip-smoke` and `--keep-stage` are for iterating on the script; `--notes`
 prints the release notes for the GitHub release.

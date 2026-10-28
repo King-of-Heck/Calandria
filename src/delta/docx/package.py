@@ -17,7 +17,7 @@ def _ensure_w_namespace(data: bytes) -> bytes:
     """Some producers (incl. SorkWhare's own synthetic test fixtures) emit WordprocessingML
     parts that use the `w:` prefix on every element but never bind it via `xmlns:w=...` on
     the root. That is not valid XML a real Word install would ever write, but the reference
-    engine's regex-based reader does not care -- it never resolves namespaces at all. Calandria
+    engine's regex-based reader does not care -- it never resolves namespaces at all. Delta
     parses with a proper namespace-aware XML library, so an unbound prefix means every lookup
     silently finds nothing (0 paragraphs). Inject the binding onto the root element when it is
     missing; real, correctly-namespaced parts (xmlns:w already present) are returned untouched.

@@ -1,8 +1,8 @@
-from calandria.model import Paragraph, Table
-from calandria.pdfread.borderless import find_borderless
-from calandria.pdfread.build import build_document
-from calandria.pdfread.lines import build_lines
-from calandria.pdfread.types import PageLines, TextRun
+from delta.model import Paragraph, Table
+from delta.pdfread.borderless import find_borderless
+from delta.pdfread.build import build_document
+from delta.pdfread.lines import build_lines
+from delta.pdfread.types import PageLines, TextRun
 
 SCHEDULES = [("Schedule A", "Site and Designated Areas"), ("Schedule B", "Specifications"),
              ("Schedule 2.1(d)", "Reliance Information"), ("Schedule 2.2(a)", "Organizational Chart")]

@@ -1,4 +1,4 @@
-"""Paragraphs, ruled grids and notes -> the Document the rest of Calandria reads. The walk is over
+"""Paragraphs, ruled grids and notes -> the Document the rest of Delta reads. The walk is over
 ONE stream of body items in reading order, page after page, so a paragraph or a table that
 continues over a page break comes out whole."""
 from __future__ import annotations

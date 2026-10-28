@@ -1,20 +1,20 @@
 import io
 from datetime import datetime
 
-from calandria.diff.changes import empty_summary
-from calandria.diff.compare import compare
-from calandria.docx.parser import parse_docx
-from calandria.layout.engine import layout
-from calandria.layout.pages import FontRef, Layout, Page, PlacedLine
-from calandria.layout.pieces import LayoutOptions
-from calandria.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
+from delta.diff.changes import empty_summary
+from delta.diff.compare import compare
+from delta.docx.parser import parse_docx
+from delta.layout.engine import layout
+from delta.layout.pages import FontRef, Layout, Page, PlacedLine
+from delta.layout.pieces import LayoutOptions
+from delta.pdf.draw import (BAR_GAP, BAR_WIDTH, BLACK, GRID_WIDTH, NUMBER_GAP, NUMBER_SIZE,
                                 DrawResult, PdfOptions, bar_intervals, changed_pages, cid_label, content_bottom,
                                 draw_grid, draw_layout, draw_page, draw_runs, run_style)
-from calandria.pdf.rendersets import BLACK_AND_WHITE, STANDARD
-from calandria.pdf.report import GAP, TITLE, ReportInfo, report_height
-from calandria.testing.fakefonts import FakeResolver
-from calandria.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
-from calandria.testing.recpaint import RecordingPainter
+from delta.pdf.rendersets import BLACK_AND_WHITE, STANDARD
+from delta.pdf.report import GAP, TITLE, ReportInfo, report_height
+from delta.testing.fakefonts import FakeResolver
+from delta.testing.makedocx import DOC, P, PR, R, STYLES, TBL, make_docx
+from delta.testing.recpaint import RecordingPainter
 
 FR = FakeResolver()                       # 5 pt per character at size 10, line height 12, ascent 8
 STY = STYLES('<w:rFonts w:ascii="Fake"/><w:sz w:val="20"/>')
@@ -112,7 +112,7 @@ def test_synthetic_face_is_faked():
 
 
 def test_bold_italic_effects_are_faked():
-    from calandria.pdf.rendersets import CatStyle, RenderSet
+    from delta.pdf.rendersets import CatStyle, RenderSet
     rs = RenderSet("X", insert=CatStyle("000000", frozenset({"bold", "italic", "underline"})),
                    delete=STANDARD.delete, formatting=STANDARD.formatting,
                    move_from=STANDARD.move_from, move_to=STANDARD.move_to)
@@ -390,7 +390,7 @@ def test_changed_only_report_placement_and_line():
 
 # v2.4.0: drawing a side (spec §12.3).
 
-from calandria.pdf.draw import NUMBER_SIZE, tint
+from delta.pdf.draw import NUMBER_SIZE, tint
 
 SIDE_A = P("aaaa bbbb cccc") + P("gone gone")
 SIDE_B = P("aaaa xxxx cccc") + P("new new")
@@ -431,7 +431,7 @@ def test_marks_never_touch_the_blackline():
 
 
 def test_a_tab_run_draws_its_decorations_but_no_text():
-    from calandria.layout.pages import GlyphRun, PlacedLine
+    from delta.layout.pages import GlyphRun, PlacedLine
     g = GlyphRun("\t", 10, 30, "Fake|", 10, False, False, False, None, "ins", False, 1)
     ln = PlacedLine(10, 0, 12, 8, [g], [], True, [1], 0)
     p = RecordingPainter()
@@ -453,7 +453,7 @@ def test_paragraph_borders_are_painted_as_lines_before_the_text():
 
 
 def test_a_reference_mark_is_drawn_above_the_baseline():
-    from calandria.testing.makedocx import FNREF, FOOTNOTES, PR, R
+    from delta.testing.makedocx import FNREF, FOOTNOTES, PR, R
     body = PR(R("aaaa") + FNREF(1))
     L = _lay(body, body, sty=STY)
     p = _runs(L)

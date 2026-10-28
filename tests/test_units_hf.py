@@ -1,10 +1,10 @@
 import io
 
-from calandria.diff.compare import compare
-from calandria.diff.units import Loc, units, walk
-from calandria.docx.parser import parse_docx
-from calandria.layout.merged import merged_items
-from calandria.testing.makedocx import DOC, FLD, FTR, HDR, P, PR, R, RELS, SECT, TBL, make_docx
+from delta.diff.compare import compare
+from delta.diff.units import Loc, units, walk
+from delta.docx.parser import parse_docx
+from delta.layout.merged import merged_items
+from delta.testing.makedocx import DOC, FLD, FTR, HDR, P, PR, R, RELS, SECT, TBL, make_docx
 
 RELS_ = RELS({"rId1": "header1.xml", "rId2": "header2.xml", "rId3": "footer1.xml"})
 

@@ -1,6 +1,6 @@
 import pytest
 
-from calandria.diff.text import (categorize, content_tokens, norm, sim, sim_upper, tokenize,
+from delta.diff.text import (categorize, content_tokens, norm, sim, sim_upper, tokenize,
                                  words_only)
 
 

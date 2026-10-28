@@ -18,6 +18,12 @@ new zip and delete the old folder. If nothing appears, look at
 `%LOCALAPPDATA%\Delta\delta.log`. Its first line is written by `Delta.cmd` itself,
 so a missing or empty log means the launcher never ran.
 
+If Windows says Smart App Control blocked `Delta.cmd` (or nothing happens and the log is
+empty), Windows has marked the zip as downloaded from the internet, and "Extract All" copies that
+mark onto every file inside. Delete the extracted folder, right-click the zip, choose
+Properties, tick **Unblock**, press OK, then extract it again. The same can be done from
+PowerShell with `Unblock-File <path to the zip>` before extracting.
+
 The first launch also puts a `Delta` shortcut, carrying the icon (a `.cmd` cannot), on the Desktop
 and beside `Delta.cmd`. Double-click it to start Delta from then on. Every launch refreshes both, so
 they follow the folder if you move it or extract a newer version; delete the Desktop one and it is

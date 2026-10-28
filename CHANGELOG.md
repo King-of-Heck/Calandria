@@ -1,5 +1,13 @@
 # Delta changelog
 
+## v2.12.2 — Desktop shortcut (2026-10-28)
+
+- The first launch puts a Delta shortcut, with the Delta icon, on the Desktop (the real one, also
+  when Windows keeps it in OneDrive), as well as beside `Delta.cmd`.
+- While it stays on the Desktop, every launch points it at the folder just launched, so it follows
+  a moved folder or a newer version you extracted and started once. Delete it and it is not put
+  back.
+
 ## v2.12.1 — Word matching (2026-10-28)
 
 - Within a changed paragraph, the comparison keeps longer shared words as unchanged text in

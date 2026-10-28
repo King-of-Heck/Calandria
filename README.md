@@ -18,9 +18,10 @@ new zip and delete the old folder. If nothing appears, look at
 `%LOCALAPPDATA%\Delta\delta.log`. Its first line is written by `Delta.cmd` itself,
 so a missing or empty log means the launcher never ran.
 
-The first launch also writes a `Delta` shortcut beside `Delta.cmd`, carrying the icon (a
-`.cmd` cannot). Double-click the shortcut, or drag it to the Desktop or pin it, to start Delta from
-then on; every launch refreshes it, so it follows the folder if you move it.
+The first launch also puts a `Delta` shortcut, carrying the icon (a `.cmd` cannot), on the Desktop
+and beside `Delta.cmd`. Double-click it to start Delta from then on. Every launch refreshes both, so
+they follow the folder if you move it or extract a newer version; delete the Desktop one and it is
+not put back.
 
 Inside the folder: `Delta.cmd`, `Delta.ico`, this file, the changelog and `_internal\` (`python\`, the
 official embeddable Python with the libraries extracted into `Lib\site-packages`, and

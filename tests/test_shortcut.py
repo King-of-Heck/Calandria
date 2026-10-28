@@ -119,3 +119,52 @@ def test_the_windows_shell_resolves_the_written_shortcut(tmp_path):
     if r.returncode != 0 or "language mode" in r.stderr.lower():
         pytest.skip("PowerShell cannot create COM objects here")
     assert r.stdout.splitlines() == [str(cmd), str(tmp_path), str(tmp_path / "Delta.ico") + ",0", "Delta"]
+
+
+def _setup(tmp_path):
+    app = tmp_path / "Delta-x"
+    app.mkdir()
+    cmd = app / "Delta.cmd"
+    cmd.write_text("@echo off\r\n")
+    (app / "Delta.ico").write_bytes(b"\0\0\1\0")
+    desk, data = tmp_path / "Desktop", tmp_path / "data"
+    desk.mkdir()
+    return cmd, desk, data
+
+
+def test_the_desktop_shortcut_is_written_on_the_first_run_only(tmp_path):
+    cmd, desk, data = _setup(tmp_path)
+    assert sc.desktop_shortcut(str(cmd), str(desk), str(data)) == "written"
+    p = _parse((desk / "Delta.lnk").read_bytes())
+    assert p["base"] == str(cmd) and p["icon"] == str(cmd.parent / "Delta.ico")
+    assert p["working_dir"] == str(cmd.parent) and "relative" not in p      # relative to the Desktop means nothing
+    assert sc.desktop_shortcut(str(cmd), str(desk), str(data)) == "unchanged"
+    (desk / "Delta.lnk").unlink()                                            # the user removed it: stays removed
+    assert sc.desktop_shortcut(str(cmd), str(desk), str(data)) == "removed by the user"
+    assert not (desk / "Delta.lnk").exists()
+
+
+def test_the_desktop_shortcut_follows_a_moved_folder_while_it_exists(tmp_path):
+    cmd, desk, data = _setup(tmp_path)
+    assert sc.desktop_shortcut(str(cmd), str(desk), str(data)) == "written"
+    moved = tmp_path / "Delta-y"
+    cmd.parent.rename(moved)
+    assert sc.desktop_shortcut(str(moved / "Delta.cmd"), str(desk), str(data)) == "refreshed"
+    assert _parse((desk / "Delta.lnk").read_bytes())["base"] == str(moved / "Delta.cmd")
+
+
+def test_the_desktop_shortcut_needs_the_icon_a_desktop_and_a_data_folder(tmp_path):
+    cmd, desk, data = _setup(tmp_path)
+    (cmd.parent / "Delta.ico").unlink()
+    assert sc.desktop_shortcut(str(cmd), str(desk), str(data)) == "no icon"
+    (cmd.parent / "Delta.ico").write_bytes(b"\0\0\1\0")
+    assert sc.desktop_shortcut(str(cmd), str(tmp_path / "nowhere"), str(data)) == "no desktop"
+    assert sc.desktop_shortcut(str(cmd), None, str(data)) == "no desktop"
+    assert sc.desktop_shortcut(str(cmd), str(desk), None) == "no data folder"
+    assert not (desk / "Delta.lnk").exists() and not data.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="asks Windows for the Desktop folder")
+def test_desktop_folder_is_the_users_real_desktop():
+    d = sc.desktop_folder()
+    assert d and os.path.isdir(d) and os.path.isabs(d)

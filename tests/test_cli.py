@@ -215,6 +215,31 @@ def test_serve_writes_the_launchers_shortcut_and_logs_it(capsys, monkeypatch, tm
     assert "shortcut unchanged" in capsys.readouterr().out
 
 
+def test_serve_puts_the_shortcut_on_the_desktop_once(capsys, monkeypatch, tmp_path, _no_real_desktop):
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
+    cmd = tmp_path / "Delta.cmd"
+    cmd.write_text("@echo off\r\n")
+    (tmp_path / "Delta.ico").write_bytes(b"\0\0\1\0")
+    args = ["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", f"--shortcut={cmd}"]
+    assert main(args) == 0
+    assert "desktop shortcut written" in capsys.readouterr().out
+    lnk = _no_real_desktop / "Desktop" / "Delta.lnk"
+    assert lnk.stat().st_size > 0x4C
+    lnk.unlink()
+    assert main(args) == 0
+    assert "desktop shortcut removed by the user" in capsys.readouterr().out and not lnk.exists()
+
+
+def test_a_failed_desktop_shortcut_is_one_line_and_the_app_still_serves(capsys, monkeypatch):
+    monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
+    monkeypatch.setattr("delta.__main__.write_shortcut", lambda p: "written")
+    monkeypatch.setattr("delta.__main__.desktop_shortcut",
+                        lambda *a: (_ for _ in ()).throw(PermissionError("read only")))
+    assert main(["serve", "--no-browser", "--port=0", "--idle=0.4", "--grace=0.4", "--shortcut=x.cmd"]) == 0
+    out = capsys.readouterr().out
+    assert "desktop shortcut failed 'read only'" in out and '"url"' in out
+
+
 def test_a_failed_shortcut_is_one_line_and_the_app_still_serves(capsys, monkeypatch):
     monkeypatch.setattr("delta.server.app.open_viewer", lambda url: None)
     monkeypatch.setattr("delta.__main__.write_shortcut", lambda p: (_ for _ in ()).throw(PermissionError("read only")))

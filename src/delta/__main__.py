@@ -31,7 +31,7 @@ from .pdf.writer import REPORTS, render
 from .pdfread.types import PdfRefused
 from .reader import documents, read_source
 from .server.app import DEFAULT_GRACE, DEFAULT_IDLE, serve
-from .server.shortcut import write_shortcut
+from .server.shortcut import data_folder, desktop_folder, desktop_shortcut, write_shortcut
 
 USAGE = ("usage: python -m delta dump <file.docx>\n"
          "       Every <file.docx> may also be a text PDF (both files of a pair must be the same kind).\n"
@@ -201,6 +201,11 @@ def main(argv) -> int:
                 emit("shortcut " + write_shortcut(values["--shortcut"]))
             except Exception as e:                                          # noqa: BLE001
                 emit("shortcut failed " + ascii(str(e)))
+            # and once on the Desktop (refreshed while it stays there, never put back once deleted)
+            try:
+                emit("desktop shortcut " + desktop_shortcut(values["--shortcut"], desktop_folder(), data_folder()))
+            except Exception as e:                                          # noqa: BLE001
+                emit("desktop shortcut failed " + ascii(str(e)))
 
         # under pythonw.exe without --log there is no stderr for the access log to go to
         verbose = "--verbose" in flags and sys.stderr is not None

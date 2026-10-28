@@ -113,3 +113,71 @@ def write_shortcut(cmd_path: str) -> str:
     with open(lnk, "wb") as f:
         f.write(data)
     return "written"
+
+
+MARKER_NAME = "desktop-shortcut"     # in the app's data folder: the Desktop shortcut was offered once
+_FOLDERID_DESKTOP = "B4BFCC3A-DB2C-424C-B029-7FE99A87C641"
+
+
+def desktop_folder() -> str | None:
+    """The user's Desktop as Windows knows it (often redirected into OneDrive on a managed
+    machine), else %USERPROFILE%/Desktop; None when there is neither."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            import uuid
+            u = uuid.UUID(_FOLDERID_DESKTOP)
+            guid = (ctypes.c_ubyte * 16)(*u.bytes_le)
+            path = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path)) == 0:
+                found = path.value
+                ctypes.windll.ole32.CoTaskMemFree(path)
+                if found and os.path.isdir(found):
+                    return found
+        except Exception:                                                   # noqa: BLE001
+            pass
+    home = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+    guess = os.path.join(home, "Desktop")
+    return guess if os.path.isdir(guess) else None
+
+
+def data_folder() -> str | None:
+    base = os.environ.get("LOCALAPPDATA")
+    return os.path.join(base, "Delta") if base else None
+
+
+def desktop_shortcut(cmd_path: str, desktop: str | None, data: str | None) -> str:
+    """Put `Delta.lnk` on the Desktop the first time the app starts; afterwards only refresh it
+    while it is still there, so a moved or updated folder is followed but a shortcut the user
+    deleted stays deleted. Returns "written", "refreshed", "unchanged", "removed by the user",
+    "no icon", "no desktop" or "no data folder". Errors are the caller's to report."""
+    cmd_path = os.path.abspath(cmd_path)
+    folder = os.path.dirname(cmd_path)
+    icon = os.path.join(folder, ICON_NAME)
+    if not os.path.isfile(icon):
+        return "no icon"
+    if not desktop or not os.path.isdir(desktop):
+        return "no desktop"
+    if not data:
+        return "no data folder"
+    lnk = os.path.join(desktop, LINK_NAME)
+    marker = os.path.join(data, MARKER_NAME)
+    bytes_ = shortcut_bytes(cmd_path, folder, icon, "Delta")
+    if os.path.exists(lnk):
+        with open(lnk, "rb") as f:
+            same = f.read() == bytes_
+        if not same:
+            with open(lnk, "wb") as f:
+                f.write(bytes_)
+        result = "unchanged" if same else "refreshed"
+    elif os.path.exists(marker):
+        return "removed by the user"
+    else:
+        with open(lnk, "wb") as f:
+            f.write(bytes_)
+        result = "written"
+    if not os.path.exists(marker):
+        os.makedirs(data, exist_ok=True)
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write("The Delta shortcut was put on the Desktop once; delete this file to have it put there again.\n")
+    return result

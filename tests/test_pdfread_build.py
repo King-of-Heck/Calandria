@@ -217,6 +217,50 @@ def test_a_row_broken_over_the_page_is_one_row_when_a_cell_has_nothing_left_to_c
         [["If to OPG,", "Project Name:", "PO Number:"], ["if to Contractor,"]]]
 
 
+WIDE = "The Contractor shall give the notice to the Owner in writing and"        # fills a 200 pt cell
+
+
+def broken_two_column_row(left_top: str, right_top: str):
+    """One two-column row whose cells reach the cell's edge at the foot of page 0, then a row of
+    text at the top of page 1 under the same columns."""
+    p0 = page(0, [L(WIDE, 714, x0=78, x1=264, cell=(0, 0)), L(WIDE, 714, x0=278, x1=464, cell=(0, 1))],
+              lattice([72, 272, 472], [700, 740]))
+    top = [L(left_top, 94, 1, x0=78, x1=150, cell=(0, 0))] + ([L(right_top, 94, 1, x0=278, x1=350, cell=(0, 1))]
+                                                             if right_top else [])
+    p1 = page(1, top + [L("Outro", 300, 1, x1=110)], lattice([72, 272, 472], [80, 100]))
+    table, _outro = build_document([p0, p1], set(), {}, 2, ()).blocks
+    return [[[b.text for b in c.blocks] for c in r.cells] for r in table.rows]
+
+
+def test_a_row_whose_every_cell_runs_on_over_the_page_is_one_row_with_its_paragraphs_whole():
+    """A cell whose last line reaches its edge mid-sentence cannot be the end of its row: the
+    sentence carries on in the same cell on the next page, and is one paragraph, as in the body."""
+    assert broken_two_column_row("delivered by hand.", "sent by courier.") == [
+        [[WIDE + " delivered by hand."], [WIDE + " sent by courier."]]]
+    assert broken_two_column_row("delivered by hand.", "") == [[[WIDE + " delivered by hand."], [WIDE]]]
+    # A cell that already wrapped at its edge shows the wrap, whatever the next page starts with.
+    p0 = page(0, [L(WIDE, 700, x0=78, x1=264, cell=(0, 0)), L(WIDE, 714, x0=78, x1=264, cell=(0, 0)),
+                  L("Notice", 700, x0=278, x1=320, cell=(0, 1))], lattice([72, 272, 472], [690, 740]))
+    p1 = page(1, [L("Owner by courier.", 94, 1, x0=78, x1=170, cell=(0, 0)), L("Head office", 94, 1, x0=278, x1=350, cell=(0, 1))],
+              lattice([72, 272, 472], [80, 100]))
+    (table,) = build_document([p0, p1], set(), {}, 2, ()).blocks
+    assert [[[b.text for b in c.blocks] for c in r.cells] for r in table.rows] == [
+        [[f"{WIDE} {WIDE} Owner by courier."], ["Notice", "Head office"]]]
+
+
+def test_a_row_that_ended_at_the_foot_of_the_page_is_not_run_on():
+    # A line at its cell's edge with a new sentence under it: a column sized to its text, every line at its edge.
+    assert broken_two_column_row("Delivered by hand.", "Sent by courier.") == [
+        [[WIDE], [WIDE]], [["Delivered by hand."], ["Sent by courier."]]]
+    ended = WIDE.removesuffix(" and") + " by hand."
+    p0 = page(0, [L(ended, 714, x0=78, x1=264, cell=(0, 0)), L("Notice", 714, x0=278, x1=320, cell=(0, 1))],
+              lattice([72, 272, 472], [700, 740]))
+    p1 = page(1, [L("Address", 94, 1, x0=78, x1=150, cell=(0, 0)), L("Head office", 94, 1, x0=278, x1=350, cell=(0, 1))],
+              lattice([72, 272, 472], [80, 100]))
+    (table,) = build_document([p0, p1], set(), {}, 2, ()).blocks
+    assert [[c.blocks[0].text for c in r.cells] for r in table.rows] == [[ended, "Notice"], ["Address", "Head office"]]
+
+
 def test_tables_with_different_columns_or_text_between_them_stay_apart():
     p0 = page(0, [L("A", 714, x0=78, x1=90, cell=(0, 0)), L("B", 714, x0=278, x1=290, cell=(0, 1))],
               lattice([72, 272, 472], [700, 720]))

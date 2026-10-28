@@ -10,8 +10,8 @@ from ..model import (Cell, Document, NoteRef, Paragraph, ParaProps, Row, Run, Ru
                      TabStop, collapse_ws)
 from .fontname import split_font
 from .grid import TOL, Grid, GridCell
-from .paras import (EDGE, LEADER, MARKER, TOC_END, PdfPara, build_paragraphs, justified_by, justify_votes,
-                    nothing_wraps_by, prevailing_pitch, wrap_votes)
+from .paras import (EDGE, LEADER, MARKER, SENTENCE_END, TOC_END, PdfPara, build_paragraphs, justified_by,
+                    justify_votes, nothing_wraps_by, prevailing_pitch, wrap_votes)
 from .types import Line, PageLines
 
 MIN_MARGIN = 0.03      # of the page width or height: a measured margin is never less than this
@@ -88,6 +88,7 @@ class _Builder:
         self.blocks: list = []
         self.pending: list[Line] = []
         self.tail = None          # (table, column offsets, header texts) while the last block is that table
+        self.cell_lines: dict[int, tuple[GridCell, list[Line]]] = {}    # id(Cell) -> where its blocks came from
         self.fonts: Counter = Counter()
 
     # -- paragraphs ---------------------------------------------------------------------------
@@ -160,11 +161,31 @@ class _Builder:
             self.pending, self.tail = [], None
 
     # -- tables -------------------------------------------------------------------------------
+    @staticmethod
+    def cell_right(c: GridCell, lines: list[Line]) -> float:
+        """The right edge of a cell's text: its right rule less the padding its text has on the left."""
+        return c.x1 - (min(ln.x0 for ln in lines) - c.x0)
+
     def cell_blocks(self, c: GridCell, lines: list[Line]) -> list:
         if not lines:
             return [Paragraph([], ParaProps())]
-        left = min(ln.x0 for ln in lines)
-        return self.paragraphs(lines, left, c.x1 - (left - c.x0), self.pitch)
+        return self.paragraphs(lines, min(ln.x0 for ln in lines), self.cell_right(c, lines), self.pitch)
+
+    def runs_on(self, cell: Cell, nxt: Cell) -> bool:
+        """Whether a cell stops mid-sentence and carries on in `nxt`, under it on the next page: its
+        last line reaches the cell's edge and ends no sentence, and the text shows it wrapped there
+        -- the line before reached the edge too, or the text under it starts lowercase. Reaching the
+        edge alone is not enough: a column sized to its text has every line at its edge."""
+        c, lines = self.cell_lines[id(cell)]
+        _c, after = self.cell_lines[id(nxt)]
+        if not lines or not after:
+            return False
+        right, last = self.cell_right(c, lines), lines[-1]
+        if right - last.x1 > EDGE * last.size or SENTENCE_END.search(last.text.strip()) or TOC_END.search(last.text):
+            return False
+        wrapped = len(lines) >= 2 and lines[-2].page == last.page and right - lines[-2].x1 <= EDGE * last.size
+        head = after[0].text.lstrip().lstrip("(")
+        return wrapped or (bool(head) and head[0].islower())
 
     def rows(self, grid: Grid, cell_lines: dict[int, list[Line]]) -> list[Row]:
         cover: dict[tuple[int, int], int] = {}
@@ -178,11 +199,13 @@ class _Builder:
             while k < len(grid.xs) - 1:
                 c = grid.cells[cover[(r, k)]]
                 end = max(k + 1, c.col + c.colspan)
+                lines = cell_lines.get(cover[(r, k)], []) if c.row == r else []
                 if c.row == r:
-                    blocks, merge = self.cell_blocks(c, cell_lines.get(cover[(r, k)], [])), ("restart" if c.rowspan > 1 else None)
+                    blocks, merge = self.cell_blocks(c, lines), ("restart" if c.rowspan > 1 else None)
                 else:
                     blocks, merge = [Paragraph([], ParaProps())], "continue"
                 cells.append(Cell(blocks, grid_span=end - k, v_merge=merge))
+                self.cell_lines[id(cells[-1])] = (c, lines)
                 k = end
             rows.append(Row(cells))
         return rows
@@ -192,15 +215,30 @@ class _Builder:
         texts = [collapse_ws(" ".join(b.text for b in c.blocks if isinstance(b, Paragraph))) for c in row.cells]
         return texts if any(texts) else None
 
-    @classmethod
-    def broken_row(cls, last: Row, first: Row) -> bool:
+    def broken_row(self, last: Row, first: Row) -> bool:
         """Whether the first row of a table carried on over a page is the rest of the last row: Word
         breaks a row that does not fit, each cell carrying on with what is left of it, so a cell that
-        already ended is empty there. Some cells empty and some not reads as that; every cell full
-        (a broken row whose cells all ran on) is taken as a new row: the borders cannot tell them apart."""
-        texts = cls.row_texts(first)
-        return (texts is not None and not all(texts) and len(last.cells) == len(first.cells)
-                and all(a.grid_span == b.grid_span and b.v_merge is None for a, b in zip(last.cells, first.cells)))
+        already ended is empty there. Some cells empty and some not reads as that; so does a cell of
+        the last row that stopped mid-sentence at its edge with text under it. Every cell full and
+        none of them run on is a new row: the borders cannot tell them apart."""
+        texts = self.row_texts(first)
+        if texts is None or len(last.cells) != len(first.cells) or not all(
+                a.grid_span == b.grid_span and b.v_merge is None for a, b in zip(last.cells, first.cells)):
+            return False
+        return not all(texts) or any(self.runs_on(a, b) for a, b in zip(last.cells, first.cells))
+
+    def carry_on(self, prev: Cell, cell: Cell) -> None:
+        """Put the rest of a broken cell into the cell it carries on: read again from the lines of both
+        pages, so a paragraph that ran over the break comes out whole, as it does in the body."""
+        c, before = self.cell_lines[id(prev)]
+        _c, after = self.cell_lines[id(cell)]
+        if not after:
+            return
+        if before and not self.runs_on(prev, cell):
+            prev.blocks.extend(cell.blocks)         # it ended at the break: its paragraphs stand apart
+        else:
+            prev.blocks[:] = self.cell_blocks(c, before + after)
+        self.cell_lines[id(prev)] = (c, before + after)
 
     def add_table(self, grid: Grid, cell_lines: dict[int, list[Line]], first_on_page: bool) -> None:
         rows = self.rows(grid, cell_lines)
@@ -212,8 +250,7 @@ class _Builder:
                     rows = rows[1:]
                 if rows and table.rows and self.broken_row(table.rows[-1], rows[0]):
                     for prev_cell, cell in zip(table.rows[-1].cells, rows[0].cells):
-                        if any(isinstance(b, Paragraph) and b.text for b in cell.blocks):
-                            prev_cell.blocks.extend(cell.blocks)
+                        self.carry_on(prev_cell, cell)
                     rows = rows[1:]
                 table.rows.extend(rows)
                 return

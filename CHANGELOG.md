@@ -1,5 +1,13 @@
 # Delta changelog
 
+## v2.12.3 — PDF table rows that run on (2026-10-28)
+
+- Comparing PDFs: a table row split over a page break whose every cell carries on to the next
+  page is read as one row when a cell stops mid-sentence at its edge. Before, it was read as two
+  rows, so it could show as changed when the two PDFs broke the page in different places.
+- A paragraph inside a table cell that runs over a page break is read as one paragraph, as it
+  already was in the body text.
+
 ## v2.12.2 — Desktop shortcut (2026-10-28)
 
 - The first launch puts a Delta shortcut, with the Delta icon, on the Desktop (the real one, also

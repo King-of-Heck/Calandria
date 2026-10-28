@@ -116,9 +116,11 @@ approximate and comes with limits worth knowing before relying on it:
   per row, or wrapped only after the first column); one with an empty cell, a right-aligned
   column or a wrapped first column is read as ordinary lines, so an added row may show as one
   changed line rather than an inserted row. A table row split
-  across a page break is read as one row when some of its cells ended before the break; when
-  every cell runs on, it is read as two rows, so it can show as changed if the two PDFs paginate
-  differently.
+  across a page break is read as one row when some of its cells ended before the break, or when a
+  cell stops mid-sentence at its edge (a paragraph split there is read whole). When every cell
+  runs on but none shows it (each ends a sentence at the break, or the text under it starts with a
+  capital in a column sized to its text), it is read as two rows, so it can show as changed if
+  the two PDFs paginate differently.
 - Footnotes are recognised only when they print smaller than the body text; footnotes at body
   size, and endnotes always, are compared as ordinary paragraphs.
 - Comments, tracked changes and anything drawn as a picture are not part of a PDF's text and are
